@@ -1,0 +1,134 @@
+       ADR AEXP
+AEXP
+       LB 
+       CL "section .text"
+       OUT 
+       CL "global _start"
+       OUT 
+       LB 
+       CL "_start:"
+       OUT 
+A0 
+       JMP EX1
+       BF A1 
+A1 
+A2 
+       BT A0 
+       SET 
+       BE 
+       CL "mov eax, 4"
+       OUT 
+       CL "pop ecx"
+       OUT 
+       CL "mov ebx, 1"
+       OUT 
+       CL "mov edx, 4"
+       OUT 
+       CL "int 0x80"
+       OUT 
+       CL "mov eax, 1   ; system call for exit"
+       OUT 
+       CL "xor ebx, ebx ; exit status"
+       OUT 
+       CL "int 0x80"
+       OUT 
+A3 
+A4 
+       R 
+EX1
+       JMP EX2
+       BF A5 
+A6 
+       TST "+"
+       BF A7 
+       JMP EX2
+       BE 
+       CL "pop ebx"
+       OUT 
+       CL "pop eax"
+       OUT 
+       CL "add eax, ebx"
+       OUT 
+       CL "push eax"
+       OUT 
+A7 
+       BT A8 
+       TST "-"
+       BF A9 
+       JMP EX2
+       BE 
+       CL "pop ebx"
+       OUT 
+       CL "pop eax"
+       OUT 
+       CL "sub eax, ebx"
+       OUT 
+       CL "push eax"
+       OUT 
+A9 
+A8 
+       BT A6 
+       SET 
+       BE 
+A5 
+A10 
+       R 
+EX2
+       JMP EX3
+       BF A11 
+A12 
+       TST "*"
+       BF A13 
+       JMP EX3
+       BE 
+       CL "pop ebx"
+       OUT 
+       CL "pop eax"
+       OUT 
+       CL "imul eax, ebx"
+       OUT 
+       CL "push eax"
+       OUT 
+A13 
+       BT A14 
+       TST "/"
+       BF A15 
+       JMP EX3
+       BE 
+       CL "pop ebx"
+       OUT 
+       CL "pop eax"
+       OUT 
+       CL "cdq"
+       OUT 
+       CL "idiv ebx"
+       OUT 
+       CL "push eax"
+       OUT 
+A15 
+A14 
+       BT A12 
+       SET 
+       BE 
+A11 
+A16 
+       R 
+EX3
+       NUM 
+       BF A17 
+       CL "push"
+       CI 
+       OUT 
+A17 
+       BT A18 
+       TST "("
+       BF A19 
+       JMP EX1
+       BE 
+       TST ")"
+       BE 
+A19 
+A18 
+       R 
+       END 
+       
