@@ -1,0 +1,16 @@
+{
+	"compilerOptions": {
+		"allowSyntheticDefaultImports": true,
+		"declarationDir": "./dist/types/",
+		"declaration": true,
+		"declarationMap": true,
+		"target": "ES5",
+		"module": "ES2022",
+		"moduleDetection": "auto",
+		"outDir": "./dist/",
+		"rootDir": "./src/",
+		"removeComments": true,
+		"moduleResolution": "node"
+	},
+	"compileOnSave": true
+}

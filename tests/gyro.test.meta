@@ -1,0 +1,71 @@
+:FUNCTION_NAMES = {};
+
+.SYNTAX PROGRAM
+
+PROGRAM = .LABEL("_start") BODY;
+
+BODY = $(FUNCTION | DECLARE_VAR | DECLARE_CONST | RETURN_STATEMENT | FUNCTION_CALL);
+
+DECLARE_VAR = "var" ~ ASSIGNMENT ->("%MUT");
+DECLARE_CONST = "const" ~ ASSIGNMENT ->("%IMUT");
+
+ASSIGNMENT = TYPED_DECLARATION ~ "=" ~ EXP -> ("STO") ~ ";";
+
+TYPED_DECLARATION = .ID -> ("ADR" *) ~ ((":" ~ TYPE ->("%CVT" %)) | ~);
+
+/* SECTION : Expression */
+
+EXP = EX2 $(BINOP_PLUS EX2 -> ("ADD")
+	| BINOP_MIN EX2 -> ("SUB") );
+EX2 = EX3 $(BINOP_MUL EX3 -> ("MUL")
+	| BINOP_DIV EX3 -> ("DIV") );
+EX3 = EX4 $(BINOP_POW EX3 -> ("POW"));
+EX4 = BINOP_PLUS EX5
+	| BINOP_MIN EX5 -> ("NEG")
+	| EX5;
+EX5 = .ID  -> ("LDN" *)
+	| .NUMBER -> ("LDC" *)
+	| "(" EX1 ")";
+
+/* SECTION : Binary Operators */
+BINOP = BINOP_DIV | BINOP_OR;
+
+BINOP_DIV = "/";
+BINOP_MUL = "*";
+BINOP_MIN = "-";
+BINOP_PLUS = "+";
+BINOP_POW = "**";
+BINOP_OR = "|";
+
+/* SECTION : Function */
+FUNCTION = "function" ->("JMP" *1) ~ .ID ([:FUNCTION_NAMES[*]] .ERROR("error: function may only be defined once") | ([:FUNCTION_NAMES[*] = true] .LABEL(*) "(" ~ ARGUMENT_LIST ~ ")" ~ (":" ~ FUNCTION_RETURN_TYPE ->("%RETTYPE" %) | ~) ~ "{" ~ BODY ~ "}" .LABEL(*1)));
+
+ARGUMENT_LIST = GET_ARGUMENT ~ $("," GET_ARGUMENT);
+
+GET_ARGUMENT = .ID ->("POP" *) ~ ((":" ~ TYPE ->("%CVT" %)) | ~);
+
+/* SECTION : Function Calls */
+FUNCTION_CALL = .ID (([:FUNCTION_NAMES[*]] %(*) "(" ~ PASS_ARGUMENT_LIST ~ ")" ->("JMP" %) ~ (";" | ~)) | .ERROR("error: call to undefined function"));
+
+PASS_ARGUMENT_LIST = PASS_ARGUMENT ~ $("," PASS_ARGUMENT);
+
+PASS_ARGUMENT = EXP ->("PUSH") | .STRING ->("LDC" *) ->("PUSH");
+
+/* SECTION : Statements */
+RETURN_STATEMENT = "return" ~ EXP ->("RET") ~ (";" | ~);
+
+/* SECTION : Type */
+/* A type can be just a single word like `string` */
+/* but it might also be something like an array of string, a fixed-length array */
+/* or something entirely else, this defines all edge cases */
+/* Example Types: */
+/* - i32 -> Int 32 bit */
+/* - HashMap<&str, i32> -> HashMap with string pointers as indices and 32 bit integers as values. */
+
+TYPE = .ID %(*) (("<" %("<") ~ TYPE $("," %(",") TYPE) ">" %(">")) | ~);
+
+/* Same as type but can be separated by an OR binop */
+
+FUNCTION_RETURN_TYPE = TYPE $("|" %("|") TYPE);
+
+.END

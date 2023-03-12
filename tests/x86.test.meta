@@ -1,0 +1,17 @@
+:STACK = [];
+
+.SYNTAX PROGRAM
+
+PROGRAM = $(INS);
+
+
+/* Move value into register MOV_LIT_REG -> 10 */
+/* Move register into register MOV_REG_REG -> 11 */
+INS = "mov" ((LITERAL %(.TOHEX(*)) "," REGISTER .PUSH(:STACK "10") .PUSH(:STACK %)) | (REGISTER "," REGISTER .PUSH(:STACK "11") .PUSH(:STACK %)))
+	| "add" REGISTER "," REGISTER .PUSH(:STACK "14") .PUSH(:STACK %);
+
+LITERAL = "$" .NUMBER;
+
+REGISTER = "eax" %("02") | "ebx" %("03");
+
+.END

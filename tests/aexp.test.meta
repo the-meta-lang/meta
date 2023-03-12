@@ -1,0 +1,43 @@
+.SYNTAX AEXP
+
+AEXP = 
+.LABEL("section .text")
+->("global _start")
+.LABEL("_start:")
+$(EX1)
+->("mov eax, 4")
+->("pop ecx")
+->("mov ebx, 1")
+->("mov edx, 4")
+->("int 0x80")
+->("mov eax, 1   ; system call for exit")
+->("xor ebx, ebx ; exit status")
+->("int 0x80");
+
+EX1 = EX2 $("+" EX2
+		->("pop ebx")
+		->("pop eax")
+		->("add eax, ebx")
+		->("push eax")
+	| "-" EX2
+		->("pop ebx")
+    ->("pop eax")
+    ->("sub eax, ebx")
+    ->("push eax"));
+
+EX2 = EX3 $("*" EX3
+		->("pop ebx")
+    ->("pop eax")
+    ->("imul eax, ebx")
+    ->("push eax")
+	|"/" EX3
+		->("pop ebx")
+		->("pop eax")
+		->("cdq")
+		->("idiv ebx")
+		->("push eax"));
+
+EX3 = .NUMBER ->("push" *) 
+	| "(" EX1 ")";
+
+.END
