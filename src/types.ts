@@ -61,4 +61,8 @@ interface CompilerOutput {
 	environment: {[key: string]: any}
 }
 
+
+export type RegisterName = "eip" | "esp" | "ebp" | "eax" | "ebx" | "ecx" | "edx" | "edi" | "esi" | "flags"
+
+
 export { CompilerOptions, InstructionSet, Step, Issue, CompilerFlags, CompilerOutput }

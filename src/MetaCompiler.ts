@@ -7,7 +7,7 @@ import {
 	CompilerOptions,
 	CompilerOutput,
 	Issue,
-	Registers,
+	RegisterName,
 	Step,
 } from "./types.js";
 import { Register } from "./Tokens/RegisterToken.js";
@@ -15,6 +15,8 @@ import { Pointer } from "./Tokens/Pointer.js";
 import { StringToken } from "./Tokens/StringToken.js";
 import { NumberToken } from "./Tokens/NumberToken.js";
 import { Identifier } from "./Tokens/IdentifierToken.js";
+import { createMemory, readFromMemory, readStringFromMemory } from "./Memory.js";
+import { AddressingModes } from "./AdressingModes.js";
 
 const STDIN = 0x00;
 const STDOUT = 0x01;
@@ -29,7 +31,6 @@ const FILE_WRITE = 0x04;
 class MetaCompiler {
 	private input: Scanner;
 	private output: Builder;
-	private pc: number;
 	private stack: any[];
 	private nextGN1: number;
 	private nextGN2: number;
@@ -37,7 +38,8 @@ class MetaCompiler {
 	private branch: boolean;
 	private program: {
 		instruction: string,
-		args: (Register | NumberToken | StringToken | Pointer)[]
+		args: (Register | NumberToken | StringToken | Pointer)[],
+		addressingMode: AddressingModes
 	}[];
 	private source: string;
 	private instructionCount: number = 0;
@@ -46,40 +48,76 @@ class MetaCompiler {
 	public instructions = {
 		"mov": 0x01
 	}
-	private registers: Registers = {
-		eax: 0x00,
-		ebx: 0x00,
-		ecx: 0x00,
-		edx: 0x00,
-		edi: 0x00,
-		esi: 0x00,
-		ebp: 0x00,
-		esp: 0x00,
-		/**
-		 * 16 bit Flags register mapping:
-		 * X X X X OF DF IF TF SF ZF X AF X PF X CF
-		 * OF - Overflow Flag
-		 * DF - Direction Flag
-		 * IF - Interrupt Enable Flag
-		 * TF - Trap Flag
-		 * SF - Sign Flag
-		 * ZF - Zero Flag
-		 * AF - Auxiliary Carry Flag
-		 * PF - Parity Flag
-		 * CF - Carry Flag
-		 */
-		flags: 0x00
-	}
+
+	/**
+	 * 32 bit Flags register mapping:
+	 * X X X X OF DF IF TF SF ZF X AF X PF X CF X X X X X X X X X X X X X X X X
+	 * OF - Overflow Flag
+	 * DF - Direction Flag
+	 * IF - Interrupt Enable Flag
+	 * TF - Trap Flag
+	 * SF - Sign Flag
+	 * ZF - Zero Flag
+	 * AF - Auxiliary Carry Flag
+	 * PF - Parity Flag
+	 * CF - Carry Flag
+	 */
+	public registerNames: RegisterName[] = [
+		"eip", "esp", "ebp", "eax", "ebx", "ecx", "edx", "edi", "esi", "flags"
+	]
+
+	public registerMap: Record<RegisterName, number> = this.registerNames.reduce((acc, name, i) => {
+		// Get the memory offset for the register
+		acc[name] = i;
+		return acc;
+	}, {})
+
+	// Reserve memory for the registers.
+	// Each register is 8 bits wide.
+	public registers = createMemory(this.registerNames.length);
 
 	public issues: Issue[];
 	private pointers: Record<string, number>
-	private memory: Uint16Array;
+	private memory: DataView;
+
+	public getRegister(name: RegisterName) {
+		if (!(name in this.registerMap)) {
+			throw new Error(`Register ${name.toString()} does not exist`);
+		}
+
+		return this.registers.getUint8(this.registerMap[name]);
+	}
+
+	public setRegister(name: RegisterName, value: number) {
+		if (!(name in this.registerMap)) {
+			throw new Error(`Register ${name} does not exist`);
+		}
+
+		this.registers.setUint8(this.registerMap[name], value);
+	}
+
+	public fetch() {
+		const nextInstructionAddress = this.getRegister("eip");
+		const instruction = this.memory.getUint8(nextInstructionAddress);
+		this.setRegister("eip", nextInstructionAddress + 2);
+		return instruction;
+	}
 
 	constructor(private assembly: string) {
-		const { program, pointers, memory } = parse(assembly, this.registers);
+		const { program, pointers, memory } = parse(assembly, this);
 		this.program = program;
 		this.pointers = pointers;
 		this.memory = memory;
+	}
+
+	private _pc = 0;
+
+	get pc() {
+		return this._pc
+	}
+
+	set pc(value: number) {
+		this._pc = value
 	}
 
 	public step(): Step {
@@ -91,7 +129,7 @@ class MetaCompiler {
 			this.error(`Invalid program counter: ${this.pc}`);
 		}
 
-		var { instruction, args } = this.program[this.pc];
+		var { instruction, args, addressingMode } = this.program[this.pc];
 
 		if (this.options.debugMode) {
 			console.log(instruction);
@@ -105,8 +143,9 @@ class MetaCompiler {
 			this.error(`Call to undefined instruction: ${instruction}`);
 		}
 
-		this[instruction](...args);
+		this[instruction](...args, addressingMode);
 		this.instructionCount++;
+		
 
 		// If the current line is registered as a breakpoint,
 		// stop execution and emit a "breakpoint" event.
@@ -145,14 +184,16 @@ class MetaCompiler {
 	}
 
 	private getZeroFlag(): boolean {
-		return (this.registers.flags & 0b0000000001000000) == 0 ? false : true;
+		return (this.getRegister("flags") & 0b00000100) == 0 ? false : true;
 	}
 
 	private setZeroFlag(value: boolean) {
 		if (value === true) {
-			this.registers.flags = this.registers.flags | 0b0000000001000000;
+			const flags = this.getRegister("flags")
+			this.setRegister("flags", flags | 0b00000100);
 		} else {
-			this.registers.flags = this.registers.flags & 0b1111111110111111;
+			const flags = this.getRegister("flags")
+			this.setRegister("flags", flags & 0b11111011);
 		}
 	}
 
@@ -186,13 +227,8 @@ class MetaCompiler {
 
 		fs.writeFileSync("meta-compiler-error-log.json", JSON.stringify(this.steps, null, 2));
 		fs.writeFileSync("meta-compiler-machine-state.json", JSON.stringify({
-			registers: this.registers,
-			pc: this.pc,
-			stack: this.stack,
-			nextGN1: this.nextGN1,
-			nextGN2: this.nextGN2,
-			done: this.done,
-			branch: this.branch,
+			registers: Array.from(new Uint8Array(this.registers.buffer)),
+			memory: Array.from(new Uint8Array(this.memory.buffer)),
 		}, null, 2));
 
 		return {
@@ -223,7 +259,7 @@ class MetaCompiler {
 	 */
 	public rep(operation: Identifier) {
 		// Amount of times to repeat the operation will be in ecx register
-		let count = this.registers.ecx;
+		let count = this.getRegister("ecx");
 
 		if (typeof count !== "number") {
 			throw new Error("Expected to see a number in ecx");
@@ -237,6 +273,20 @@ class MetaCompiler {
 			}
 			count--;
 		}
+
+		this.pc++
+	}
+
+	public loop(label: Identifier) {
+		// Amount of times to repeat the operation will be in ecx register
+		let count = this.getRegister("ecx");
+
+		if (count > 0) {
+			this.jmp(label)
+			this.setRegister("ecx", count - 1)
+			return
+		}
+		
 
 		this.pc++
 	}
@@ -296,30 +346,28 @@ class MetaCompiler {
 	 */
 	public cmps(omitProgramCodeIncrement: boolean = false) {
 		// Get the first byte from the first source operand
-		let source1 = this.registers.esi;
+		let source1 = this.getRegister("esi");
 		// Get the first byte from the second source operand
-		let source2 = this.registers.edi;
+		let source2 = this.getRegister("edi");
 		// Compare the two bytes
 
-		if (!(source1 instanceof Pointer) || !(source2 instanceof Pointer)) {
-			throw new Error("Expected to see pointers in esi and edi");
-		}
+		// We expect two strings to be compared, let's read them from memory
+
+		const value1 = readStringFromMemory(this.memory, source1);
+		const value2 = readStringFromMemory(this.memory, source2);
 
 		this.setZeroFlag(true)
 
-		const source1Value = source1.value;
-		const source2Value = source2.value;
+		for (let i = 0; i < value1.length; i++) {
+			const char = source1[i];
 
-		for (let i = 0; i < source1Value.length; i++) {
-			const char = source1Value[i];
-
-			if (source2Value[i] === undefined) {
+			if (value2[i] === undefined) {
 				// If the second source operand is shorter than the first, set the ZF flag to false
 				this.setZeroFlag(false)
 				break;
 			}
 
-			if (char !== source2Value[i]) {
+			if (char !== value2[i]) {
 				// If they are not equal, set the ZF flag to false
 				this.setZeroFlag(false)
 				break;
@@ -330,7 +378,7 @@ class MetaCompiler {
 	}
 
 	public lea(register: Register, memoryAddressPointer: Pointer) {
-		register.value = memoryAddressPointer;
+		this.setRegister(register.name, memoryAddressPointer.address);
 		this.pc++;
 	}
 
@@ -356,6 +404,44 @@ class MetaCompiler {
 		this.pc++;
 	}
 
+	private ADD_REGISTER_IMMEDIATE(destination: Register, source: NumberToken) {
+		this.setRegister(destination.name, destination.value + source.value);
+	}
+
+	private ADD_REGISTER_REGISTER(destination: Register, source: Register) {
+		const r1 = this.getRegister(destination.name);
+		const r2 = this.getRegister(source.name);
+
+		this.setRegister(destination.name, r1 + r2);
+	}
+
+	private ADD_REGISTER_MEMORY(destination: Register, source: Pointer) {
+		const r1 = this.getRegister(destination.name);
+		const r2 = this.memory.getUint8(source.address);
+
+		this.setRegister(destination.name, r1 + r2);
+	}
+
+	private ADD_MEMORY_IMMEDIATE(destination: Pointer, source: NumberToken) {
+		const r1 = this.memory.getUint8(destination.address);
+
+		this.memory.setUint8(destination.address, r1 + source.value);
+	}
+
+	private ADD_MEMORY_REGISTER(destination: Pointer, source: Register) {
+		const r1 = this.memory.getUint8(destination.address);
+		const r2 = this.getRegister(source.name);
+
+		this.memory.setUint8(destination.address, r1 + r2);
+	}
+
+	private ADD_MEMORY_MEMORY(destination: Pointer, source: Pointer) {
+		const r1 = this.memory.getUint8(destination.address);
+		const r2 = this.memory.getUint8(source.address);
+
+		this.memory.setUint8(destination.address, r1 + r2);
+	}
+
 	/**
 	 * Adds the destination operand (first operand) and the source operand (second
 	 * operand) and then stores the result in the destination operand. The
@@ -364,82 +450,131 @@ class MetaCompiler {
 	 * @param destination 
 	 * @param source 
 	 */
-	public add(destination: Register, source: Register | NumberToken | Pointer) {
+	public add(destination: Register | Pointer, source: Register | NumberToken | Pointer, addressingMode: AddressingModes) {
+		if (addressingMode === AddressingModes.DIRECT) {
+			// Move value from source into memory location of destination pointer.
+			let address = 0;
+			if (destination.name in this.registerMap) {
+				address = this.getRegister(destination.name);
+			} else {
+				address = destination.address;
+			}
+
+			const value = this.memory.getUint8(address);
+			this.memory.setUint8(address, value + source.value);
+			this.pc++
+			return
+		}
+		
+		
 		if (source instanceof NumberToken) {
-			if (destination instanceof Register && destination.value instanceof Pointer) {
-				// Increment the pointer offset so it will point to a different memory location.
-				destination.value.adjustedAddress += source.value;
-			} else if (destination instanceof Register && typeof destination.value === "number") {
-				destination.value += source.value;
+			if (destination instanceof Register) {
+				this.ADD_REGISTER_IMMEDIATE(destination, source)
+			} else if (destination instanceof Pointer) {
+				this.ADD_MEMORY_IMMEDIATE(destination, source)
 			}
 		} else if (source instanceof Register) {
-			if (destination.value instanceof Pointer) {
-				if (source.value instanceof Pointer) {
-					throw new Error("Cannot add two pointers");
-				} else {
-					destination.value.value = [destination.value.value[0] + source.value, ...destination.value.value.slice(1)];
-				}
+			if (destination instanceof Pointer) {
+				this.ADD_MEMORY_REGISTER(destination, source)
 			} else {
-				if (source.value instanceof Pointer) {
-					destination.value += source.value.value[0];
-				} else {
-					destination.value += source.value;
-				}
+				this.ADD_REGISTER_REGISTER(destination, source)
 			}
 		} else if (source instanceof Pointer) {
-			if (destination.value instanceof Pointer) {
-				throw new Error("Cannot add two pointers");
+			if (destination instanceof Register) {
+				this.ADD_REGISTER_MEMORY(destination, source)
 			} else {
-				destination.value += source.value[0];
+				this.ADD_MEMORY_MEMORY(destination, source)
 			}
 		}
 
 		this.pc++
 	}
 
-	public mov(target: Register | Pointer, source: NumberToken | Register | Pointer | Identifier) {
+	private MOV_MEMORY_IMMEDIATE(target: Pointer, source: NumberToken | StringToken) {
+		const memoryAddress = target.address;
+
+		// Store the value in memory
+		if (source instanceof StringToken) {
+			const chars = source.value.split("")
+			for (let i = 0; i < chars.length; i++) {
+				const char = chars[i];
+				const charCode = char.charCodeAt(0);
+				this.memory.setUint8(memoryAddress + i,charCode);
+			}
+			this.memory.setUint8(memoryAddress + chars.length, 0);
+		} else {
+			this.memory.setUint8(memoryAddress, source.value);
+		}
+	}
+
+	private MOV_MEMORY_REGISTER(target: Pointer, source: Register) {
+		const memoryAddress = target.address;
+
+		// Store the value in memory
+		this.memory.setUint8(memoryAddress, source.value);
+	}
+
+	private MOV_REGISTER_MEMORY(target: Register, source: Pointer) {
+		target.value = source.address;
+		target.isPointer = true;
+	}
+
+	private MOV_REGISTER_REGISTER(target: Register, source: Register) {
+		const r2 = this.getRegister(source.name);
+
+		this.setRegister(target.name, r2);
+	}
+
+	private MOV_REGISTER_IMMEDIATE(target: Register, source: NumberToken) {
+		this.setRegister(target.name, source.value);
+	}
+
+	public mov(destination: Register | Pointer, source: NumberToken | Register | Pointer | Identifier, addressingMode: AddressingModes) {
+		if (addressingMode === AddressingModes.DIRECT) {
+			// Move value from source into memory location of destination pointer.
+			let address = 0;
+			if (destination.name in this.registerMap) {
+				address = this.getRegister(destination.name);
+			} else {
+				address = destination.address;
+			}
+
+			this.memory.setUint8(address, source.value);
+			this.pc++
+			return
+		}
+		
 		if (source instanceof Identifier && source.name == "dword") {
 			// Support dword string loading
 			// Load value of argument 3 into memory given at location from argument 2
 			// Get the memory address from argument 2
 			// Get the value from argument 3
-			if (target instanceof Pointer) {
-				target.value = [...arguments[2].value.split("").map((char: string) => {
-					return char.charCodeAt(0)
-				}), 0x00]
-			} else if (target instanceof Register && target.value instanceof Pointer) {
-				target.value.value = [...arguments[2].value.split("").map((char: string) => {
-					return char.charCodeAt(0)
-				}), 0x00]
+			if (destination instanceof Pointer) {
+				this.MOV_MEMORY_IMMEDIATE(destination, arguments[2])
 			}
 
 			this.pc++
 			return;
 		}
 		
-		if (target instanceof Pointer) {
+		if (destination instanceof Pointer) {
 			// Resolve the variable from memory
 			if (source instanceof NumberToken) {
-				target.value = [source.value, ...target.value.slice(1)];
+				this.MOV_MEMORY_IMMEDIATE(destination, source)
 			} else if (source instanceof Register) {
-				if (source.value instanceof Pointer) {
-					target.value = [...source.value.value, ...target.value.slice(source.value.value.length)];
-				} else {
-					target.value = [source.value, ...target.value.slice(1)];
-				}
+				this.MOV_MEMORY_REGISTER(destination, source)
 			} else if (source instanceof Pointer) {
-				target.value = [...source.value, ...target.value.slice(source.value.length)];
+				//this.MOV_MEMORY_MEMORY(target, source)
 			} else {
 				throw new Error("Invalid source type");
 			}
-		} else if (target instanceof Register) {
+		} else if (destination instanceof Register) {
 			if (source instanceof NumberToken) {
-				target.value = source.value;
+				this.MOV_REGISTER_IMMEDIATE(destination, source)
 			} else if (source instanceof Register) {
-				target.value = source.value;
+				this.MOV_REGISTER_REGISTER(destination, source)
 			} else if (source instanceof Pointer) {
-				target.value = source;
-				source.reference()
+				this.MOV_REGISTER_MEMORY(destination, source)
 			} else {
 				throw new Error("Invalid source type");
 			}
@@ -450,41 +585,42 @@ class MetaCompiler {
 
 	// Interrupt
 	public int(arg1: NumberToken) {
-		if (this.registers.edi === STDOUT) {
+		if (this.getRegister("edi") === STDOUT) {
 			// Target stdout
-			if (this.registers.eax === FILE_WRITE) {
+			if (this.getRegister("eax") === FILE_WRITE) {
 				// Print to stdout
 				// Get the pointer to memory from `esi`
-				const esi = this.registers.esi as Pointer;
+				const esi = this.getRegister("esi");
 
-				if (!(esi instanceof Pointer)) {
-					throw new Error("Expected to see a pointer in esi");
+				const chars: string[] = [];
+				let char: number;
+				// Read until we hit a null terminator
+				let i = 0;
+				while (char = this.memory.getUint8(esi + i)) {
+					chars.push(String.fromCharCode(char));
+					i++
 				}
 
-				const chars = esi.value;
-				const string = chars.map((num) => {
-					return String.fromCharCode(num)
-				}).join("")
-
+				const string = chars.join("")
+				
 				this.output.copy(string)
 			}
-		} else if (this.registers.edi === STDIN) {
+		} else if (this.getRegister("edi") === STDIN) {
 			// Target stdin
-			if (this.registers.eax === FILE_READ) {
+			if (this.getRegister("eax") === FILE_READ) {
 				// Read from stdin
 				// Get the pointer to memory from `esi`
-				const esi = this.registers.esi as Pointer;
+				const esi = this.getRegister("esi");
 
-				if (!(esi instanceof Pointer)) {
-					throw new Error("Expected to see a pointer in esi");
+				const string = this.input.text.substring(0, this.getRegister("edi") || this.input.text.length - 1);
+				const chars = string.split("")
+
+				for (let i = 0; i < chars.length; i++) {
+					const char = chars[i];
+					const charCode = char.charCodeAt(0);
+
+					this.memory.setUint8(esi + i, charCode);
 				}
-
-				const string = this.input.text.substring(0, this.registers.edi || this.input.text.length - 1);
-				const chars = string.split("").map((char) => {
-					return char.charCodeAt(0)
-				})
-
-				esi.value = chars;
 			}
 		}
 		this.pc++

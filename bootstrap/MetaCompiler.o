@@ -1,19 +1,14 @@
-.data
-    lastMatch:
-       string ""
 .text
 _start:
        mov edi, 0x00
        mov eax, 0x00
        mov esi, [input_string] ; Read Text input into `input_string`
-       mov edx, 50000 ; We can read up to 50000 bytes
+       mov edx, 12000 ; We can read up to 12000 bytes
        int 0x80
-			 mov esi, [input_string]
-			 add esi, 1
        jmp PROGRAM
 strip:
        mov esi, [input_string]
-       cmp esi, 32 ; Whitespace Character
+       cmp [esi], 32 ; Whitespace Character
        call strip_first_character
        ret
 strip_first_character:
@@ -25,6 +20,18 @@ print:
        mov esi, [output_string]
        int 0x80
        ret
+newline:
+       mov eax, [output_string]
+       mov [eax], 0x0a
+       add eax, 1
+       mov ecx, 7
+fill_loop:
+       mov [eax], 32
+       add eax, 1
+       loop fill_loop
+       mov [eax], 0x00
+       call print
+       ret
 PROGRAM:
 A0:
        TST ".DATA"
@@ -32,7 +39,7 @@ A0:
        LB
        mov [output_string], dword ".data"
        call print
-       OUT
+       call newline
 A2:
        call DATA_DEFINITION
        jne A3
@@ -57,75 +64,113 @@ A7:
        LB
        mov [output_string], dword ".text"
        call print
-       OUT
+       call newline
        LB
        mov [output_string], dword "_start:"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov edi, 0x00"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov eax, 0x00"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov esi, [input_string] ; Read Text input into `input_string`"
        call print
-       OUT
-       mov [output_string], dword "mov edx, 50000 ; We can read up to 50000 bytes"
+       call newline
+       mov [output_string], dword "mov edx, 12000 ; We can read up to 12000 bytes"
        call print
-       OUT
+       call newline
        mov [output_string], dword "int 0x80"
        call print
-       OUT
+       call newline
        mov [output_string], dword "jmp "
        call print
        CI
-       OUT
+       call newline
        LB
        mov [output_string], dword "strip:"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov esi, [input_string]"
        call print
-       OUT
-       mov [output_string], dword "cmp esi, 32 ; Whitespace Character"
+       call newline
+       mov [output_string], dword "cmp [esi], 32 ; Whitespace Character"
        call print
-       OUT
+       call newline
        mov [output_string], dword "call strip_first_character"
        call print
-       OUT
+       call newline
        mov [output_string], dword "ret"
        call print
-       OUT
+       call newline
        LB
        mov [output_string], dword "strip_first_character:"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov [input_string], 0x00"
        call print
-       OUT
+       call newline
        mov [output_string], dword "ret"
        call print
-       OUT
+       call newline
        LB
        mov [output_string], dword "print:"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov edi, 0x01"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov eax, 0x04"
        call print
-       OUT
+       call newline
        mov [output_string], dword "mov esi, [output_string]"
        call print
-       OUT
+       call newline
        mov [output_string], dword "int 0x80"
        call print
-       OUT
+       call newline
        mov [output_string], dword "ret"
        call print
-       OUT
+       call newline
+       LB
+       mov [output_string], dword "newline:"
+       call print
+       call newline
+       mov [output_string], dword "mov eax, [output_string]"
+       call print
+       call newline
+       mov [output_string], dword "mov [eax], 0x0a"
+       call print
+       call newline
+       mov [output_string], dword "add eax, 1"
+       call print
+       call newline
+       mov [output_string], dword "mov ecx, 7"
+       call print
+       call newline
+       LB
+       mov [output_string], dword "fill_loop:"
+       call print
+       call newline
+       mov [output_string], dword "mov [eax], 32"
+       call print
+       call newline
+       mov [output_string], dword "add eax, 1"
+       call print
+       call newline
+       mov [output_string], dword "loop fill_loop"
+       call print
+       call newline
+       mov [output_string], dword "mov [eax], 0x00"
+       call print
+       call newline
+       mov [output_string], dword "call print"
+       call print
+       call newline
+       mov [output_string], dword "ret"
+       call print
+       call newline
 A10:
        call VARIABLE_ASSIGNMENT
        jne A11
@@ -146,7 +191,7 @@ A12:
        BE
        mov [output_string], dword "END"
        call print
-       OUT
+       call newline
 A9:
 A15:
        jne A16
@@ -158,13 +203,13 @@ A8:
        LB
        mov [output_string], dword ".bss"
        call print
-       OUT
+       call newline
        mov [output_string], dword "output_string resb 500"
        call print
-       OUT
-       mov [output_string], dword "input_string resb 50000"
+       call newline
+       mov [output_string], dword "input_string resb 12000"
        call print
-       OUT
+       call newline
 A17:
 A18:
        ret
@@ -177,7 +222,7 @@ DATA_DEFINITION:
        CI
        mov [output_string], dword ":"
        call print
-       OUT
+       call newline
        TST "="
        BE
        call DATA_TYPE
@@ -193,7 +238,7 @@ DATA_TYPE:
        mov [output_string], dword "string "
        call print
        CI
-       OUT
+       call newline
 A21:
 A22:
        jne A23
@@ -204,7 +249,7 @@ A23:
        mov [output_string], dword "number "
        call print
        CI
-       OUT
+       call newline
 A25:
 A26:
        jne A27
@@ -230,13 +275,13 @@ VARIABLE_ASSIGNMENT:
        mov [output_string], dword "dword "
        call print
        CI
-       OUT
+       call newline
 A29:
        je A30
        NUM
        jne A31
        CI
-       OUT
+       call newline
 A31:
 A30:
        BE
@@ -244,7 +289,7 @@ A30:
        BE
        mov [output_string], dword "ret"
        call print
-       OUT
+       call newline
 A28:
 A32:
        ret
@@ -253,21 +298,21 @@ OUT1:
        jne A33
        mov [output_string], dword "GN1"
        call print
-       OUT
+       call newline
 A33:
        je A34
        TST "*2"
        jne A35
        mov [output_string], dword "GN2"
        call print
-       OUT
+       call newline
 A35:
        je A34
        TST "*"
        jne A36
        mov [output_string], dword "CI"
        call print
-       OUT
+       call newline
 A36:
        je A34
        SR
@@ -275,10 +320,10 @@ A36:
        mov [output_string], dword "mov [output_string], dword "
        call print
        CI
-       OUT
+       call newline
        mov [output_string], dword "call print"
        call print
-       OUT
+       call newline
 A37:
        je A34
        TST "["
@@ -290,7 +335,7 @@ A37:
        CI
        mov [output_string], dword "]"
        call print
-       OUT
+       call newline
        TST "]"
        BE
 A38:
@@ -314,7 +359,7 @@ A39:
        jne A42
        mov [output_string], dword "LB"
        call print
-       OUT
+       call newline
        TST "("
        BE
 A43:
@@ -327,9 +372,9 @@ A43:
 A42:
 A41:
        jne A44
-       mov [output_string], dword "OUT"
+       mov [output_string], dword "call newline"
        call print
-       OUT
+       call newline
 A44:
        je A45
        TST ".OUT"
@@ -352,7 +397,7 @@ EX3:
        mov [output_string], dword "call "
        call print
        CI
-       OUT
+       call newline
 A48:
        je A49
        SR
@@ -360,21 +405,21 @@ A48:
        mov [output_string], dword "TST "
        call print
        CI
-       OUT
+       call newline
 A50:
        je A49
        TST ".ID"
        jne A51
        mov [output_string], dword "ID"
        call print
-       OUT
+       call newline
 A51:
        je A49
        TST ".RET"
        jne A52
        mov [output_string], dword "ret"
        call print
-       OUT
+       call newline
 A52:
        je A49
        TST ".NOT"
@@ -384,21 +429,21 @@ A52:
        mov [output_string], dword "NOT "
        call print
        CI
-       OUT
+       call newline
 A53:
        je A49
        TST ".NUMBER"
        jne A54
        mov [output_string], dword "NUM"
        call print
-       OUT
+       call newline
 A54:
        je A49
        TST ".STRING"
        jne A55
        mov [output_string], dword "SR"
        call print
-       OUT
+       call newline
 A55:
        je A49
        TST "("
@@ -413,7 +458,7 @@ A56:
        jne A57
        mov [output_string], dword "SET"
        call print
-       OUT
+       call newline
 A57:
        je A49
        TST "$"
@@ -422,16 +467,16 @@ A57:
        GN1
        mov [output_string], dword ":"
        call print
-       OUT
+       call newline
        call EX3
        BE
        mov [output_string], dword "je "
        call print
        GN1
-       OUT
+       call newline
        mov [output_string], dword "SET"
        call print
-       OUT
+       call newline
 A58:
 A49:
        ret
@@ -441,7 +486,7 @@ EX2:
        mov [output_string], dword "jne "
        call print
        GN1
-       OUT
+       call newline
 A59:
        je A60
        call OUTPUT
@@ -454,7 +499,7 @@ A63:
        jne A64
        mov [output_string], dword "BE"
        call print
-       OUT
+       call newline
 A64:
        je A65
        call OUTPUT
@@ -468,7 +513,7 @@ A65:
        GN1
        mov [output_string], dword ":"
        call print
-       OUT
+       call newline
 A62:
 A67:
        ret
@@ -481,7 +526,7 @@ A69:
        mov [output_string], dword "je "
        call print
        GN1
-       OUT
+       call newline
        call EX2
        BE
 A70:
@@ -497,7 +542,7 @@ A71:
        GN1
        mov [output_string], dword ":"
        call print
-       OUT
+       call newline
 A68:
 A73:
        ret
@@ -508,7 +553,7 @@ DEFINITION:
        CI
        mov [output_string], dword ":"
        call print
-       OUT
+       call newline
        TST "="
        BE
        call EX1
@@ -517,7 +562,7 @@ DEFINITION:
        BE
        mov [output_string], dword "ret"
        call print
-       OUT
+       call newline
 A74:
 A75:
        ret
@@ -534,4 +579,4 @@ A77:
        END
 .bss
        output_string resb 500
-       input_string resb 50000
+       input_string resb 12000

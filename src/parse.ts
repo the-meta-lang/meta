@@ -12,14 +12,16 @@
 //   pc = program["label"]
 //
 
-import { Pointer } from "./Tokens/Pointer.js";
-import { Register } from "./Tokens/RegisterToken.js";
 import { NumberToken } from "./Tokens/NumberToken.js";
 import { StringToken } from "./Tokens/StringToken.js";
-import { Identifier } from "./Tokens/IdentifierToken.js";
-import { Registers } from "./types.js";
+import { Parser } from "./Parser.js";
+import { MetaCompiler } from "./MetaCompiler.js";
+import { createMemory, extendMemory } from "./Memory.js";
+import { AddressingModes, getAddressingMode } from "./AdressingModes.js";
 
-function getTextSection(lines: string[], memory: Uint16Array, pointers: Record<string, number>, registers: Registers) {
+
+
+function getTextSection(lines: string[], memory: DataView, pointers: Record<string, number>, compiler: MetaCompiler) {
 	const program = []
 	for (const line of lines) {
 		// Labels end with a colon
@@ -28,14 +30,17 @@ function getTextSection(lines: string[], memory: Uint16Array, pointers: Record<s
 			const labelProgramCode = parseLabel(trimmedLine);
 			program[labelProgramCode] = program.length;
 		} else {
-			program.push(parseInstruction(line, memory, pointers, registers));
+			const instruction = parseInstruction(line, memory, pointers, compiler)
+			const addressingMode = getAddressingMode(instruction.args[0], instruction.args[1]);
+
+			program.push({...instruction, addressingMode})
 		}
 	}
 
 	return program
 }
 
-function getDataSection(lines: string[], registers: Registers, memory: Uint16Array, pointers: Record<string, number>) {
+function getDataSection(lines: string[], compiler: MetaCompiler, memory: DataView, pointers: Record<string, number>) {
 	let currentAddress = 0;
 	for (const line of lines) {
 		// Names of memory locations end with a colon
@@ -44,7 +49,7 @@ function getDataSection(lines: string[], registers: Registers, memory: Uint16Arr
 			const label = parseLabel(trimmedLine);
 			pointers[label] = currentAddress;
 		} else {
-			const { instruction: dataType, args } = parseInstruction(line, memory, pointers, registers);
+			const { args } = parseInstruction(line, memory, pointers, compiler);
 
 			// Iterate over the arguments and store them in memory.
 			// If the argument is a string, we need to convert it to ascii
@@ -55,8 +60,7 @@ function getDataSection(lines: string[], registers: Registers, memory: Uint16Arr
 					// We need to extend the memory by the length of the string + 1 for null termination.
 					// To achieve that, we will copy the old memory into a new array.
 					const oldMemory = memory;
-					memory = new Uint16Array(currentAddress + str.length + 1);
-					memory.set(oldMemory);
+					memory = extendMemory(oldMemory, str.length + 1);
 					// Now we can copy the string into the memory.
 					for (let i = 0; i < str.length; i++) {
 						memory[currentAddress] = str.charCodeAt(i);
@@ -69,8 +73,7 @@ function getDataSection(lines: string[], registers: Registers, memory: Uint16Arr
 					// We need to extend the memory by the length of the string + 1 for null termination.
 					// To achieve that, we will copy the old memory into a new array.
 					const oldMemory = memory;
-					memory = new Uint16Array(currentAddress + 1);
-					memory.set(oldMemory);
+					memory = extendMemory(oldMemory, 1);
 					// Now we can copy the string into the memory.
 					memory[currentAddress] = arg.value as number;
 					currentAddress++;
@@ -88,18 +91,17 @@ function getDataSection(lines: string[], registers: Registers, memory: Uint16Arr
 	}
 }
 
-function getBSSSection(lines: string[], memory: Uint16Array, pointers: Record<string, number>, currentAddress: number, registers: Registers) {
+function getBSSSection(lines: string[], memory: DataView, pointers: Record<string, number>, currentAddress: number, compiler: MetaCompiler) {
 	for (const line of lines) {
 		// Names of memory locations end with a colon
-		const { instruction: variableName, args } = parseInstruction(line, memory, pointers, registers);
+		const { instruction: variableName, args } = parseInstruction(line, memory, pointers, compiler);
 		// Argument 1 needs to contain the "resb" call or similar
 		// Argument 2 needs to contain the size of the variable so we can allocate memory for it.
 		if (args[0].value == "resb") {
 			// We need to extend the memory by the length of the string + 1 for null termination.
 			// To achieve that, we will copy the old memory into a new array.
 			const oldMemory = memory;
-			memory = new Uint16Array(currentAddress + args[1].value);
-			memory.set(oldMemory);
+			memory = extendMemory(oldMemory, args[1].value);
 			// Now we can copy the string into the memory.
 			// Save a pointer to the variable at the current starting address
 			pointers[variableName] = currentAddress;
@@ -129,10 +131,11 @@ function getBSSSection(lines: string[], memory: Uint16Array, pointers: Record<st
 //       These quotes are removed here before sending the instruction
 //       to the virtual machine.
 //
-const parse = function (text: string, registers: Registers): { program: {
+const parse = function (text: string, compiler: MetaCompiler): { program: {
 	instruction: string,
-	args: any[]
-}[], pointers: Record<string, number>, memory: Uint16Array } {
+	args: any[],
+	addressingMode: AddressingModes
+}[], pointers: Record<string, number>, memory: DataView } {
 	// We split the text at each newline to get an array of lines.
 	const lines = text.split("\n");
 
@@ -173,159 +176,24 @@ const parse = function (text: string, registers: Registers): { program: {
 
 	// We create an array for our program, where each instruction will get put
 	// into.
-	let memory = new Uint16Array(0);
+	let memory = createMemory(0);
 	const pointers = {}
 	let currentAddress = 0;
 
-	const data = getDataSection(sections["data"] || [], registers, memory, pointers);
+	const data = getDataSection(sections["data"] || [], compiler, memory, pointers);
 	memory = data.memory;
 	currentAddress = data.currentAddress;
-	const bss = getBSSSection(sections["bss"] || [], memory, pointers, currentAddress, registers);
+	const bss = getBSSSection(sections["bss"] || [], memory, pointers, currentAddress, compiler);
 	memory = bss.memory;
 	currentAddress = bss.currentAddress;
-	const program = getTextSection(sections["text"] || [], memory, pointers, registers);
+	const program = getTextSection(sections["text"] || [], memory, pointers, compiler);
 
 	return { program, pointers, memory };
 };
 
-class Parser {
-	private currentChar: string;
-	private input: string;
-	private index: number;
-
-  constructor(input: string, private memory: Uint16Array, private pointers: Record<string, number>, private registers: Registers) {
-    this.input = input;
-    this.index = 0;
-    this.currentChar = this.input[this.index];
-  }
-
-  advance() {
-    this.index++;
-    if (this.index < this.input.length) {
-      this.currentChar = this.input[this.index];
-    } else {
-      this.currentChar = null;
-    }
-  }
-
-  skipWhitespace() {
-    while (this.currentChar && /\s/.test(this.currentChar)) {
-      this.advance();
-    }
-  }
-
-  parseString() {
-    let result = '';
-    this.advance(); // Skip the opening double quote
-
-    while (this.currentChar && this.currentChar !== '"') {
-      result += this.currentChar;
-      this.advance();
-    }
-
-    this.advance(); // Skip the closing double quote
-    return new StringToken(`"${result}"`, result);
-  }
-
-  parseNumber() {
-    let result = '';
-
-    while (this.currentChar && /\d|\./.test(this.currentChar)) {
-      result += this.currentChar;
-      this.advance();
-    }
-
-    return new NumberToken(result, parseFloat(result));
-  }
-
-  parseVariableReference() {
-    let result = '';
-    this.advance(); // Skip the opening square bracket
-
-    while (this.currentChar && this.currentChar !== ']') {
-      result += this.currentChar;
-      this.advance();
-    }
 
 
-    this.advance(); // Skip the closing square bracket
-    return new Pointer(`[${result}]`, result, this.pointers[result], this.memory);
-  }
-
-	parseIdentifier() {
-		let result = "";
-		while (this.currentChar && /[a-zA-Z0-9_]/.test(this.currentChar)) {
-			result += this.currentChar;
-			this.advance();
-		}
-
-		if (this.registers.hasOwnProperty(result)) {
-			return new Register(result, this.registers);
-		} else {
-			return new Identifier(result);
-		}
-	}
-
-	parseHex() {
-		let result = "";
-		while (this.currentChar && /[a-fA-F0-9]/.test(this.currentChar)) {
-			result += this.currentChar;
-			this.advance();
-		}
-
-		return new NumberToken(result, parseInt(result, 16));
-	}
-
-  getNextToken() {
-    this.skipWhitespace();
-
-    if (!this.currentChar) {
-      return null;
-    }
-
-		if (this.currentChar == ";") {
-			// Comment
-			this.advance();
-			while (this.currentChar && this.currentChar != "\n") {
-				this.advance();
-			}
-			this.advance();
-			return null;
-		}
-
-		if (this.currentChar == ",") {
-			// Argument separator.
-			this.advance();
-			this.skipWhitespace()
-		}
-
-    if (this.currentChar === '"') {
-      return this.parseString();
-    }
-
-		if (this.currentChar === "0") {
-			this.advance();
-			if ((this.currentChar as string) === "x") {
-				this.advance();
-				return this.parseHex();
-			} else {
-				throw new Error("Unknown number format");
-			}
-		}
-
-    if (/\d/.test(this.currentChar)) {
-      return this.parseNumber();
-    }
-
-    if (this.currentChar === '[') {
-      return this.parseVariableReference();
-    }
-
-		return this.parseIdentifier()
-  }
-}
-
-function parseInstruction(line: string, memory: Uint16Array, pointers: Record<string, number>, registers: Registers) {
+function parseInstruction(line: string, memory: DataView, pointers: Record<string, number>, compiler: MetaCompiler) {
 	// Iterate through the instruction string and split it into parts.
 	const instruction = line.trim();
 	// Check if there is a space in the line.
@@ -338,7 +206,7 @@ function parseInstruction(line: string, memory: Uint16Array, pointers: Record<st
 		};
 	} else {
 		let instr = instruction.substring(idx).trim();
-		const parser = new Parser(instr, memory, pointers, registers);
+		const parser = new Parser(instr, memory, pointers, compiler);
 
 		const args: any[] = [];
 
