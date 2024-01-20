@@ -1,25 +1,29 @@
 {
-	"name": "@metalang/core",
-	"version": "0.0.1",
-	"type": "module",
-	"types": "./typings/index.d.ts",
-	"description": "> \"Get used to a way of thinking in which the hardware of the realization of an idea is much less important than the idea itself.\" > > **Valentino Braitenberg**, *Vehicles*, p. 2",
-	"main": "./dist/index.js",
-	"directories": {
-		"doc": "docs",
-		"dist": "dist",
-		"test": "test"
-	},
-	"scripts": {
-		"test": "echo \"Error: no test specified\" && exit 1"
-	},
-	"bin": {
-		"meta": "compile-single.js"
-	},
-	"author": "",
-	"license": "ISC",
-	"dependencies": {
-		"boxen": "^7.0.1",
-		"chalk": "^5.2.0"
-	}
+  "name": "@metalang/core",
+  "version": "0.0.1",
+  "type": "module",
+  "types": "./typings/index.d.ts",
+  "description": "> \"Get used to a way of thinking in which the hardware of the realization of an idea is much less important than the idea itself.\" > > **Valentino Braitenberg**, *Vehicles*, p. 2",
+  "main": "./dist/index.js",
+  "directories": {
+    "doc": "docs",
+    "dist": "dist",
+    "test": "test"
+  },
+  "scripts": {
+    "test": "echo \"Error: no test specified\" && exit 1"
+  },
+  "bin": {
+    "meta": "compile-single.js"
+  },
+  "author": "",
+  "license": "ISC",
+  "dependencies": {
+    "boxen": "^7.0.1",
+    "chalk": "^5.2.0"
+  },
+  "devDependencies": {
+    "@types/bun": "^1.0.2",
+    "@types/node": "^20.11.4"
+  }
 }

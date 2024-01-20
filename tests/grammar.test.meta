@@ -1,52 +1,84 @@
+ .DATA
+
+lastMatch = "";
+
 .SYNTAX PROGRAM
 
 /* Program Entry */
-PROGRAM = $(VAR_DECLARATION) ".SYNTAX" .ID -> ("ADR" *) $(DEFINITION | COMMENT) ".END" -> ("END");
+PROGRAM = $((".DATA" .LABEL(".data") $(DATA_DEFINITION | COMMENT)) |
+						(".SYNTAX" .ID 
+							.LABEL(".text") 
+							.LABEL("_start:")
+							-> ("mov edi, 0x00")
+							-> ("mov eax, 0x00")
+							-> ("mov esi, [input_string] ; Read Text input into `input_string`")
+							-> ("mov edx, 50000 ; We can read up to 50000 bytes")
+							-> ("int 0x80")
+							-> ("jmp " *)
+							.LABEL("strip:")
+							-> ("mov esi, [input_string]")
+							-> ("cmp esi, 32 ; Whitespace Character")
+							-> ("call strip_first_character")
+							-> ("ret")
+							.LABEL("strip_first_character:")
+							-> ("mov [input_string], 0x00")
+							-> ("ret")
+							.LABEL("print:")
+							-> ("mov edi, 0x01")
+							-> ("mov eax, 0x04")
+							-> ("mov esi, [output_string]")
+							-> ("int 0x80")
+							-> ("ret")
+					$(VARIABLE_ASSIGNMENT | DEFINITION | COMMENT) ".END" -> ("END")))
+					.LABEL(".bss")
+					->("output_string resb 500")
+					->("input_string resb 50000")
+					/* Reserve enough space for any output call that might come up */;
+
+DATA_DEFINITION = .ID .LABEL("    " * ":") "=" DATA_TYPE ";";
+
+DATA_TYPE = (.STRING ->("string " *)) | (.NUMBER ->("number " *));
+
+VARIABLE_ASSIGNMENT = "[" .ID .OUT("mov [" * "], ") "]" "=" (.STRING ->("dword " *) | .NUMBER ->(*)) ";" -> ("ret");
 
 OUT1 = "*1"     	-> ("GN1")
 	| "*2"     	-> ("GN2")
 	| "*"      	-> ("CI")
-	| "%"		-> ("CO")
-	| .STRING  	-> ("CL" *)
-	| VAR_REFERENCE -> ("CV" *);
+	| .STRING  	-> ("mov [output_string], dword " *)
+							-> ("call print")
+	| "[" .ID -> ("mov eax, [" * "]") "]";
 
 /* This section is responsible for parsing the output directive `->()`*/
 /* Or to parse a `.LABEL` directive, which will dedent the output to create a new labeled section */
 
 OUTPUT = ("->" "(" $ OUT1 ")" 
-		| ".LABEL" -> ("LB") "(" $ OUT1 ")") -> ("OUT");
+		| ".LABEL" -> ("LB") "(" $ OUT1 ")") -> ("OUT")
+		| ".OUT" "(" $ OUT1 ")";
 
-/* If we hit an identifier we jump to it using `JMP` - Call */
+/* If we hit an identifier we jump to it using `call` - Call */
 
-EX3 = .ID               -> ("JMP" *)
+EX3 = .ID               -> ("call " *)
 
 	/* If we hit a supposed string we will start matching the string */
 
-	| .STRING           -> ("TST" *)
+	| .STRING           -> ("TST " *)
 
 	/* Match the .ID directive, causing the compiler to match an identifier */
 
 	| ".ID"             -> ("ID")
 
-	/* Match Everything until we hit a newline character (\n) */
-	
-	| ".ROL"	-> ("ROL")
-
 	/* Trigger the return flag manually */
 
-	| ".RET"	-> ("R")
+	| ".RET"	-> ("ret")
 
 	/* This is a command directive, it will take a parameter to not match against as a string */
 	/* This will cause the compiler to break once it finds the specified string */
-	/* ~ is a shorthand for `.NOT` */
 
-	| ".NOT" .STRING	-> ("NOT" *)
+	| ".NOT" .STRING	-> ("NOT " *)
 
 	/* This will match the ".NUMBER" directive, which will itself match any numbers */
 
 	| ".NUMBER"         -> ("NUM")
-
-	| ".HEX"			-> ("HEX")
 
 	/* This will match the ".STRING" directive, which will itself match a string */
 	/* Strings can be single quoted ('String') or double quoted ("Also string") for ease of use */
@@ -57,72 +89,20 @@ EX3 = .ID               -> ("JMP" *)
 
 	| "(" EX1 ")"
 
-	| HIGH_LEVEL_OPERATION
-
-	| ".PUSH" "(" VAR_REFERENCE ->("USE" *) ("*" ->("PUSHI") | "%" ->("PUSHO") | .STRING ->("PUSHS" *)) ")"
-
-	| "%" "(" $(.STRING ->("OUTMOV" *) | "*" ->("CIOUT") | ".TOHEX" "(" "*" ")" ->("CIOUT") ->("CVTHEXO")) ")"
-
-	/* This section is responsible for compile-time errors, once an error was found */
-	/* this directive can be used to exit the compile process throwing an error in the process */
-
-	| ".ERROR" "(" .STRING -> ("ERR" *) ")" 
-
-	/* This section is responsible for compiler warnings, so compile-time errors can be brought up. */
-	/* It will not exit the compiler unlike the ERROR directive but will output a warning */
-
-	| ".WARN" "(" .STRING -> ("WARN" *) ")"
-
 	/* This will set the branch flag to `true`, basically meaning that it will always continue */
 	/* This might be useful if you want to match nothing or just continue because of something else */
 
-	| (".EMPTY" | "~") ->("SET")
+	| ".EMPTY" ->("SET")
 
-	| "$" .LABEL(*1) EX3 -> ("BT " *1) -> ("SET");
+	| "$" .LABEL(*1 ":") EX3 -> ("je " *1) -> ("SET");
 
-EX2 = (EX3 -> ("BF " *1) | OUTPUT) $ (EX3 -> ("BE") | OUTPUT) .LABEL(*1);
+EX2 = (EX3 -> ("jne " *1) | OUTPUT) $ (EX3 -> ("BE") | OUTPUT) .LABEL(*1 ":");
 
-EX1 = EX2 $ ("|" -> ("BT " *1) EX2 | COMMENT) .LABEL(*1);
+EX1 = EX2 $ ("|" -> ("je " *1) EX2 | COMMENT) .LABEL(*1 ":");
 
-DEFINITION = .ID .LABEL(*) "=" EX1 (";" | .ERROR("expected to see semicolon after each line.")) -> ("R");
+DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" -> ("ret");
 
-/* SECTION: Boolean */
 
-BOOLEAN = "true" | "false";
-
-/* SECTION: Arrays */
-
-ARRAY = "[" ->("INIT" "ARRAY") $(ELEMENT ("," | ~)) "]";
-
-ELEMENT = .STRING | .NUMBER | ARRAY | VAR_REFERENCE | BOOLEAN;
-
-/* SECTION: Objects */
-
-OBJECT = "{" $(.STRING ":" ELEMENT ("," | ~)) "}";
-
-/* SECTION: Variables */
-
-INITIALIZER = OBJECT
-			| ARRAY
-			| .NUMBER
-			| .ERROR("invalid initializer");
-
-VAR_DECLARATION = ":" .ID ->("USE" *) "=" INITIALIZER ";";
-
-VAR_REFERENCE = ":" .ID;
-
-/* SECTION: Inline High Level Operations */
-/* e.g. [:X[%] = :Y] or [:NUM += 4] */
-
-HIGH_LEVEL_OPERATION = "[" EXPRESSION "]";
-
-EXPRESSION = OPERAND (("[" ((OPERAND | ~) (OPERATOR | ~) (OPERAND | ~)) "]") | ~) OPERATOR OPERAND;
-
-OPERAND = VAR_REFERENCE | "%" | "*" | "*1" | "*2" | .STRING | .NUMBER | BOOL | .HEX;
-
-BOOL = "true" | "false";
-
-OPERATOR = "<=" | ">=" | "/=" | "*=" | "-=" | "+=" | "=" | "+" | "-" | "*" | "/" | "<" | ">";
 
 /* SECTION: This defines how comments should look - like this 😉 */
 /* We start by matching an open bracket and continue matching anything BUT a closing bracket */

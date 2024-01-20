@@ -46,47 +46,9 @@ class Scanner {
 	// Remove initial blanks from the text.
 	public blanks() {
 		let textLength = this.text.length;
-		this.text = this.text.replace(/^\s+/, '');
+		this.text = this.text.trimStart();
 		// Advance the cursor by the length of white-spaces we just removed.
 		this.cursor += textLength - this.text.length;
-	};
-
-	// Try to match the regular expression or string
-	// given as argument.
-	// If there is a match, it is removed from the text,
-	// saved in `lastMatch` and the method returns true.
-	// Otherwise, the text is not modified and the
-	// method returns false.
-	public match(pattern: RegExp | string) {
-		if (pattern instanceof RegExp) {
-			return this.matchRegularExpression(pattern);
-		}
-		return this.matchString(pattern);
-	};
-
-	public matchRegularExpression(re: RegExp) {
-		var result = re.exec(this.text)
-		if (result !== null) {
-			this.lastMatch = result[0];
-			this.matches = result;
-			this.text = this.text.substring(result[0].length);
-			// Advance the cursor by the length of the string.
-			this.cursor += result[0].length || 0;
-			return true;
-		}
-		return false;
-	};
-
-	public matchString(str: string) {
-		if (this.text.substring(0, str.length) === str) {
-			this.lastMatch = str;
-			this.matches = [str];
-			this.text = this.text.substring(str.length);
-			// Advance the cursor by the length of the string.
-			this.cursor += str.length || 0;
-			return true;
-		}
-		return false;
 	};
 };
 

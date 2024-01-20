@@ -1,702 +1,537 @@
-       ADR PROGRAM
-PROGRAM
-A0 
-       JMP VAR_DECLARATION
-       BF A1 
-A1 
-A2 
-       BT A0 
-       SET 
-       BF A3 
+.data
+    lastMatch:
+       string ""
+.text
+_start:
+       mov edi, 0x00
+       mov eax, 0x00
+       mov esi, [input_string] ; Read Text input into `input_string`
+       mov edx, 50000 ; We can read up to 50000 bytes
+       int 0x80
+			 mov esi, [input_string]
+			 add esi, 1
+       jmp PROGRAM
+strip:
+       mov esi, [input_string]
+       cmp esi, 32 ; Whitespace Character
+       call strip_first_character
+       ret
+strip_first_character:
+       mov [input_string], 0x00
+       ret
+print:
+       mov edi, 0x01
+       mov eax, 0x04
+       mov esi, [output_string]
+       int 0x80
+       ret
+PROGRAM:
+A0:
+       TST ".DATA"
+       jne A1
+       LB
+       mov [output_string], dword ".data"
+       call print
+       OUT
+A2:
+       call DATA_DEFINITION
+       jne A3
+A3:
+       je A4
+       call COMMENT
+       jne A5
+A5:
+A4:
+       je A2
+       SET
+       BE
+A1:
+A6:
+       jne A7
+A7:
+       je A8
        TST ".SYNTAX"
-       BE 
-       ID 
-       BE 
-       CL "ADR"
-       CI 
-       OUT 
-A4 
-       JMP DEFINITION
-       BF A5 
-A5 
-       BT A6 
-       JMP COMMENT
-       BF A7 
-A7 
-A6 
-       BT A4 
-       SET 
-       BE 
+       jne A9
+       ID
+       BE
+       LB
+       mov [output_string], dword ".text"
+       call print
+       OUT
+       LB
+       mov [output_string], dword "_start:"
+       call print
+       OUT
+       mov [output_string], dword "mov edi, 0x00"
+       call print
+       OUT
+       mov [output_string], dword "mov eax, 0x00"
+       call print
+       OUT
+       mov [output_string], dword "mov esi, [input_string] ; Read Text input into `input_string`"
+       call print
+       OUT
+       mov [output_string], dword "mov edx, 50000 ; We can read up to 50000 bytes"
+       call print
+       OUT
+       mov [output_string], dword "int 0x80"
+       call print
+       OUT
+       mov [output_string], dword "jmp "
+       call print
+       CI
+       OUT
+       LB
+       mov [output_string], dword "strip:"
+       call print
+       OUT
+       mov [output_string], dword "mov esi, [input_string]"
+       call print
+       OUT
+       mov [output_string], dword "cmp esi, 32 ; Whitespace Character"
+       call print
+       OUT
+       mov [output_string], dword "call strip_first_character"
+       call print
+       OUT
+       mov [output_string], dword "ret"
+       call print
+       OUT
+       LB
+       mov [output_string], dword "strip_first_character:"
+       call print
+       OUT
+       mov [output_string], dword "mov [input_string], 0x00"
+       call print
+       OUT
+       mov [output_string], dword "ret"
+       call print
+       OUT
+       LB
+       mov [output_string], dword "print:"
+       call print
+       OUT
+       mov [output_string], dword "mov edi, 0x01"
+       call print
+       OUT
+       mov [output_string], dword "mov eax, 0x04"
+       call print
+       OUT
+       mov [output_string], dword "mov esi, [output_string]"
+       call print
+       OUT
+       mov [output_string], dword "int 0x80"
+       call print
+       OUT
+       mov [output_string], dword "ret"
+       call print
+       OUT
+A10:
+       call VARIABLE_ASSIGNMENT
+       jne A11
+A11:
+       je A12
+       call DEFINITION
+       jne A13
+A13:
+       je A12
+       call COMMENT
+       jne A14
+A14:
+A12:
+       je A10
+       SET
+       BE
        TST ".END"
-       BE 
-       CL "END"
-       OUT 
-A3 
-A8 
-       R 
-OUT1
+       BE
+       mov [output_string], dword "END"
+       call print
+       OUT
+A9:
+A15:
+       jne A16
+A16:
+A8:
+       je A0
+       SET
+       jne A17
+       LB
+       mov [output_string], dword ".bss"
+       call print
+       OUT
+       mov [output_string], dword "output_string resb 500"
+       call print
+       OUT
+       mov [output_string], dword "input_string resb 50000"
+       call print
+       OUT
+A17:
+A18:
+       ret
+DATA_DEFINITION:
+       ID
+       jne A19
+       LB
+       mov [output_string], dword "    "
+       call print
+       CI
+       mov [output_string], dword ":"
+       call print
+       OUT
+       TST "="
+       BE
+       call DATA_TYPE
+       BE
+       TST ";"
+       BE
+A19:
+A20:
+       ret
+DATA_TYPE:
+       SR
+       jne A21
+       mov [output_string], dword "string "
+       call print
+       CI
+       OUT
+A21:
+A22:
+       jne A23
+A23:
+       je A24
+       NUM
+       jne A25
+       mov [output_string], dword "number "
+       call print
+       CI
+       OUT
+A25:
+A26:
+       jne A27
+A27:
+A24:
+       ret
+VARIABLE_ASSIGNMENT:
+       TST "["
+       jne A28
+       ID
+       BE
+       mov [output_string], dword "mov ["
+       call print
+       CI
+       mov [output_string], dword "], "
+       call print
+       TST "]"
+       BE
+       TST "="
+       BE
+       SR
+       jne A29
+       mov [output_string], dword "dword "
+       call print
+       CI
+       OUT
+A29:
+       je A30
+       NUM
+       jne A31
+       CI
+       OUT
+A31:
+A30:
+       BE
+       TST ";"
+       BE
+       mov [output_string], dword "ret"
+       call print
+       OUT
+A28:
+A32:
+       ret
+OUT1:
        TST "*1"
-       BF A9 
-       CL "GN1"
-       OUT 
-A9 
-       BT A10 
+       jne A33
+       mov [output_string], dword "GN1"
+       call print
+       OUT
+A33:
+       je A34
        TST "*2"
-       BF A11 
-       CL "GN2"
-       OUT 
-A11 
-       BT A10 
+       jne A35
+       mov [output_string], dword "GN2"
+       call print
+       OUT
+A35:
+       je A34
        TST "*"
-       BF A12 
-       CL "CI"
-       OUT 
-A12 
-       BT A10 
-       TST "%"
-       BF A13 
-       CL "CO"
-       OUT 
-A13 
-       BT A10 
-       SR 
-       BF A14 
-       CL "CL"
-       CI 
-       OUT 
-A14 
-       BT A10 
-       JMP VAR_REFERENCE
-       BF A15 
-       CL "CV"
-       CI 
-       OUT 
-A15 
-A10 
-       R 
-OUTPUT
+       jne A36
+       mov [output_string], dword "CI"
+       call print
+       OUT
+A36:
+       je A34
+       SR
+       jne A37
+       mov [output_string], dword "mov [output_string], dword "
+       call print
+       CI
+       OUT
+       mov [output_string], dword "call print"
+       call print
+       OUT
+A37:
+       je A34
+       TST "["
+       jne A38
+       ID
+       BE
+       mov [output_string], dword "mov eax, ["
+       call print
+       CI
+       mov [output_string], dword "]"
+       call print
+       OUT
+       TST "]"
+       BE
+A38:
+A34:
+       ret
+OUTPUT:
        TST "->"
-       BF A16 
+       jne A39
        TST "("
-       BE 
-A17 
-       JMP OUT1
-       BT A17 
-       SET 
-       BE 
+       BE
+A40:
+       call OUT1
+       je A40
+       SET
+       BE
        TST ")"
-       BE 
-A16 
-       BT A18 
+       BE
+A39:
+       je A41
        TST ".LABEL"
-       BF A19 
-       CL "LB"
-       OUT 
+       jne A42
+       mov [output_string], dword "LB"
+       call print
+       OUT
        TST "("
-       BE 
-A20 
-       JMP OUT1
-       BT A20 
-       SET 
-       BE 
+       BE
+A43:
+       call OUT1
+       je A43
+       SET
+       BE
        TST ")"
-       BE 
-A19 
-A18 
-       BF A21 
-       CL "OUT"
-       OUT 
-A21 
-A22 
-       R 
-EX3
-       ID 
-       BF A23 
-       CL "JMP"
-       CI 
-       OUT 
-A23 
-       BT A24 
-       SR 
-       BF A25 
-       CL "TST"
-       CI 
-       OUT 
-A25 
-       BT A24 
+       BE
+A42:
+A41:
+       jne A44
+       mov [output_string], dword "OUT"
+       call print
+       OUT
+A44:
+       je A45
+       TST ".OUT"
+       jne A46
+       TST "("
+       BE
+A47:
+       call OUT1
+       je A47
+       SET
+       BE
+       TST ")"
+       BE
+A46:
+A45:
+       ret
+EX3:
+       ID
+       jne A48
+       mov [output_string], dword "call "
+       call print
+       CI
+       OUT
+A48:
+       je A49
+       SR
+       jne A50
+       mov [output_string], dword "TST "
+       call print
+       CI
+       OUT
+A50:
+       je A49
        TST ".ID"
-       BF A26 
-       CL "ID"
-       OUT 
-A26 
-       BT A24 
-       TST ".ROL"
-       BF A27 
-       CL "ROL"
-       OUT 
-A27 
-       BT A24 
+       jne A51
+       mov [output_string], dword "ID"
+       call print
+       OUT
+A51:
+       je A49
        TST ".RET"
-       BF A28 
-       CL "R"
-       OUT 
-A28 
-       BT A24 
+       jne A52
+       mov [output_string], dword "ret"
+       call print
+       OUT
+A52:
+       je A49
        TST ".NOT"
-       BF A29 
-       SR 
-       BE 
-       CL "NOT"
-       CI 
-       OUT 
-A29 
-       BT A24 
+       jne A53
+       SR
+       BE
+       mov [output_string], dword "NOT "
+       call print
+       CI
+       OUT
+A53:
+       je A49
        TST ".NUMBER"
-       BF A30 
-       CL "NUM"
-       OUT 
-A30 
-       BT A24 
-       TST ".HEX"
-       BF A31 
-       CL "HEX"
-       OUT 
-A31 
-       BT A24 
+       jne A54
+       mov [output_string], dword "NUM"
+       call print
+       OUT
+A54:
+       je A49
        TST ".STRING"
-       BF A32 
-       CL "SR"
-       OUT 
-A32 
-       BT A24 
+       jne A55
+       mov [output_string], dword "SR"
+       call print
+       OUT
+A55:
+       je A49
        TST "("
-       BF A33 
-       JMP EX1
-       BE 
+       jne A56
+       call EX1
+       BE
        TST ")"
-       BE 
-A33 
-       BT A24 
-       JMP HIGH_LEVEL_OPERATION
-       BF A34 
-A34 
-       BT A24 
-       TST ".PUSH"
-       BF A35 
-       TST "("
-       BE 
-       JMP VAR_REFERENCE
-       BE 
-       CL "USE"
-       CI 
-       OUT 
-       TST "*"
-       BF A36 
-       CL "PUSHI"
-       OUT 
-A36 
-       BT A37 
-       TST "%"
-       BF A38 
-       CL "PUSHO"
-       OUT 
-A38 
-       BT A37 
-       SR 
-       BF A39 
-       CL "PUSHS"
-       CI 
-       OUT 
-A39 
-A37 
-       BE 
-       TST ")"
-       BE 
-A35 
-       BT A24 
-       TST "%"
-       BF A40 
-       TST "("
-       BE 
-A41 
-       SR 
-       BF A42 
-       CL "OUTMOV"
-       CI 
-       OUT 
-A42 
-       BT A43 
-       TST "*"
-       BF A44 
-       CL "CIOUT"
-       OUT 
-A44 
-       BT A43 
-       TST ".TOHEX"
-       BF A45 
-       TST "("
-       BE 
-       TST "*"
-       BE 
-       TST ")"
-       BE 
-       CL "CIOUT"
-       OUT 
-       CL "CVTHEXO"
-       OUT 
-A45 
-A43 
-       BT A41 
-       SET 
-       BE 
-       TST ")"
-       BE 
-A40 
-       BT A24 
-       TST ".ERROR"
-       BF A46 
-       TST "("
-       BE 
-       SR 
-       BE 
-       CL "ERR"
-       CI 
-       OUT 
-       TST ")"
-       BE 
-A46 
-       BT A24 
-       TST ".WARN"
-       BF A47 
-       TST "("
-       BE 
-       SR 
-       BE 
-       CL "WARN"
-       CI 
-       OUT 
-       TST ")"
-       BE 
-A47 
-       BT A24 
+       BE
+A56:
+       je A49
        TST ".EMPTY"
-       BF A48 
-A48 
-       BT A49 
-       TST "~"
-       BF A50 
-A50 
-A49 
-       BF A51 
-       CL "SET"
-       OUT 
-A51 
-       BT A24 
+       jne A57
+       mov [output_string], dword "SET"
+       call print
+       OUT
+A57:
+       je A49
        TST "$"
-       BF A52 
-       LB 
-       GN1 
-       OUT 
-       JMP EX3
-       BE 
-       CL "BT "
-       GN1 
-       OUT 
-       CL "SET"
-       OUT 
-A52 
-A24 
-       R 
-EX2
-       JMP EX3
-       BF A53 
-       CL "BF "
-       GN1 
-       OUT 
-A53 
-       BT A54 
-       JMP OUTPUT
-       BF A55 
-A55 
-A54 
-       BF A56 
-A57 
-       JMP EX3
-       BF A58 
-       CL "BE"
-       OUT 
-A58 
-       BT A59 
-       JMP OUTPUT
-       BF A60 
-A60 
-A59 
-       BT A57 
-       SET 
-       BE 
-       LB 
-       GN1 
-       OUT 
-A56 
-A61 
-       R 
-EX1
-       JMP EX2
-       BF A62 
-A63 
+       jne A58
+       LB
+       GN1
+       mov [output_string], dword ":"
+       call print
+       OUT
+       call EX3
+       BE
+       mov [output_string], dword "je "
+       call print
+       GN1
+       OUT
+       mov [output_string], dword "SET"
+       call print
+       OUT
+A58:
+A49:
+       ret
+EX2:
+       call EX3
+       jne A59
+       mov [output_string], dword "jne "
+       call print
+       GN1
+       OUT
+A59:
+       je A60
+       call OUTPUT
+       jne A61
+A61:
+A60:
+       jne A62
+A63:
+       call EX3
+       jne A64
+       mov [output_string], dword "BE"
+       call print
+       OUT
+A64:
+       je A65
+       call OUTPUT
+       jne A66
+A66:
+A65:
+       je A63
+       SET
+       BE
+       LB
+       GN1
+       mov [output_string], dword ":"
+       call print
+       OUT
+A62:
+A67:
+       ret
+EX1:
+       call EX2
+       jne A68
+A69:
        TST "|"
-       BF A64 
-       CL "BT "
-       GN1 
-       OUT 
-       JMP EX2
-       BE 
-A64 
-       BT A65 
-       JMP COMMENT
-       BF A66 
-A66 
-A65 
-       BT A63 
-       SET 
-       BE 
-       LB 
-       GN1 
-       OUT 
-A62 
-A67 
-       R 
-DEFINITION
-       ID 
-       BF A68 
-       LB 
-       CI 
-       OUT 
+       jne A70
+       mov [output_string], dword "je "
+       call print
+       GN1
+       OUT
+       call EX2
+       BE
+A70:
+       je A71
+       call COMMENT
+       jne A72
+A72:
+A71:
+       je A69
+       SET
+       BE
+       LB
+       GN1
+       mov [output_string], dword ":"
+       call print
+       OUT
+A68:
+A73:
+       ret
+DEFINITION:
+       ID
+       jne A74
+       LB
+       CI
+       mov [output_string], dword ":"
+       call print
+       OUT
        TST "="
-       BE 
-       JMP EX1
-       BE 
+       BE
+       call EX1
+       BE
        TST ";"
-       BF A69 
-A69 
-       BT A70 
-       ERR "expected to see semicolon after each line."
-       BF A71 
-A71 
-A70 
-       BE 
-       CL "R"
-       OUT 
-A68 
-A72 
-       R 
-BOOLEAN
-       TST "true"
-       BF A73 
-A73 
-       BT A74 
-       TST "false"
-       BF A75 
-A75 
-A74 
-       R 
-ARRAY
-       TST "["
-       BF A76 
-       CL "INIT"
-       CL "ARRAY"
-       OUT 
-A77 
-       JMP ELEMENT
-       BF A78 
-       TST ","
-       BF A79 
-A79 
-       BT A80 
-       SET 
-       BF A81 
-A81 
-A80 
-       BE 
-A78 
-A82 
-       BT A77 
-       SET 
-       BE 
-       TST "]"
-       BE 
-A76 
-A83 
-       R 
-ELEMENT
-       SR 
-       BF A84 
-A84 
-       BT A85 
-       NUM 
-       BF A86 
-A86 
-       BT A85 
-       JMP ARRAY
-       BF A87 
-A87 
-       BT A85 
-       JMP VAR_REFERENCE
-       BF A88 
-A88 
-       BT A85 
-       JMP BOOLEAN
-       BF A89 
-A89 
-A85 
-       R 
-OBJECT
-       TST "{"
-       BF A90 
-A91 
-       SR 
-       BF A92 
-       TST ":"
-       BE 
-       JMP ELEMENT
-       BE 
-       TST ","
-       BF A93 
-A93 
-       BT A94 
-       SET 
-       BF A95 
-A95 
-A94 
-       BE 
-A92 
-A96 
-       BT A91 
-       SET 
-       BE 
-       TST "}"
-       BE 
-A90 
-A97 
-       R 
-INITIALIZER
-       JMP OBJECT
-       BF A98 
-A98 
-       BT A99 
-       JMP ARRAY
-       BF A100 
-A100 
-       BT A99 
-       NUM 
-       BF A101 
-A101 
-       BT A99 
-       ERR "invalid initializer"
-       BF A102 
-A102 
-A99 
-       R 
-VAR_DECLARATION
-       TST ":"
-       BF A103 
-       ID 
-       BE 
-       CL "USE"
-       CI 
-       OUT 
-       TST "="
-       BE 
-       JMP INITIALIZER
-       BE 
-       TST ";"
-       BE 
-A103 
-A104 
-       R 
-VAR_REFERENCE
-       TST ":"
-       BF A105 
-       ID 
-       BE 
-A105 
-A106 
-       R 
-HIGH_LEVEL_OPERATION
-       TST "["
-       BF A107 
-       JMP EXPRESSION
-       BE 
-       TST "]"
-       BE 
-A107 
-A108 
-       R 
-EXPRESSION
-       JMP OPERAND
-       BF A109 
-       TST "["
-       BF A110 
-       JMP OPERAND
-       BF A111 
-A111 
-       BT A112 
-       SET 
-       BF A113 
-A113 
-A112 
-       BF A114 
-       JMP OPERATOR
-       BF A115 
-A115 
-       BT A116 
-       SET 
-       BF A117 
-A117 
-A116 
-       BE 
-       JMP OPERAND
-       BF A118 
-A118 
-       BT A119 
-       SET 
-       BF A120 
-A120 
-A119 
-       BE 
-A114 
-A121 
-       BE 
-       TST "]"
-       BE 
-A110 
-A122 
-       BF A123 
-A123 
-       BT A124 
-       SET 
-       BF A125 
-A125 
-A124 
-       BE 
-       JMP OPERATOR
-       BE 
-       JMP OPERAND
-       BE 
-A109 
-A126 
-       R 
-OPERAND
-       JMP VAR_REFERENCE
-       BF A127 
-A127 
-       BT A128 
-       TST "%"
-       BF A129 
-A129 
-       BT A128 
-       TST "*"
-       BF A130 
-A130 
-       BT A128 
-       TST "*1"
-       BF A131 
-A131 
-       BT A128 
-       TST "*2"
-       BF A132 
-A132 
-       BT A128 
-       SR 
-       BF A133 
-A133 
-       BT A128 
-       NUM 
-       BF A134 
-A134 
-       BT A128 
-       JMP BOOL
-       BF A135 
-A135 
-       BT A128 
-       HEX 
-       BF A136 
-A136 
-A128 
-       R 
-BOOL
-       TST "true"
-       BF A137 
-A137 
-       BT A138 
-       TST "false"
-       BF A139 
-A139 
-A138 
-       R 
-OPERATOR
-       TST "<="
-       BF A140 
-A140 
-       BT A141 
-       TST ">="
-       BF A142 
-A142 
-       BT A141 
-       TST "/="
-       BF A143 
-A143 
-       BT A141 
-       TST "*="
-       BF A144 
-A144 
-       BT A141 
-       TST "-="
-       BF A145 
-A145 
-       BT A141 
-       TST "+="
-       BF A146 
-A146 
-       BT A141 
-       TST "="
-       BF A147 
-A147 
-       BT A141 
-       TST "+"
-       BF A148 
-A148 
-       BT A141 
-       TST "-"
-       BF A149 
-A149 
-       BT A141 
-       TST "*"
-       BF A150 
-A150 
-       BT A141 
-       TST "/"
-       BF A151 
-A151 
-       BT A141 
-       TST "<"
-       BF A152 
-A152 
-       BT A141 
-       TST ">"
-       BF A153 
-A153 
-A141 
-       R 
-COMMENT
+       BE
+       mov [output_string], dword "ret"
+       call print
+       OUT
+A74:
+A75:
+       ret
+COMMENT:
        TST "/*"
-       BF A154 
+       jne A76
        NOT "*/"
-       BE 
+       BE
        TST "*/"
-       BE 
-A154 
-A155 
-       R 
-       END 
-       
+       BE
+A76:
+A77:
+       ret
+       END
+.bss
+       output_string resb 500
+       input_string resb 50000

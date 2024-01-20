@@ -1,13 +1,6 @@
-type Instruction = [string, string?];
+import { Pointer } from "./Tokens/Pointer";
 
-interface Step { lineno: number, colno: number, pc: number, instruction: Instruction, metadata: Metadata }
-
-interface Metadata {
-	isJumpInstruction: boolean;
-	jumpAddress: number;
-	jumpAddressLabel: string;
-	isReturnInstruction: boolean;
-}
+interface Step { lineno: number, colno: number, pc: number, instruction: string, metadata: any }
 
 enum InstructionSet {
 	JMP = "JMP",
@@ -16,6 +9,18 @@ enum InstructionSet {
 	BT = "BT",
 	B = "B"
 }
+
+export type Registers = {
+	eax: number | Pointer,
+	ebx: number | Pointer,
+	ecx: number | Pointer,
+	edx: number | Pointer,
+	edi: number | Pointer,
+	esi: number | Pointer,
+	ebp: number | Pointer,
+	esp: number | Pointer,
+	flags: number
+};
 
 interface Issue {
 	message: string,
@@ -56,4 +61,4 @@ interface CompilerOutput {
 	environment: {[key: string]: any}
 }
 
-export { CompilerOptions, Instruction, InstructionSet, Step, Metadata, Issue, CompilerFlags, CompilerOutput }
+export { CompilerOptions, InstructionSet, Step, Issue, CompilerFlags, CompilerOutput }
