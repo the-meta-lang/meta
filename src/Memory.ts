@@ -19,8 +19,9 @@ export function readStringFromMemory(memory: DataView, offset: number) {
 	let result = "";
 	let currentByte: number;
 	let i = 0;
-	while (currentByte = memory.getUint8(offset + i)) {
+	while (currentByte = memory.getUint16(offset + (i * 2))) {
 		result += String.fromCharCode(currentByte);
+		i++
 	}
 
 	return result;
@@ -30,8 +31,9 @@ export function readFromMemory(memory: DataView, offset: number) {
 	let result = [];
 	let currentByte: number;
 	let i = 0;
-	while (currentByte = memory.getUint8(offset + i)) {
+	while (currentByte = memory.getUint16(offset + (i * 2))) {
 		result.push(currentByte)
+		i++
 	}
 
 	return result;

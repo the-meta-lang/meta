@@ -68,13 +68,13 @@ class MetaCompiler {
 
 	public registerMap: Record<RegisterName, number> = this.registerNames.reduce((acc, name, i) => {
 		// Get the memory offset for the register
-		acc[name] = i;
+		acc[name] = i * 2;
 		return acc;
 	}, {})
 
 	// Reserve memory for the registers.
 	// Each register is 8 bits wide.
-	public registers = createMemory(this.registerNames.length);
+	public registers = createMemory(this.registerNames.length * 2);
 
 	public issues: Issue[];
 	private pointers: Record<string, number>
@@ -85,7 +85,7 @@ class MetaCompiler {
 			throw new Error(`Register ${name.toString()} does not exist`);
 		}
 
-		return this.registers.getUint8(this.registerMap[name]);
+		return this.registers.getUint16(this.registerMap[name]);
 	}
 
 	public setRegister(name: RegisterName, value: number) {
@@ -93,12 +93,12 @@ class MetaCompiler {
 			throw new Error(`Register ${name} does not exist`);
 		}
 
-		this.registers.setUint8(this.registerMap[name], value);
+		this.registers.setUint16(this.registerMap[name], value);
 	}
 
 	public fetch() {
 		const nextInstructionAddress = this.getRegister("eip");
-		const instruction = this.memory.getUint8(nextInstructionAddress);
+		const instruction = this.memory.getUint16(nextInstructionAddress);
 		this.setRegister("eip", nextInstructionAddress + 2);
 		return instruction;
 	}
@@ -301,17 +301,22 @@ class MetaCompiler {
 	 */
 	public cmp(source1: Register, source2: NumberToken | Pointer | Register) {
 		if (source2 instanceof NumberToken) {
-			if (source1.value instanceof Pointer) {
-				this.setZeroFlag(source1.value.value[0] === source2.value)
+			if (source1 instanceof Pointer) {
+				const register = this.getRegister(source1.name);
+				const value = this.memory.getUint16(register);
+				
+				this.setZeroFlag(value === source2.value)
 			} else {
 				this.setZeroFlag(source1.value === source2.value)
 			}
 		} else if (source2 instanceof Register) {
-			if (source1.value instanceof Pointer) {
-				if (source2.value instanceof Pointer) {
+			if (source1 instanceof Pointer) {
+				if (source2 instanceof Pointer) {
 					throw new Error("Cannot compare two pointers");
 				} else {
-					this.setZeroFlag(source1.value.value[0] === source2.value)
+					const value = this.memory.getUint16(source1.address);
+					
+					this.setZeroFlag(value === source2.value)
 				}
 			} else {
 				if (source2.value instanceof Pointer) {
@@ -358,8 +363,13 @@ class MetaCompiler {
 
 		this.setZeroFlag(true)
 
+		if (value1.length !== value2.length) {
+			// If the lengths of the strings are not equal, set the ZF flag to false
+			this.setZeroFlag(false)
+		}
+
 		for (let i = 0; i < value1.length; i++) {
-			const char = source1[i];
+			const char = value1[i];
 
 			if (value2[i] === undefined) {
 				// If the second source operand is shorter than the first, set the ZF flag to false
@@ -373,6 +383,10 @@ class MetaCompiler {
 				break;
 			}
 		}
+
+		console.log(this.getZeroFlag());
+		
+		
 
 		if (!omitProgramCodeIncrement) this.pc++;
 	}
@@ -417,29 +431,29 @@ class MetaCompiler {
 
 	private ADD_REGISTER_MEMORY(destination: Register, source: Pointer) {
 		const r1 = this.getRegister(destination.name);
-		const r2 = this.memory.getUint8(source.address);
+		const r2 = this.memory.getUint16(source.address);
 
 		this.setRegister(destination.name, r1 + r2);
 	}
 
 	private ADD_MEMORY_IMMEDIATE(destination: Pointer, source: NumberToken) {
-		const r1 = this.memory.getUint8(destination.address);
+		const r1 = this.memory.getUint16(destination.address);
 
-		this.memory.setUint8(destination.address, r1 + source.value);
+		this.memory.setUint16(destination.address, r1 + source.value);
 	}
 
 	private ADD_MEMORY_REGISTER(destination: Pointer, source: Register) {
-		const r1 = this.memory.getUint8(destination.address);
+		const r1 = this.memory.getUint16(destination.address);
 		const r2 = this.getRegister(source.name);
 
-		this.memory.setUint8(destination.address, r1 + r2);
+		this.memory.setUint16(destination.address, r1 + r2);
 	}
 
 	private ADD_MEMORY_MEMORY(destination: Pointer, source: Pointer) {
-		const r1 = this.memory.getUint8(destination.address);
-		const r2 = this.memory.getUint8(source.address);
+		const r1 = this.memory.getUint16(destination.address);
+		const r2 = this.memory.getUint16(source.address);
 
-		this.memory.setUint8(destination.address, r1 + r2);
+		this.memory.setUint16(destination.address, r1 + r2);
 	}
 
 	/**
@@ -460,8 +474,8 @@ class MetaCompiler {
 				address = destination.address;
 			}
 
-			const value = this.memory.getUint8(address);
-			this.memory.setUint8(address, value + source.value);
+			const value = this.memory.getUint16(address);
+			this.memory.setUint16(address, value + source.value);
 			this.pc++
 			return
 		}
@@ -499,11 +513,11 @@ class MetaCompiler {
 			for (let i = 0; i < chars.length; i++) {
 				const char = chars[i];
 				const charCode = char.charCodeAt(0);
-				this.memory.setUint8(memoryAddress + i,charCode);
+				this.memory.setUint16(memoryAddress + (i * 2),charCode);
 			}
-			this.memory.setUint8(memoryAddress + chars.length, 0);
+			this.memory.setUint16(memoryAddress + chars.length * 2, 0);
 		} else {
-			this.memory.setUint8(memoryAddress, source.value);
+			this.memory.setUint16(memoryAddress, source.value);
 		}
 	}
 
@@ -511,7 +525,7 @@ class MetaCompiler {
 		const memoryAddress = target.address;
 
 		// Store the value in memory
-		this.memory.setUint8(memoryAddress, source.value);
+		this.memory.setUint16(memoryAddress, source.value);
 	}
 
 	private MOV_REGISTER_MEMORY(target: Register, source: Pointer) {
@@ -539,7 +553,7 @@ class MetaCompiler {
 				address = destination.address;
 			}
 
-			this.memory.setUint8(address, source.value);
+			this.memory.setUint16(address, source.value);
 			this.pc++
 			return
 		}
@@ -596,7 +610,7 @@ class MetaCompiler {
 				let char: number;
 				// Read until we hit a null terminator
 				let i = 0;
-				while (char = this.memory.getUint8(esi + i)) {
+				while (char = this.memory.getUint16(esi + (i * 2))) {
 					chars.push(String.fromCharCode(char));
 					i++
 				}
@@ -619,7 +633,7 @@ class MetaCompiler {
 					const char = chars[i];
 					const charCode = char.charCodeAt(0);
 
-					this.memory.setUint8(esi + i, charCode);
+					this.memory.setUint16(esi + (i * 2), charCode);
 				}
 			}
 		}

@@ -25,22 +25,37 @@ PROGRAM = $((".DATA" .LABEL(".data") $(DATA_DEFINITION | COMMENT)) |
 							-> ("mov esi, [output_string]")
 							-> ("int 0x80")
 							-> ("ret")
+							.LABEL("newline_without_spaces:")
+							-> ("mov eax, [output_string]")
+							-> ("mov [eax], 0x0a")
+							-> ("add eax, 2 ; equal to the byte size we're using")
+							-> ("mov [eax], 0x00")
+							-> ("call print")
+							-> ("ret")
 							.LABEL("newline:")
 							-> ("mov eax, [output_string]")
 							-> ("mov [eax], 0x0a")
-							-> ("add eax, 1")
+							-> ("add eax, 2 ; equal to the byte size we're using")
 							-> ("mov ecx, 7")
 							.LABEL("fill_loop:")
 							-> ("mov [eax], 32")
-							-> ("add eax, 1")
+							-> ("add eax, 2 ; equal to the byte size we're using")
 							-> ("loop fill_loop")
 							-> ("mov [eax], 0x00")
 							-> ("call print")
+							-> ("ret")
+							.LABEL("test_input_string:")
+							-> ("mov esi, [input_string]")
+							-> ("mov edi, [test_string]")
+							-> ("mov ecx, 200")
+							-> ("rep cmps")
 							-> ("ret")
 					$(VARIABLE_ASSIGNMENT | DEFINITION | COMMENT) ".END" -> ("END")))
 					.LABEL(".bss")
 					->("output_string resb 500")
 					->("input_string resb 12000")
+					->("test_string resb 200")
+					->("input_pointer resb 4")
 					/* Reserve enough space for any output call that might come up */;
 
 DATA_DEFINITION = .ID .LABEL("    " * ":") "=" DATA_TYPE ";";
@@ -69,7 +84,8 @@ EX3 = .ID               -> ("call " *)
 
 	/* If we hit a supposed string we will start matching the string */
 
-	| .STRING           -> ("TST " *)
+	| .STRING           ->("OUT")/* -> ("mov [test_string], dword " *) */
+											/* -> ("call test_input_string") */
 
 	/* Match the .ID directive, causing the compiler to match an identifier */
 
