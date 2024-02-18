@@ -1,25 +1,3 @@
-
-section .data
-	; input_string db ".SYNTAX AEXP1", 0x22, "AEXP1 = .ID", 0x22, ".END", 0x00
-section .bss
-		last_match resb 100
-		input_string resb 12000
-		input_string_offset resb 2
-		input_pointer resb 4
-		lfbuffer resb 1
-		vstack_1 resb 1 ; Virtual stack for our number generator
-		gn1_number resb 1
-section .text
-global _start
-_start:
-		mov eax, 3 ; syscall for 'read'
-		mov ebx, 0 ; stdin file descriptor
-		mov ecx, input_string ; Read Text input into `input_string`
-		mov edx, 12000 ; We can read up to 12000 bytes
-		int 0x80
-
-		jmp PROGRAM
-
 %macro save_machine_state 0
 		pushfd ; Save the flags register
 		push ebp ; Save the base pointer
@@ -30,9 +8,10 @@ _start:
 		popfd ; Restore the flags register
 %endmacro
 
-%macro print_input_string_with_current_offset 0
+%macro print_input 0
 		save_machine_state ; Save the flags register
 		print "------------------------"
+		print 0x0a
 		mov eax, 4          ; syscall: sys_write
 		mov ebx, 1          ; file descriptor: STDOUT
 		mov ecx, input_string  ; string to write
@@ -45,6 +24,8 @@ _start:
 		jmp %%_calculate_length
 %%_end_calculate_length:
 		int 0x80            ; invoke syscall
+		print 0x0a
+		print "------------------------"
 		restore_machine_state ; Restore the flags register
 %endmacro
 
@@ -323,7 +304,7 @@ section .text
 %%_test_digit:
 		cmp byte [esi], ' '       ; Check for space
 		je  %%_end_of_string       ; If space is reached, end the loop
-		cmp byte [esi], 0
+		cmp byte [esi], 0x00
 		je %%_end_of_string
 		cmp byte [esi], '0'
 		jl %%_not_matching
@@ -341,6 +322,7 @@ section .text
 		mov [eax], ebx
 		add eax, 1
 		mov byte [eax], 0x00
+		add byte [input_string_offset], 1
 
 		; Otherwise match the next chars
 		lodsb                   ; Load the next byte from [esi] into AL, incrementing esi
@@ -438,418 +420,11 @@ section .text
 		mov byte [vstack_1], 0x00
 %endmacro
 
-section .data
-		error_message db "BRANCH ERROR Executed - Something is Wrong!", 0x0A, 0  ; Null-terminate the message
-		error_message_length equ $ - error_message
-
-section .text
 terminate_program:
 		; Write error message to stdout
-		mov eax, 4            ; System call number for sys_write
-		mov ebx, 1            ; File descriptor for standard output (stdout)
-		mov ecx, error_message ; Pointer to the error message
-		mov edx, error_message_length ; Length of the error message
-		int 0x80              ; Invoke the kernel to write the message to stdout
+		print_with_newline "BRANCH ERROR Executed - Something is Wrong!"
 
 		; Exit the program
 		mov eax, 1            ; System call number for sys_exit
 		mov ebx, 1          ; Exit code 1
 		int 0x80              ; Invoke the kernel to exit the program
-
-PROGRAM:
-	reset_vstack
-A0:
-		test_input_string ".DATA"
-		jne A1
-		label
-		print ".data"
-		newline
-A2:
-		call DATA_DEFINITION
-		jne A3
-A3:	
-		je A4
-		call COMMENT
-		jne A5
-A5:
-A4:
-		je A2
-		test esp, esp
-		jne terminate_program
-A1:
-A6:
-		jne A7
-A7:
-		je A8
-		test_input_string ".SYNTAX"
-		jne A9
-		test_for_id
-		jne terminate_program
-		label_with_newline "%include './lib/asm_macros.asm'"
-		label_with_newline "section .bss"
-		print_with_newline "last_match resb 100"
-		print_with_newline "input_string resb 12000"
-		print_with_newline "input_string_offset resb 2"
-		print_with_newline "input_pointer resb 4"
-		print_with_newline "lfbuffer resb 1"
-		print_with_newline "vstack_1 resb 1"
-		print_with_newline "gn1_number resb 1"
-		label_with_newline "section .text"
-		print_with_newline "global _start"
-		label_with_newline "_start:"
-		print_with_newline "mov eax, 3 ; syscall for 'read'"
-		print_with_newline "mov ebx, 0 ; stdin file descriptor"
-		print_with_newline "mov ecx, input_string ; Read Text input into `input_string`"
-		print_with_newline "mov edx, 12000 ; We can read up to 12000 bytes"
-		print_with_newline "int 0x80"
-		print_with_newline "; The count of read bytes is returned in eax, we need to null terminate the string"
-		print_with_newline "add ecx, eax"
-		print_with_newline "sub ecx, 1 ; Subtract one since a newline is included in the count"
-		print_with_newline "mov byte [ecx], 0x00"
-A10:
-		call VARIABLE_ASSIGNMENT
-		jne A11
-A11:
-		je A12
-		call DEFINITION
-		jne A13
-A13:
-		je A12
-		call COMMENT
-		jne A14
-A14:
-A12:
-		je A10
-		test_input_string ".END"
-		jne terminate_program
-		print_with_newline "mov eax, 1"
-		print_with_newline "mov ebx, 0"
-		print_with_newline "int 0x80"
-		jmp A18
-A9:
-A8:
-		je A0
-		test esp, esp
-		jne A17
-A17:
-A18:
-		; Exit the program
-		mov eax, 1            ; System call number for sys_exit
-		mov ebx, 0          ; Exit code 0
-		int 0x80              ; Invoke the kernel to exit the program
-DATA_DEFINITION:
-		reset_vstack
-		test_for_id
-		jne A19
-		label
-		print "    "
-		copy_last_match
-		print_with_newline ":"
-		test_input_string "="
-		jne terminate_program
-		call DATA_TYPE
-		jne terminate_program
-		test_input_string ";"
-		jne terminate_program
-A19:
-A20:
-		ret
-DATA_TYPE:
-		reset_vstack
-		test_for_string
-		jne A21
-		print "string "
-		copy_last_match
-		newline
-A21:
-A22:
-		jne A23
-A23:
-		je A24
-		test_for_number
-		jne A25
-		print "number "
-		copy_last_match
-		newline
-A25:
-A26:
-		jne A27
-A27:
-A24:
-		ret
-VARIABLE_ASSIGNMENT:
-		reset_vstack
-		test_input_string "["
-		jne A28
-		test_for_id
-		jne terminate_program
-		print "mov ["
-		copy_last_match
-		print "], "
-		test_input_string "]"
-		jne terminate_program
-		test_input_string "="
-		jne terminate_program
-		test_for_string
-		jne A29
-		print "dword "
-		copy_last_match
-		newline
-A29:
-		je A30
-		test_for_number
-		jne A31
-		copy_last_match
-		newline
-A31:
-A30:
-		jne terminate_program
-		test_input_string ";"
-		jne terminate_program
-		print "ret"
-		newline
-A28:
-		ret
-OUT1:
-		reset_vstack
-		test_input_string "*1"
-		jne A33
-		print "gn1"
-		newline
-A33:
-		je A34
-		test_input_string "*2"
-		jne A35
-		print "GN2"
-		newline
-A35:
-		je A34
-		test_input_string "*"
-		jne A36
-		print "copy_last_match"
-		newline
-A36:
-		je A34
-		test_for_string
-		jne A37
-		print "print "
-		copy_last_match
-		newline
-A37:
-		je A34
-		test_input_string "["
-		jne A38
-		test_for_id
-		jne terminate_program
-		print "mov eax, ["
-		copy_last_match
-		print "]"
-		newline
-		test_input_string "]"
-		jne terminate_program
-A38:
-A34:
-		ret
-OUTPUT:
-		reset_vstack
-		test_input_string "->"
-		jne A39
-		test_input_string "("
-		jne terminate_program
-A40:
-		call OUT1
-		je A40
-		test_input_string ")"
-		jne terminate_program
-A39:
-		je A42
-		test_input_string ".LABEL"
-		jne A42
-		print "label"
-		newline
-		test_input_string "("
-		jne terminate_program
-A43:
-		call OUT1
-		je A42
-		test_input_string ")"
-		jne terminate_program
-A42:
-		jne A44
-		print "newline"
-		newline
-A44:
-		je A45
-		test_input_string ".OUT"
-		jne A45
-		test_input_string "("
-		jne terminate_program
-A47:
-		call OUT1
-		je A47
-		test_input_string ")"
-		jne terminate_program
-A45:
-		ret
-EX3:
-		reset_vstack
-		test_for_id
-		jne A48
-		print "call "
-		copy_last_match
-		newline
-A48:
-		je A49
-		test_for_string
-		jne A50
-		print "test_input_string "
-		copy_last_match
-		newline
-A50:
-		je A49
-		test_input_string ".ID"
-		jne A51
-		print "test_for_id"
-		newline
-A51:
-		je A49
-		test_input_string ".RET"
-		jne A52
-		print "ret"
-		newline
-A52:
-		je A49
-		test_input_string ".NOT"
-		jne A53
-		test_for_string
-		jne terminate_program
-		print "NOT "
-		copy_last_match
-		newline
-A53:
-		je A49
-		test_input_string ".NUMBER"
-		jne A54
-		print "test_for_number"
-		newline
-A54:
-		je A49
-		test_input_string ".STRING"
-		jne A55
-		print "test_for_string"
-		newline
-A55:
-		je A49
-		test_input_string "("
-		jne A56
-		call EX1
-		; jne terminate_program
-		test_input_string ")"
-		jne terminate_program
-A56:
-		je A49
-		test_input_string ".EMPTY"
-		jne A57
-		print "test esp, esp"
-		newline
-A57:
-		je A49
-		test_input_string "$"
-		jne A49
-		label
-		gn1
-		print ":"
-		newline
-		call EX3
-		jne terminate_program
-		print "je "
-		gn1
-		newline
-		print "test esp, esp"
-		newline
-A49:
-		ret
-EX2:
-		reset_vstack
-		call EX3
-		jne A59
-		print "jne "
-		gn1
-		newline
-A59:
-		je A60
-		call OUTPUT
-		jne A60
-A60:
-		jne A62 ; TODO: investigate why is doesn't continue
-A63:
-		call EX3
-		jne B64
-		print "jne terminate_program"
-		newline
-B64:
-		je A65
-		call OUTPUT
-A65:
-		je A63
-		set_true
-		label
-		gn1
-		print ":"
-		newline
-A62:
-		ret
-EX1:
-		reset_vstack
-		call EX2
-		jne A68
-A69:
-		; STUCK HERE
-		test_input_string "|"
-		jne A70
-		print "je "
-		gn1
-		newline
-		call EX2
-		jne terminate_program
-A70:
-		je A71
-		call COMMENT
-A71:
-		je A69
-		label
-		gn1
-		print ":"
-		newline
-A68:
-		ret
-DEFINITION:
-		reset_vstack
-		test_for_id
-		jne A74
-		label
-		copy_last_match
-		print_with_newline ":"
-		test_input_string "="
-		jne terminate_program
-		call EX1
-		; jne terminate_program ; TODO: THIS IS CAUSING ISSUES
-		test_input_string ";"
-		jne terminate_program
-		; print_with_newline "ret" ; TODO: This is probably important and should be reenabled at some point
-A74:
-		ret
-COMMENT:
-		reset_vstack
-		test_input_string "/*"
-		jne A76
-		; TODO: Implement
-		; NOT "*/"
-		jne terminate_program
-		test_input_string "*/"
-		jne terminate_program
-A76:
-		ret
-		mov eax, 0x01
-		mov ebx, 0x01
-		int 0x80
