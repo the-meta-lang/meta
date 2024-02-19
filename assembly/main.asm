@@ -1,13 +1,13 @@
+%define MAX_INPUT_LENGTH 65536
 
-section .data
-	; input_string db ".SYNTAX AEXP1", 0x22, "AEXP1 = .ID", 0x22, ".END", 0x00
 section .bss
-		last_match resb 100
-		input_string resb 12000
+		last_match resb 512
+		input_string resb MAX_INPUT_LENGTH
 		input_string_offset resb 2
 		input_pointer resb 4
 		lfbuffer resb 1
-		vstack_1 resb 1 ; Virtual stack for our number generator
+		vstack resb 256 ; 256 bytes of virtual stack
+		vstack_pointer resb 1
 		gn1_number resb 1
 section .text
 global _start
@@ -15,10 +15,40 @@ _start:
 		mov eax, 3 ; syscall for 'read'
 		mov ebx, 0 ; stdin file descriptor
 		mov ecx, input_string ; Read Text input into `input_string`
-		mov edx, 12000 ; We can read up to 12000 bytes
+		mov edx, MAX_INPUT_LENGTH ; Let's read the maximum number of bytes
 		int 0x80
 
 		jmp PROGRAM
+
+%macro vstack_push 1
+		mov eax, vstack
+		add eax, [vstack_pointer]
+		mov byte [eax], %1
+		mov al, [vstack_pointer]
+		add al, 1 ; increment the pointer
+		mov byte [vstack_pointer], al
+%endmacro
+
+%macro vstack_pop 0
+		mov al, byte [vstack_pointer] ; Get the current pointer
+		sub al, 1	; Decrement the pointer
+		mov byte [vstack_pointer], al ; Store the new pointer
+		
+		mov eax, vstack
+		add eax, [vstack_pointer]
+		mov eax, [eax]
+
+		mov ebx, vstack 
+		add ebx, [vstack_pointer] 
+		mov byte [ebx], 0x00 ; reset the value in the array to 0
+%endmacro
+
+
+%macro store_vstack 0
+		mov eax, vstack
+		add eax, [vstack_pointer]
+		; TODO: Do something with this
+%endmacro
 
 %macro save_machine_state 0
 		pushfd ; Save the flags register
@@ -30,7 +60,7 @@ _start:
 		popfd ; Restore the flags register
 %endmacro
 
-%macro print_input_string_with_current_offset 0
+%macro print_input_string 0
 		save_machine_state ; Save the flags register
 		print "------------------------"
 		mov eax, 4          ; syscall: sys_write
@@ -377,9 +407,8 @@ section .text
 
 %macro gn1 0
 		save_machine_state ; Save the flags register
-		mov al, byte [vstack_1]; Get gn1
+		vstack_pop ; result will be in al
 		cmp al, 0
-		; TODO: `je`? i'm not sure...
 		je %%_generate_new_number
 
 %%_print_label:
@@ -387,7 +416,13 @@ section .text
 		print_int [gn1_number]
 
 		mov al, [gn1_number]
-		mov byte [vstack_1], al
+
+		vstack_push al
+
+		mov al, [gn1_number]
+		mov ebx, vstack
+		add ebx, [vstack_pointer]
+		mov byte [vstack], al
 
 		jmp %%_end
 
@@ -434,10 +469,6 @@ section .text
 		restore_machine_state ; Restore the flags register
 %endmacro
 
-%macro reset_vstack 0
-		mov byte [vstack_1], 0x00
-%endmacro
-
 section .data
 		error_message db "BRANCH ERROR Executed - Something is Wrong!", 0x0A, 0  ; Null-terminate the message
 		error_message_length equ $ - error_message
@@ -457,7 +488,7 @@ terminate_program:
 		int 0x80              ; Invoke the kernel to exit the program
 
 PROGRAM:
-	reset_vstack
+	store_vstack
 A0:
 		test_input_string ".DATA"
 		jne A1
@@ -538,7 +569,7 @@ A18:
 		mov ebx, 0          ; Exit code 0
 		int 0x80              ; Invoke the kernel to exit the program
 DATA_DEFINITION:
-		reset_vstack
+		store_vstack
 		test_for_id
 		jne A19
 		label
@@ -555,7 +586,7 @@ A19:
 A20:
 		ret
 DATA_TYPE:
-		reset_vstack
+		store_vstack
 		test_for_string
 		jne A21
 		print "string "
@@ -578,7 +609,7 @@ A27:
 A24:
 		ret
 VARIABLE_ASSIGNMENT:
-		reset_vstack
+		store_vstack
 		test_input_string "["
 		jne A28
 		test_for_id
@@ -611,7 +642,7 @@ A30:
 A28:
 		ret
 OUT1:
-		reset_vstack
+		store_vstack
 		test_input_string "*1"
 		jne A33
 		print "gn1"
@@ -651,7 +682,7 @@ A38:
 A34:
 		ret
 OUTPUT:
-		reset_vstack
+		store_vstack
 		test_input_string "->"
 		jne A39
 		test_input_string "("
@@ -692,7 +723,7 @@ A47:
 A45:
 		ret
 EX3:
-		reset_vstack
+		store_vstack
 		test_for_id
 		jne A48
 		print "call "
@@ -770,7 +801,7 @@ A57:
 A49:
 		ret
 EX2:
-		reset_vstack
+		store_vstack
 		call EX3
 		jne A59
 		print "jne "
@@ -781,7 +812,7 @@ A59:
 		call OUTPUT
 		jne A60
 A60:
-		jne A62 ; TODO: investigate why is doesn't continue
+		jne A62
 A63:
 		call EX3
 		jne B64
@@ -800,7 +831,7 @@ A65:
 A62:
 		ret
 EX1:
-		reset_vstack
+		store_vstack
 		call EX2
 		jne A68
 A69:
@@ -824,7 +855,7 @@ A71:
 A68:
 		ret
 DEFINITION:
-		reset_vstack
+		store_vstack
 		test_for_id
 		jne A74
 		label
@@ -836,11 +867,11 @@ DEFINITION:
 		; jne terminate_program ; TODO: THIS IS CAUSING ISSUES
 		test_input_string ";"
 		jne terminate_program
-		; print_with_newline "ret" ; TODO: This is probably important and should be reenabled at some point
+		print_with_newline "ret" ; TODO: This is probably important and should be reenabled at some point
 A74:
 		ret
 COMMENT:
-		reset_vstack
+		store_vstack
 		test_input_string "/*"
 		jne A76
 		; TODO: Implement
