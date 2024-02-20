@@ -1,6 +1,6 @@
 section .bss
-	vstack resb 512
-	vstack_pointer resb 1
+	vstack resb 8191
+	vstack_pointer resb 2
 
 section .text
 	global _start
@@ -8,16 +8,19 @@ section .text
 %macro vstack_push 1
 		mov eax, vstack
 		add eax, [vstack_pointer]
-		mov byte [eax], %1
-		mov al, [vstack_pointer]
-		add al, 1 ; increment the pointer
-		mov byte [vstack_pointer], al
+		mov word [eax], %1
+		mov ax, [vstack_pointer]
+		add ax, 1 ; increment the pointer
+		mov word [vstack_pointer], ax
 %endmacro
 
 %macro vstack_pop 0
-		mov al, byte [vstack_pointer] ; Get the current pointer
-		sub al, 1	; Decrement the pointer
-		mov byte [vstack_pointer], al ; Store the new pointer
+		mov ax, word [vstack_pointer] ; Get the current pointer
+		cmp ax, 0 ; Check if the pointer is 0
+		je  %%_pre_terminate ; If it is, we can't pop anything, we need to return 0 to prevent writing into the memory before the vstack
+
+		sub ax, 1	; Decrement the pointer
+		mov word [vstack_pointer], ax ; Store the new pointer
 		
 		mov eax, vstack
 		add eax, [vstack_pointer]
@@ -25,7 +28,11 @@ section .text
 
 		mov ebx, vstack 
 		add ebx, [vstack_pointer] 
-		mov byte [ebx], 0x00 ; reset the value in the array to 0
+		mov word [ebx], 0x00 ; reset the value in the array to 0
+		jmp %%_end
+	%%_pre_terminate:
+		mov eax, 0x00
+	%%_end:
 %endmacro
 
 
@@ -36,8 +43,10 @@ section .text
 %endmacro
 
 _start:
-	mov eax, 0x01
-	vstack_push 0x01
+	mov bx, 0x02
+	vstack_push bx
+	vstack_pop
+	vstack_pop
 	vstack_pop
 	mov eax, 0x00
 	mov eax, [vstack]

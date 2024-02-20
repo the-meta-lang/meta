@@ -294,6 +294,10 @@ section .text
 %endmacro
 
 %macro test_for_number 0
+	section .data
+		%%_length db 0
+
+	section .text
 		input_blanks
 		mov esi, input_string
 		add esi, [input_string_offset]
@@ -324,18 +328,25 @@ section .text
 		mov byte [eax], 0x00
 		add byte [input_string_offset], 1
 
+		; Increment the length of the match
+		mov eax, %%_length
+		add byte [eax], 1
+
 		; Otherwise match the next chars
 		lodsb                   ; Load the next byte from [esi] into AL, incrementing esi
 		jmp %%_test_digit
 
 %%_not_matching:
-		; Strings are not equal
+		; There is no number right now.
+		; However, if the length of the match is bigger than 0 then it's a match nontheless
+		mov al, [%%_length]
+		cmp al, 0
+		jg %%_end_of_string
 		set_false ; Set zero flag to 1 to indicate inequality
 		jmp %%_end
 
 %%_end_of_string:
 		set_true
-		; TODO: Add the length of the match
 
 %%_end:
 		cmp eax, 1

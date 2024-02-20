@@ -1,5 +1,9 @@
 %define MAX_INPUT_LENGTH 65536
 
+section .data
+		FILE db "./assembly/input.meta", 0x00
+		vstack_pointer dd 0x00
+
 section .bss
 		last_match resb 512
 		input_string resb MAX_INPUT_LENGTH
@@ -7,47 +11,71 @@ section .bss
 		input_pointer resb 4
 		lfbuffer resb 1
 		vstack resb 256 ; 256 bytes of virtual stack
-		vstack_pointer resb 1
-		gn1_number resb 1
+		gn1_number resb 2 ; 2 bytes for the gn1 number
 section .text
-global _start
-_start:
+global main
+main:
+		; mov eax, 3 ; syscall for 'read'
+		; mov ebx, 0 ; stdin file descriptor
+		; mov ecx, input_string ; Read Text input into `input_string`
+		; mov edx, MAX_INPUT_LENGTH ; Let's read the maximum number of bytes
+		; int 0x80
+
+		call _read_file
+
+		jmp PROGRAM
+
+_read_file:
+		; Open and read the file specified in
+		; the FILE constant to enable easier debugging.
+		mov eax, 5 ; syscall for 'open'
+		mov ebx, FILE ; File to open
+		mov ecx, 0 ; O_RDONLY
+		int 0x80
+
+		mov ebx, eax ; Save the file descriptor
 		mov eax, 3 ; syscall for 'read'
-		mov ebx, 0 ; stdin file descriptor
 		mov ecx, input_string ; Read Text input into `input_string`
 		mov edx, MAX_INPUT_LENGTH ; Let's read the maximum number of bytes
 		int 0x80
 
-		jmp PROGRAM
+		mov eax, 6 ; syscall for 'close'
+		int 0x80
+
+		ret
 
 %macro vstack_push 1
+		pushfd
 		mov eax, vstack
 		add eax, [vstack_pointer]
-		mov byte [eax], %1
-		mov al, [vstack_pointer]
-		add al, 1 ; increment the pointer
-		mov byte [vstack_pointer], al
+		mov word [eax], %1
+		mov ax, word [vstack_pointer]
+		add ax, 4 ; increment the pointer
+		mov word [vstack_pointer], ax
+		popfd
 %endmacro
 
 %macro vstack_pop 0
-		mov al, byte [vstack_pointer] ; Get the current pointer
-		sub al, 1	; Decrement the pointer
-		mov byte [vstack_pointer], al ; Store the new pointer
+		pushfd
+		mov ax, word [vstack_pointer] ; Get the current pointer
+		cmp ax, 0 ; Check if the pointer is 0
+		je  %%_pre_terminate ; If it is, we can't pop anything, we need to return 0 to prevent writing into the memory before the vstack
+
+		sub ax, 4	; Decrement the pointer
+		mov word [vstack_pointer], ax ; Store the new pointer
 		
 		mov eax, vstack
 		add eax, [vstack_pointer]
-		mov eax, [eax]
+		mov eax, [eax] ; store the result in eax
 
 		mov ebx, vstack 
 		add ebx, [vstack_pointer] 
-		mov byte [ebx], 0x00 ; reset the value in the array to 0
-%endmacro
-
-
-%macro store_vstack 0
-		mov eax, vstack
-		add eax, [vstack_pointer]
-		; TODO: Do something with this
+		mov word [ebx], 0x00 ; reset the value in the array to 0
+		jmp %%_end
+	%%_pre_terminate:
+		mov eax, 0x00
+	%%_end:
+		popfd
 %endmacro
 
 %macro save_machine_state 0
@@ -79,8 +107,10 @@ _start:
 %endmacro
 
 %macro print_int 1
-		save_machine_state ; Save the flags register
+		pushfd ; Save the flags register
 		mov eax, %1 ; Move the number into eax
+		cmp eax, 0x00 ; Check if the number is zero, if it is, we need to print 0 directly since the checks will not work
+		je	%%_print_zero
 		mov edi, 0 ; Clear the counter
 %%_divide_loop:
 		cmp eax, 0
@@ -104,8 +134,16 @@ _start:
 		int 0x80            ; invoke syscall
 		pop ecx ; Pop the next digit off the stack
 		jmp %%_print_loop
+%%_print_zero:
+		push 0x30 ; Push the ASCII value of 0 to the stack
+		mov eax, 4 ; syscall number for sys_write
+		mov ebx, 1 ; file descriptor 1 is stdout
+		mov ecx, esp
+		mov edx, 1 ; we are going to write one byte
+		int 0x80            ; invoke syscall
+		pop ecx ; Pop the next digit off the stack
 %%_end_print_loop:
-		restore_machine_state ; Restore the flags register
+		popfd ; Restore the flags register
 %endmacro
 
 ; Macro for printing to stdout
@@ -407,27 +445,22 @@ section .text
 
 %macro gn1 0
 		save_machine_state ; Save the flags register
-		vstack_pop ; result will be in al
-		cmp al, 0
+		vstack_pop ; result will be in eax
+		cmp eax, 0
 		je %%_generate_new_number
 
 %%_print_label:
 		print "LB"
 		print_int [gn1_number]
 
-		mov al, [gn1_number]
+		mov bx, [gn1_number]
 
-		vstack_push al
-
-		mov al, [gn1_number]
-		mov ebx, vstack
-		add ebx, [vstack_pointer]
-		mov byte [vstack], al
+		vstack_push bx
 
 		jmp %%_end
 
 %%_generate_new_number:
-		add byte [gn1_number], 0x01
+		add word [gn1_number], 1
 		jmp %%_print_label
 
 %%_end:
@@ -488,7 +521,8 @@ terminate_program:
 		int 0x80              ; Invoke the kernel to exit the program
 
 PROGRAM:
-	store_vstack
+	; store_vstack
+	vstack_push 0x00
 A0:
 		test_input_string ".DATA"
 		jne A1
@@ -505,7 +539,7 @@ A3:
 A5:
 A4:
 		je A2
-		test esp, esp
+		set_true
 		jne terminate_program
 A1:
 A6:
@@ -560,7 +594,7 @@ A12:
 A9:
 A8:
 		je A0
-		test esp, esp
+		set_true
 		jne A17
 A17:
 A18:
@@ -569,7 +603,7 @@ A18:
 		mov ebx, 0          ; Exit code 0
 		int 0x80              ; Invoke the kernel to exit the program
 DATA_DEFINITION:
-		store_vstack
+		vstack_push 0x00
 		test_for_id
 		jne A19
 		label
@@ -584,9 +618,10 @@ DATA_DEFINITION:
 		jne terminate_program
 A19:
 A20:
+		vstack_pop
 		ret
 DATA_TYPE:
-		store_vstack
+		vstack_push 0x00
 		test_for_string
 		jne A21
 		print "string "
@@ -607,9 +642,10 @@ A26:
 		jne A27
 A27:
 A24:
+		vstack_pop
 		ret
 VARIABLE_ASSIGNMENT:
-		store_vstack
+		vstack_push 0x00
 		test_input_string "["
 		jne A28
 		test_for_id
@@ -640,9 +676,10 @@ A30:
 		print "ret"
 		newline
 A28:
+		vstack_pop
 		ret
 OUT1:
-		store_vstack
+		vstack_push 0x00
 		test_input_string "*1"
 		jne A33
 		print "gn1"
@@ -651,7 +688,7 @@ A33:
 		je A34
 		test_input_string "*2"
 		jne A35
-		print "GN2"
+		print "gn2"
 		newline
 A35:
 		je A34
@@ -680,9 +717,10 @@ A37:
 		jne terminate_program
 A38:
 A34:
+		vstack_pop
 		ret
 OUTPUT:
-		store_vstack
+		vstack_push 0x00
 		test_input_string "->"
 		jne A39
 		test_input_string "("
@@ -721,9 +759,10 @@ A47:
 		test_input_string ")"
 		jne terminate_program
 A45:
+		vstack_pop
 		ret
 EX3:
-		store_vstack
+		vstack_push 0x00
 		test_for_id
 		jne A48
 		print "call "
@@ -781,7 +820,7 @@ A56:
 		je A49
 		test_input_string ".EMPTY"
 		jne A57
-		print "test esp, esp"
+		print "set_true"
 		newline
 A57:
 		je A49
@@ -796,12 +835,13 @@ A57:
 		print "je "
 		gn1
 		newline
-		print "test esp, esp"
+		print "set_true"
 		newline
 A49:
+		vstack_pop
 		ret
 EX2:
-		store_vstack
+		vstack_push 0x00
 		call EX3
 		jne A59
 		print "jne "
@@ -829,9 +869,10 @@ A65:
 		print ":"
 		newline
 A62:
+		vstack_pop
 		ret
 EX1:
-		store_vstack
+		vstack_push 0x00
 		call EX2
 		jne A68
 A69:
@@ -853,9 +894,10 @@ A71:
 		print ":"
 		newline
 A68:
+		vstack_pop
 		ret
 DEFINITION:
-		store_vstack
+		vstack_push 0x00
 		test_for_id
 		jne A74
 		label
@@ -869,9 +911,10 @@ DEFINITION:
 		jne terminate_program
 		print_with_newline "ret" ; TODO: This is probably important and should be reenabled at some point
 A74:
+		vstack_pop
 		ret
 COMMENT:
-		store_vstack
+		vstack_push 0x00
 		test_input_string "/*"
 		jne A76
 		; TODO: Implement

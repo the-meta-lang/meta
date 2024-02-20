@@ -1,6 +1,8 @@
 %macro print_int 1
 		pushfd ; Save the flags register
 		mov eax, %1 ; Move the number into eax
+		cmp eax, 0x00 ; Check if the number is zero, if it is, we need to print 0 directly since the checks will not work
+		je	%%_print_zero
 		mov edi, 0 ; Clear the counter
 %%_divide_loop:
 		cmp eax, 0
@@ -24,6 +26,14 @@
 		int 0x80            ; invoke syscall
 		pop ecx ; Pop the next digit off the stack
 		jmp %%_print_loop
+%%_print_zero:
+		push 0x30 ; Push the ASCII value of 0 to the stack
+		mov eax, 4 ; syscall number for sys_write
+		mov ebx, 1 ; file descriptor 1 is stdout
+		mov ecx, esp
+		mov edx, 1 ; we are going to write one byte
+		int 0x80            ; invoke syscall
+		pop ecx ; Pop the next digit off the stack
 %%_end_print_loop:
 		popfd ; Restore the flags register
 %endmacro
