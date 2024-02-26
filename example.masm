@@ -1,9 +1,0 @@
-label:
-	mov r1, $FF
-other_label:
-	mov r1, $AA
-	mov r1, $AA
-	mov r1, $AA
-	mov r1, $AA
-	mov r1, $AA
-	push r1

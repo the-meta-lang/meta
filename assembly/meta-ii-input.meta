@@ -1,0 +1,43 @@
+.SYNTAX PROGRAM
+
+PROGRAM = ".SYNTAX" .ID
+	.LABEL("%define MAX_INPUT_LENGTH 65536")
+	.LABEL("%include './lib/asm_macros.asm'")
+	.LABEL("section .text")
+	->("global _start")
+	.LABEL("_start:")
+	->("call _read_file_argument")
+	->("call _read_file")
+	->("call " *)
+	->("mov eax, 1")
+	->("mov ebx, 1")
+	->("int 0x80")
+  $(DEFINITION) ".END" ->("ret");
+
+OUT1 = "*1" ->("gn1")
+	| "*2" ->("gn2")
+	| "*" ->("copy_last_match")
+	| .STRING ->("print " *);
+
+OUTPUT = ("->" "(" $ OUT1 ")" 
+		| ".LABEL" ->("call label") "(" $ OUT1 ")") ->("call newline")
+		| ".OUT" "(" $ OUT1 ")";
+
+EX3 = .ID ->("vstack_push 0xFF") ->("call " *) ->("vstack_pop")
+	| .STRING           ->("call newline")
+	| ".ID"             ->("test_for_id")
+	| ".RET"	->("ret")
+	| ".NOT" .STRING	->("NOT " *)
+	| ".NUMBER"         ->("test_for_number")
+	| ".STRING"         ->("test_for_string")
+	| "(" EX1 ")"
+	| ".EMPTY" ->("set_true")
+	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("set_true");
+
+EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("jne terminate_program") | OUTPUT) .LABEL(*1 ":");
+
+EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
+
+DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
+
+.END

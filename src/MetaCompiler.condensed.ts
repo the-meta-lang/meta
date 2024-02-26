@@ -198,10 +198,10 @@ class MetaCompiler {
 		this.pc = 0;
 		this.stack = [];
 		this.nextGN1 = 0;
-		this.nextGN2 = 0;
+		// this.nextGN2 = 0;
 		this.done = false;
 		this.branch = false;
-		this.input = new Scanner(compiler);
+		this.input = new Scanner(grammar);
 		this.source = grammar;
 		while (this.step()) {}
 		return this.output.text;
@@ -242,8 +242,10 @@ class MetaCompiler {
 	}
 
 	public JMP(aaa: string) {
+		console.log(this.program[this.pc], this.stack);
+		
 		this.stack.push(this.pc + 1);
-		this.stack.push(null);
+		// this.stack.push(null);
 		this.stack.push(null);
 		this.pc = this.program[aaa];
 	}
@@ -252,7 +254,7 @@ class MetaCompiler {
 		if (this.stack.length === 0) {
 			this.END();
 		}
-		this.stack.pop();
+		// this.stack.pop();
 		this.stack.pop();
 		this.pc = this.stack.pop();
 	}
@@ -300,13 +302,13 @@ class MetaCompiler {
 	}
 
 	public GN1() {
-		var gn2 = this.stack.pop();
+		// var gn2 = this.stack.pop();
 		var gn1 = this.stack.pop();
 		if (gn1 === null) {
 			gn1 = this.nextGN1++;
 		}
 		this.stack.push(gn1);
-		this.stack.push(gn2);
+		// this.stack.push(gn2);
 		this.output.copy("A" + gn1 + " ");
 		this.pc++;
 	}

@@ -89,7 +89,7 @@ EX3 = .ID               -> ("call " *)
 
 	/* Match the .ID directive, causing the compiler to match an identifier */
 
-	| ".ID"             -> ("ID")
+	| ".ID"             -> ("test_for_id")
 
 	/* Trigger the return flag manually */
 
@@ -102,12 +102,12 @@ EX3 = .ID               -> ("call " *)
 
 	/* This will match the ".NUMBER" directive, which will itself match any numbers */
 
-	| ".NUMBER"         -> ("NUM")
+	| ".NUMBER"         -> ("test_for_number")
 
 	/* This will match the ".STRING" directive, which will itself match a string */
 	/* Strings can be single quoted ('String') or double quoted ("Also string") for ease of use */
 
-	| ".STRING"         -> ("SR")
+	| ".STRING"         -> ("test_for_string")
 
 	/* This will match an expression inside parentheses, like in math, parens' will cause the expression to be favored */
 
@@ -116,11 +116,11 @@ EX3 = .ID               -> ("call " *)
 	/* This will set the branch flag to `true`, basically meaning that it will always continue */
 	/* This might be useful if you want to match nothing or just continue because of something else */
 
-	| ".EMPTY" ->("SET")
+	| ".EMPTY" ->("set_true")
 
-	| "$" .LABEL(*1 ":") EX3 -> ("je " *1) -> ("SET");
+	| "$" .LABEL(*1 ":") EX3 -> ("je " *1) -> ("set_true");
 
-EX2 = (EX3 -> ("jne " *1) | OUTPUT) $ (EX3 -> ("BE") | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3 -> ("jne " *1) | OUTPUT) $ (EX3 -> ("jne terminate_program") | OUTPUT) .LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" -> ("je " *1) EX2 | COMMENT) .LABEL(*1 ":");
 

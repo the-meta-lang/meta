@@ -2,7 +2,6 @@
 
 section .data
 		FILE db "./assembly/input.meta", 0x00
-		vstack_pointer dd 0x00
 
 section .bss
 		last_match resb 512
@@ -10,7 +9,6 @@ section .bss
 		input_string_offset resb 2
 		input_pointer resb 4
 		lfbuffer resb 1
-		vstack resb 256 ; 256 bytes of virtual stack
 		gn1_number resb 2 ; 2 bytes for the gn1 number
 section .text
 global main
@@ -25,68 +23,11 @@ main:
 
 		jmp PROGRAM
 
-_read_file:
-		; Open and read the file specified in
-		; the FILE constant to enable easier debugging.
-		mov eax, 5 ; syscall for 'open'
-		mov ebx, FILE ; File to open
-		mov ecx, 0 ; O_RDONLY
-		int 0x80
-
-		mov ebx, eax ; Save the file descriptor
-		mov eax, 3 ; syscall for 'read'
-		mov ecx, input_string ; Read Text input into `input_string`
-		mov edx, MAX_INPUT_LENGTH ; Let's read the maximum number of bytes
-		int 0x80
-
-		mov eax, 6 ; syscall for 'close'
-		int 0x80
-
-		ret
-
-%macro vstack_push 1
-		pushfd
-		mov eax, vstack
-		add eax, [vstack_pointer]
-		mov word [eax], %1
-		mov ax, word [vstack_pointer]
-		add ax, 4 ; increment the pointer
-		mov word [vstack_pointer], ax
-		popfd
-%endmacro
-
-%macro vstack_pop 0
-		pushfd
-		mov ax, word [vstack_pointer] ; Get the current pointer
-		cmp ax, 0 ; Check if the pointer is 0
-		je  %%_pre_terminate ; If it is, we can't pop anything, we need to return 0 to prevent writing into the memory before the vstack
-
-		sub ax, 4	; Decrement the pointer
-		mov word [vstack_pointer], ax ; Store the new pointer
-		
-		mov eax, vstack
-		add eax, [vstack_pointer]
-		mov eax, [eax] ; store the result in eax
-
-		mov ebx, vstack 
-		add ebx, [vstack_pointer] 
-		mov word [ebx], 0x00 ; reset the value in the array to 0
-		jmp %%_end
-	%%_pre_terminate:
-		mov eax, 0x00
-	%%_end:
-		popfd
-%endmacro
-
-%macro save_machine_state 0
-		pushfd ; Save the flags register
-		push ebp ; Save the base pointer
-%endmacro
-
-%macro restore_machine_state 0
-		pop ebp ; Restore the base pointer
-		popfd ; Restore the flags register
-%endmacro
+%include "../lib/read_file.asm"
+%include "../lib/vstack.asm"
+%include "../lib/machine_state.asm"
+%include "../lib/print_int.asm"
+%include "../lib/print.asm"
 
 %macro print_input_string 0
 		save_machine_state ; Save the flags register
@@ -104,80 +45,6 @@ _read_file:
 %%_end_calculate_length:
 		int 0x80            ; invoke syscall
 		restore_machine_state ; Restore the flags register
-%endmacro
-
-%macro print_int 1
-		pushfd ; Save the flags register
-		mov eax, %1 ; Move the number into eax
-		cmp eax, 0x00 ; Check if the number is zero, if it is, we need to print 0 directly since the checks will not work
-		je	%%_print_zero
-		mov edi, 0 ; Clear the counter
-%%_divide_loop:
-		cmp eax, 0
-		je  %%_print_loop
-		mov edx, 0
-		mov ebx, 10
-		div ebx
-		add edx, 0x30
-		push edx
-		inc edi ; Increment the counter for every new digit we add
-		jmp %%_divide_loop
-%%_print_loop:
-		cmp edi, 0
-		je  %%_end_print_loop
-		dec edi ; Decrement the counter
-
-		mov eax, 4 ; syscall number for sys_write
-		mov ebx, 1 ; file descriptor 1 is stdout
-		mov ecx, esp ; Move the address of the next digit to ecx
-		mov edx, 1 ; we are going to write one byte
-		int 0x80            ; invoke syscall
-		pop ecx ; Pop the next digit off the stack
-		jmp %%_print_loop
-%%_print_zero:
-		push 0x30 ; Push the ASCII value of 0 to the stack
-		mov eax, 4 ; syscall number for sys_write
-		mov ebx, 1 ; file descriptor 1 is stdout
-		mov ecx, esp
-		mov edx, 1 ; we are going to write one byte
-		int 0x80            ; invoke syscall
-		pop ecx ; Pop the next digit off the stack
-%%_end_print_loop:
-		popfd ; Restore the flags register
-%endmacro
-
-; Macro for printing to stdout
-; Expects 1 argument (string) and automatically calculates it's length and outputs it
-%macro print 1
-section .data
-		%%_str db %1, 0x00
-section .text
-		save_machine_state ; Save the flags register
-		mov eax, 4          ; syscall: sys_write
-		mov ebx, 1          ; file descriptor: STDOUT
-		mov ecx, %%_str  ; string to write
-		mov edx, 0          ; length will be determined dynamically
-%%_calculate_length:
-		cmp byte [ecx + edx], 0  ; check for null terminator
-		je  %%_end_calculate_length
-		inc edx
-		jmp %%_calculate_length
-%%_end_calculate_length:
-		int 0x80            ; invoke syscall
-		restore_machine_state ; Restore the flags register
-%endmacro
-
-; Macro for printing to stdout including a newline at the end
-; Expects 1 argument (string) and automatically calculates it's length and outputs it
-%macro print_with_newline 1
-		print %1
-		newline
-%endmacro
-
-%macro label_with_newline 1
-		label
-		print %1
-		newline
 %endmacro
 
 %macro input_blanks 0
@@ -521,8 +388,6 @@ terminate_program:
 		int 0x80              ; Invoke the kernel to exit the program
 
 PROGRAM:
-	; store_vstack
-	vstack_push 0x00
 A0:
 		test_input_string ".DATA"
 		jne A1
@@ -550,27 +415,29 @@ A7:
 		jne A9
 		test_for_id
 		jne terminate_program
+		label_with_newline "%define MAX_INPUT_LENGTH 65536"
 		label_with_newline "%include './lib/asm_macros.asm'"
+
+		label_with_newline "section .data"
+		print_with_newline "FILE db './assembly/input-test.input.txt', 0x00"
+		print_with_newline "vstack_pointer dd 0x00"
+
 		label_with_newline "section .bss"
-		print_with_newline "last_match resb 100"
-		print_with_newline "input_string resb 12000"
+		print_with_newline "last_match resb 512"
+		print_with_newline "input_string resb MAX_INPUT_LENGTH"
 		print_with_newline "input_string_offset resb 2"
 		print_with_newline "input_pointer resb 4"
 		print_with_newline "lfbuffer resb 1"
-		print_with_newline "vstack_1 resb 1"
-		print_with_newline "gn1_number resb 1"
+		print_with_newline "vstack resb 256"
+		print_with_newline "gn1_number resb 2"
+
 		label_with_newline "section .text"
-		print_with_newline "global _start"
-		label_with_newline "_start:"
-		print_with_newline "mov eax, 3 ; syscall for 'read'"
-		print_with_newline "mov ebx, 0 ; stdin file descriptor"
-		print_with_newline "mov ecx, input_string ; Read Text input into `input_string`"
-		print_with_newline "mov edx, 12000 ; We can read up to 12000 bytes"
-		print_with_newline "int 0x80"
-		print_with_newline "; The count of read bytes is returned in eax, we need to null terminate the string"
-		print_with_newline "add ecx, eax"
-		print_with_newline "sub ecx, 1 ; Subtract one since a newline is included in the count"
-		print_with_newline "mov byte [ecx], 0x00"
+		print_with_newline "global main"
+		label_with_newline "main:"
+		print_with_newline "call _read_file"
+		print "jmp "
+		copy_last_match
+		newline
 A10:
 		call VARIABLE_ASSIGNMENT
 		jne A11
@@ -845,7 +712,7 @@ EX2:
 		call EX3
 		jne A59
 		print "jne "
-		gn1
+		gn1 ; TODO: Figure out what's going on here...
 		newline
 A59:
 		je A60
@@ -915,14 +782,12 @@ A74:
 		ret
 COMMENT:
 		vstack_push 0x00
-		test_input_string "/*"
+		test_input_string "//"
 		jne A76
-		; TODO: Implement
-		; NOT "*/"
-		jne terminate_program
-		test_input_string "*/"
+		; TODO: Implement a comment
 		jne terminate_program
 A76:
+		vstack_pop
 		ret
 		mov eax, 0x01
 		mov ebx, 0x01

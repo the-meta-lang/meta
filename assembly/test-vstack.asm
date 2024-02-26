@@ -1,30 +1,40 @@
+
+section .data
+		vstack_pointer dd 0x00
 section .bss
-	vstack resb 8191
-	vstack_pointer resb 2
+		vstack resb 256 ; 256 bytes of virtual stack
 
 section .text
 	global _start
 
 %macro vstack_push 1
+		save_machine_state
 		mov eax, vstack
 		add eax, [vstack_pointer]
 		mov word [eax], %1
-		mov ax, [vstack_pointer]
-		add ax, 1 ; increment the pointer
+		mov ax, word [vstack_pointer]
+		add ax, 2 ; increment the pointer
 		mov word [vstack_pointer], ax
+		restore_machine_state
 %endmacro
 
 %macro vstack_pop 0
+		pushfd
+		push ebp ; Save the base pointer
+		push ebx
+		push ecx
+		push edx
+		push edi
 		mov ax, word [vstack_pointer] ; Get the current pointer
 		cmp ax, 0 ; Check if the pointer is 0
 		je  %%_pre_terminate ; If it is, we can't pop anything, we need to return 0 to prevent writing into the memory before the vstack
 
-		sub ax, 1	; Decrement the pointer
+		sub ax, 2	; Decrement the pointer
 		mov word [vstack_pointer], ax ; Store the new pointer
 		
 		mov eax, vstack
 		add eax, [vstack_pointer]
-		mov eax, [eax]
+		mov eax, [eax] ; store the result in eax
 
 		mov ebx, vstack 
 		add ebx, [vstack_pointer] 
@@ -33,23 +43,45 @@ section .text
 	%%_pre_terminate:
 		mov eax, 0x00
 	%%_end:
+		; print "POP"
+		; print_vstack
+		pop edi
+		pop edx
+		pop ecx
+		pop ebx
+		pop ebp ; Restore the base pointer
+		popfd
 %endmacro
 
+%macro save_machine_state 0
+		pushfd ; Save the flags register
+		push ebp ; Save the base pointer
+		push eax
+		push ebx
+		push ecx
+		push edx
+		push edi
+%endmacro
 
-%macro store_vstack 0
-		mov eax, vstack
-		add eax, [vstack_pointer]
-		; TODO: Do something with this
+%macro restore_machine_state 0
+		pop edi
+		pop edx
+		pop ecx
+		pop ebx
+		pop eax
+		pop ebp ; Restore the base pointer
+		popfd ; Restore the flags register
 %endmacro
 
 _start:
-	mov bx, 0x02
-	vstack_push bx
+	mov eax, 1
+	vstack_push 0xFFFF
+	vstack_pop
+	vstack_push 0x01
+	vstack_push 0x02
+	vstack_push 0x03
 	vstack_pop
 	vstack_pop
-	vstack_pop
-	mov eax, 0x00
-	mov eax, [vstack]
 
 	mov eax, 1
 	mov ebx, 0

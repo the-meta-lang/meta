@@ -1,3 +1,5 @@
+%define MAX_INPUT_LENGTH 65536
+
 section .data
 		gn1_number dd 0x00
 
@@ -8,12 +10,8 @@ section .bss
 		input_pointer resb 4
 		lfbuffer resb 1
 		FILE resb 256
-		str_vector_8192 resb 8192
 section .text
 global _start
-
-%include "./lib/vectors.asm"
-%include "./lib/string.asm"
 
 _read_file:
 		; Open and read the file specified in
@@ -179,14 +177,15 @@ vstack_pop:
 section .data
 		%%_str db %1, 0x00
 section .text
-		print_ref %%_str
-%endmacro
-
-%macro print_ref 1
-		save_machine_state
+		pushfd ; Save the flags register
+		push eax
+		push ebx
+		push ecx
+		push edx
+		push edi
 		mov eax, 4          ; syscall: sys_write
 		mov ebx, 1          ; file descriptor: STDOUT
-		mov ecx, %1  ; string to write
+		mov ecx, %%_str  ; string to write
 		mov edx, 0          ; length will be determined dynamically
 %%_calculate_length:
 		cmp byte [ecx + edx], 0  ; check for null terminator
@@ -195,26 +194,12 @@ section .text
 		jmp %%_calculate_length
 %%_end_calculate_length:
 		int 0x80            ; invoke syscall
-		restore_machine_state
-%endmacro
-
-; Match everything that is not the given character
-%macro match_not 1
-		save_machine_state
-		mov esi, input_string
-		add esi, [input_string_offset]
-		mov ecx, 0
-%%_match_not_loop:
-		cmp byte [esi], %1
-		je  %%_end_match_not_loop
-		cmp byte [esi], 0
-		je  %%_end_match_not_loop
-		inc esi
-		inc ecx
-		jmp %%_match_not_loop
-%%_end_match_not_loop:
-		add [input_string_offset], ecx
-		restore_machine_state
+		pop edi
+		pop edx
+		pop ecx
+		pop ebx
+		pop eax
+		popfd ; Restore the flags register
 %endmacro
 
 newline:
@@ -618,3 +603,314 @@ _read_file_argument_loop:
 
 _read_file_argument_end:
 		ret
+
+_start:
+		call _read_file_argument
+		call _read_file
+		call PROGRAM
+		mov eax, 1
+		mov ebx, 1
+		int 0x80
+
+PROGRAM:
+    test_input_string ".SYNTAX"
+    jne A0 
+    call test_for_id 
+    jne terminate_program 
+    label_with_newline "%define MAX_INPUT_LENGTH 65536"
+		label_with_newline "%include './lib/asm_macros.asm'"
+
+		label_with_newline "section .text"
+		print_with_newline "global _start"
+		label_with_newline "_start:"
+		print_with_newline "call _read_file_argument"
+		print_with_newline "call _read_file"
+		print "call "
+    call copy_last_match 
+		call newline
+		print_with_newline "mov eax, 1"
+		print_with_newline "mov ebx, 1"
+		print_with_newline "int 0x80"
+A1: 
+		vstack_push 0xFFFF
+    call DEFINITION
+		call vstack_pop
+    jne A2 
+A2: 
+    je A3 
+		vstack_push 0xFFFF
+    call COMMENT
+		call vstack_pop
+    jne A4 
+A4: 
+A3: 
+    je A1 
+    call set_true 
+    jne terminate_program 
+    test_input_string ".END"
+    jne terminate_program 
+    call newline
+A0: 
+A5: 
+    ret
+OUT1:
+    test_input_string "*1"
+    jne A6 
+    print "call gn1"
+    call newline
+A6: 
+    je A7 
+    test_input_string "*2"
+    jne A8 
+    print "call gn2"
+    call newline
+A8: 
+    je A7 
+    test_input_string "*"
+    jne A9 
+    print "call copy_last_match"
+    call newline
+A9: 
+    je A7 
+    call test_for_string
+    jne A10 
+    print "print "
+    call copy_last_match 
+    call newline
+A10: 
+A7: 
+    ret
+OUTPUT:
+    test_input_string "->"
+    jne A11 
+    test_input_string "("
+    jne terminate_program 
+A12: 
+		vstack_push 0xFFFF
+    call OUT1
+		call vstack_pop
+    je A12 
+    call set_true 
+    jne terminate_program 
+    test_input_string ")"
+    jne terminate_program 
+A11: 
+    je A13 
+    test_input_string ".LABEL"
+    jne A14 
+    print "call label"
+    call newline
+    test_input_string "("
+    jne terminate_program 
+A15: 
+		vstack_push 0xFFFF
+    call OUT1
+		call vstack_pop
+    je A15 
+    call set_true 
+    jne terminate_program 
+    test_input_string ")"
+    jne terminate_program 
+A14: 
+A13: 
+    jne B16
+    print "call newline"
+    call newline
+B16: 
+A17: 
+    ret
+EX3:
+    call test_for_id 
+    jne A18 
+		print_with_newline "vstack_push 0xFFFF"
+    print "call "
+    call copy_last_match 
+		call newline
+		print_with_newline "call vstack_pop"
+A18: 
+    je A19 
+    call test_for_string
+    jne A20 
+    print "test_input_string "
+    call copy_last_match 
+    call newline
+A20: 
+    je A19 
+    test_input_string ".ID"
+    jne A21 
+    print "call test_for_id"
+    call newline
+A21: 
+    je A19 
+    test_input_string ".ROL"
+    jne A22 
+    print "ROL"
+    call newline
+A22: 
+    je A19 
+    test_input_string ".RET"
+    jne A23 
+    print "ret"
+    call newline
+A23: 
+    je A19 
+    test_input_string ".NOT"
+    jne A24 
+    call test_for_string
+    jne terminate_program 
+    print "NOT"
+    call copy_last_match 
+    call newline
+A24: 
+    je A19 
+    test_input_string ".NUMBER"
+    jne A25 
+    print "call test_for_number"
+    call newline
+A25: 
+    je A19 
+    test_input_string ".STRING"
+    jne A26 
+    print "call test_for_string"
+    call newline
+A26: 
+    je A19 
+    test_input_string "("
+    jne A27 
+		vstack_push 0xFFFF
+    call EX1
+		call vstack_pop
+    jne terminate_program 
+    test_input_string ")"
+    jne terminate_program 
+A27: 
+    je A19 
+    test_input_string ".EMPTY"
+    jne A28 
+    print "call set_true"
+    call newline
+A28: 
+    je A19 
+    test_input_string "$"
+    jne A29 
+    call label 
+    call gn1
+		print ":"
+    call newline
+		vstack_push 0xFFFF
+    call EX3
+		call vstack_pop
+    jne terminate_program 
+    print "je "
+    call gn1 
+    call newline
+    print "call set_true"
+    call newline
+A29: 
+A19: 
+    ret
+EX2:
+		vstack_push 0xFFFF
+    call EX3
+		call vstack_pop
+    jne A30 
+    print "jne "
+    call gn1 
+    call newline
+A30: 
+    je A31 
+		vstack_push 0xFFFF
+    call OUTPUT
+		call vstack_pop
+    jne B32 
+B32: 
+A31: 
+    jne A33 
+A34: 
+		vstack_push 0xFFFF
+    call EX3
+		call vstack_pop
+    jne A35 
+    print "jne terminate_program"
+    call newline
+A35: 
+    je A36 
+		vstack_push 0xFFFF
+    call OUTPUT
+		call vstack_pop
+    jne A37 
+A37: 
+A36: 
+    je A34 
+    call set_true 
+    jne terminate_program 
+    call label 
+    call gn1 
+		print ":"
+		call newline
+A33: 
+A38: 
+    ret
+EX1:
+		vstack_push 0xFFFF
+    call EX2
+		call vstack_pop
+    jne A39 
+A40: 
+    test_input_string "|"
+    jne A41 
+    print "je "
+    call gn1 
+    call newline
+		vstack_push 0xFFFF
+    call EX2
+		call vstack_pop
+    jne terminate_program 
+A41: 
+    je A42 
+		vstack_push 0xFFFF
+    call COMMENT
+		call vstack_pop
+    jne A43 
+A43: 
+A42: 
+    je A40 
+    call set_true 
+    jne terminate_program 
+    call label 
+    call gn1 
+		print ":"
+    call newline
+A39: 
+A44: 
+    ret
+DEFINITION:
+    call test_for_id 
+    jne A45 
+    call label 
+    call copy_last_match
+		print ":"
+    call newline
+    test_input_string "="
+    jne terminate_program 
+		vstack_push 0xFFFF
+    call EX1
+		call vstack_pop
+    jne terminate_program 
+    test_input_string ";"
+    jne terminate_program 
+    print "ret"
+    call newline
+A45: 
+A46: 
+    ret
+COMMENT:
+    test_input_string "/*"
+    jne A47 
+    ; NOT "*/"
+    jne terminate_program 
+    test_input_string "*/"
+    jne terminate_program 
+A47: 
+A48:
+    ret
