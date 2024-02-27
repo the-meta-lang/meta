@@ -1,3 +1,33 @@
+section .bss
+	; Define a vector
+	; Structure:
+	;   - 0: length (mm32)
+	;   - 4 - 256: data (mm32)
+	vector resb 256
+
+section .text
+	global _start
+
+%macro save_machine_state 0
+		pushfd ; Save the flags register
+		push ebp ; Save the base pointer
+		push eax
+		push ebx
+		push ecx
+		push edx
+		push edi
+%endmacro
+
+%macro restore_machine_state 0
+		pop edi
+		pop edx
+		pop ecx
+		pop ebx
+		pop eax
+		pop ebp ; Restore the base pointer
+		popfd ; Restore the flags register
+%endmacro
+
 ; Push into a vector
 ; Usage: vector_push vector, value
 ; %1: vector (mm32)
@@ -59,21 +89,21 @@ vector_push_string_mm32:
 	save_machine_state
 	mov eax, esi
 	mov ecx, 0
-	.loop_length:
-		cmp byte [eax + ecx], 0
-		je .end_length
-		inc ecx
-		jmp .loop_length
-	.end_length:
-		mov eax, edi
-		; Get the length of the vector
-		mov ebx, [eax]
-		; Add the length to the pointer to set the value
-		add eax, ebx
-		add eax, 4
-		
-		; loop through the string and push each character
-		mov edx, 0
+.loop_length:
+	cmp byte [eax + ecx], 0
+	je .end_length
+	inc ecx
+	jmp .loop_length
+.end_length:
+	mov eax, edi
+	; Get the length of the vector
+	mov ebx, [eax]
+	; Add the length to the pointer to set the value
+	add eax, ebx
+	add eax, 4
+	
+	; loop through the string and push each character
+	mov edx, 0
 	.loop:
 		cmp edx, ecx
 		je .end
@@ -89,27 +119,25 @@ vector_push_string_mm32:
 		inc edx
 		jmp .loop
 	.end:
-		; Increment the length
-		mov ebx, [edi]
-		add ebx, ecx
-		add ebx, 1
+	; Increment the length
+	mov ebx, [edi]
+	add ebx, ecx
+	add ebx, 1
 
-		mov eax, edi
-		mov [eax], ebx
-		restore_machine_state
-		ret
+	mov eax, edi
+	mov [eax], ebx
+	restore_machine_state
+	ret
 
 
 ; Pop a string from a vector
 ; Usage: call vector_pop_string
 ; edi: vector (mm32)
-; @return edi (mm32)
+; @return eax (mm32)
 vector_pop_string:
 	section .bss
 		.string resb 256
 	section .text
-		pushfd
-		push eax
 		push ebx
 		push edx
 		push ecx
@@ -157,14 +185,55 @@ vector_pop_string:
 		sub dword [eax], ecx
 		add dword [eax], 1
 		; Return the string
-		mov edi, .string
-		add edi, 256
-		sub edi, ecx
-		add edi, 1
-		; Restore altered registers
+		mov eax, .string
+		add eax, 256
+		sub eax, ecx
+		add eax, 1
 		pop ecx
 		pop edx
 		pop ebx
-		pop eax
-		popfd
 		ret
+
+; Structure of a string
+; - 0 - 4 bytes: Length of the string
+; - 4 - n bytes: Characters of the string
+
+; Retrieve the length of a string
+; Input:
+; - [ebp - 4] (edi): Pointer to the string (mm32)
+; Output:
+; - eax: Length of the string (imm32)
+get_string_length:
+	; Get the length of the string
+	mov eax, 0
+	.loop:
+		mov al, byte [edi + eax]
+		test al, al
+		jz .end
+		inc eax
+		jmp .loop
+	.end:
+	ret
+
+%macro create_string 1
+	section .data
+		%%string db %1, 0x00
+	section .text
+		mov eax, %%string
+%endmacro
+
+_start:
+		mov eax, 1
+    ; Test input against string
+		vector_push_string vector, "Hi"
+		vector_push_string vector, "AWD"
+		mov eax, 4
+		mov edi, vector
+		call vector_pop_string
+		call vector_pop_string
+
+
+    ; Exit
+		mov eax, 0x01
+		mov ebx, 0x00
+    int 0x80

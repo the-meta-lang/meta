@@ -13,3 +13,6 @@ watch:
 		while inotifywait -e close_write $(rawfilename).asm >/dev/null 2>&1; do \
 				make all && clear && $(rawfilename) "./assembly/input.meta"; \
 		done
+
+watch-compile-gyro:
+	bash ./watch-full-compile.bash ./bootstrap/meta ./gyro/gyro.meta ./gyro/gyro-test.txt

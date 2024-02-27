@@ -1,0 +1,9 @@
+FN_EXPRESSION = "fn" ->("jmp " *1) .ID .LABEL(* ":") "(" $ FN_ARGUMENTS ")" "{" FN_BODY "}" ->("push ebp") ->("ret") .LABEL(*1 ":");
+
+FN_ARGUMENTS = .ID .LABEL("section .data") ->(* " dd 0x00") .LABEL("section .text") ->("pop ebp") ->("pop eax") ->("mov [" * "], eax") $("," .ID ->("pop " *));
+
+FN_BODY = $ (RETURN_EXPRESSION | LET_EXPRESSION | FN_CALL | FN_EXPRESSION);
+
+FN_CALL = .ID %> "(" $ FN_CALL_ARGUMENTS ")" ->("call " %) ";";
+
+FN_CALL_ARGUMENTS = .NUMBER ->("push " *) $("," .NUMBER ->("push " *));

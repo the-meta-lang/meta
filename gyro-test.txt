@@ -1,8 +1,0 @@
-(define (x num)
-	(define y 5)
-	(* y 6))
-
-(x 5)
-
-(exit)
-

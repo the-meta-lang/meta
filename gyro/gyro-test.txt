@@ -1,0 +1,9 @@
+fn fibonacci(num) {
+	if (4 * 4) {
+		return 5;
+	}
+
+	return 4 + 2;
+}
+
+fibonacci(4);

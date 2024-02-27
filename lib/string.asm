@@ -6,20 +6,23 @@
 ; Input:
 ; - [ebp - 4] (edi): Pointer to the string (mm32)
 ; Output:
-; - al: Length of the string (imm8)
+; - eax: Length of the string (imm32)
 get_string_length:
-		; Get the length of the string
-		xor eax, eax
-		mov al, [edi]
-		ret
+	; Get the length of the string
+	mov eax, 0
+	.loop:
+		mov al, byte [edi + eax]
+		test al, al
+		jz .end
+		inc eax
+		jmp .loop
+	.end:
+	ret
 
-; Get a pointer to the data portion of a string
-; Input:
-; - [ebp - 4] (edi): Pointer to the string (mm32)
-; Output:
-; - eax: Pointer to the data portion of the string (mm32)
-get_string_pointer:
-		; Get the length of the string
-		mov eax, edi
-		add eax, 1
-		ret
+%macro create_string 1
+	section .data
+		%%string db %1, 0x00
+	section .text
+		mov eax, %%string
+%endmacro
+

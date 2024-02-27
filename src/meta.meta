@@ -1,0 +1,107 @@
+.DATA
+
+x = 5;
+
+.SYNTAX PROGRAM
+
+PROGRAM = 
+.LABEL("%define MAX_INPUT_LENGTH 65536")
+.LABEL("%include './lib/asm_macros.asm'")
+	$(
+		(".DATA" 
+		.LABEL("section .data") 
+			$(DATA_DEFINITION))
+	 | (".SYNTAX" .ID
+		.LABEL("section .text")
+			->("global _start")
+		.LABEL("_start:")
+			->("call _read_file_argument")
+			->("call _read_file")
+			->("call " *)
+			->("mov eax, 1")
+			->("mov ebx, 0")
+			->("int 0x80")
+  	$(DEFINITION | IMPORT_STATEMENT | COMMENT) ".END"));
+
+IMPORT_STATEMENT = ".IMPORT" .STRING_RAW ";" .DIRECT("mov esi, last_match") .DIRECT("call import_meta_file_mm32");
+
+DATA_DEFINITION = .ID .RS(*) "=" DATA_TYPE ";";
+
+DATA_TYPE = (.STRING ->(" db " * ", 0x00")) | (.NUMBER ->(" dd " *));
+
+OUT1 = "*1" ->("call gn1")
+	| "*2" ->("call gn2")
+	| "*" ->("call copy_last_match")
+	| "%" ->("mov edi, str_vector_8192")
+				->("call vector_pop_string")
+				->("call print_mm32")
+	| "[" ->("pushfd") ->("push eax") BRACKET_EXPR "]"
+		->("pop edi")
+		->("pop eax")
+		->("popfd")
+		->("print_int edi")
+	| .STRING ->("print " *);
+
+OUT_IMMEDIATE = .STRING_RAW ->(*);
+
+OUTPUT = ("->" "(" $ OUT1 ")" ->("call newline")
+		| ".LABEL" ->("call label") "(" $ OUT1 ")" ->("call newline")
+		| ".RS" "(" $ OUT1 ")")
+		| ".DIRECT" "(" $ OUT_IMMEDIATE ")"
+		| ".OUT" "(" $ OUT1 ")";
+
+EX3 = .ID ->("vstack_push 0xFFFF") ->("call " *) ->("call vstack_pop")
+	| .STRING           ->("test_input_string " *)
+	| ".ID"             ->("call test_for_id")
+	| ".RET"	->("ret")
+	| ".NOT" (.STRING | .NUMBER) ->("match_not " *)
+	| ".NUMBER"         ->("call test_for_number")
+	| ".STRING_RAW"			->("call test_for_string_raw")
+	| ".STRING"         ->("call test_for_string")
+	| "%>"
+		->("mov edi, str_vector_8192")
+		->("mov esi, last_match")
+		->("call vector_push_string_mm32")
+	| "(" EX1 ")"
+	| "[" ->("pushfd") ->("push eax") BRACKET_EXPR "]" ->("pop edi") ->("pop eax") ->("popfd")
+	| ".EMPTY" ->("call set_true")
+	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true");
+
+EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("jne terminate_program") | OUTPUT) .LABEL(*1 ":");
+
+EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
+
+BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG 
+		->("pop eax") 
+		->("pop ebx")
+		->("add eax, ebx")
+		->("push eax")) 
+	| ("-" BRACKET_ARG BRACKET_ARG 
+		->("pop ebx") 
+		->("pop eax")
+		->("sub eax, ebx")
+		->("push eax"))
+	| ("*" BRACKET_ARG BRACKET_ARG 
+		->("pop eax") 
+		->("pop ebx")
+		->("mul eax, ebx")
+		->("push eax")) 
+	| ("/" BRACKET_ARG BRACKET_ARG 
+		->("pop ebx") 
+		->("pop eax")
+		->("idiv eax, ebx")
+		->("push eax"))
+	| ("set" .ID %> BRACKET_ARG
+		->("pop eax")
+		->("mov [" % "], eax")
+		->("push eax"))
+	| (.ID ->("push dword [" * "]"))
+	| (.NUMBER ->("push " *));
+
+BRACKET_ARG = ("[" BRACKET_EXPR "]") | (.NUMBER ->("push " *)) | (.ID ->("push dword [" * "]"));
+
+DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
+
+COMMENT = "//" .NOT 10;
+
+.END

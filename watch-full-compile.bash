@@ -17,8 +17,8 @@ while inotifywait -e close_write $watchfiles >/dev/null 2>&1; do
 		compiler_output=$($compiler $metafile)
 
 		if [ $? -gt 0 ]; then
-			echo "Run failed - reverting changes"
 			echo "$compiler_output"
+			echo "$(date) Run failed - reverting changes"
 			continue
 		fi
 
@@ -27,12 +27,13 @@ while inotifywait -e close_write $watchfiles >/dev/null 2>&1; do
 		compile;
 
 		if [ $? == 0 ]; then
-			echo "Compilation successful"
+			clear;
 			OUTPUT=$($metafile.bin $input_file)
 			echo "$OUTPUT"
+			echo "$(date) Compilation successful"
 			if [ $? -gt 0 ]; then
-				echo "Run failed"
 				echo "$OUTPUT"
+				echo "Run failed"
 				continue
 			fi
 		else

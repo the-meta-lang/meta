@@ -12,9 +12,6 @@ section .bss
 section .text
 global _start
 
-%include "./lib/vectors.asm"
-%include "./lib/string.asm"
-
 _read_file:
 		; Open and read the file specified in
 		; the FILE constant to enable easier debugging.
@@ -69,14 +66,16 @@ section .text
 %endmacro
 
 %macro vstack_push 1
-		save_machine_state
+		pushfd
+		push eax
 		mov eax, vstack
 		add eax, [vstack_pointer]
 		mov word [eax], %1
 		mov ax, word [vstack_pointer]
 		add ax, 2 ; increment the pointer
 		mov word [vstack_pointer], ax
-		restore_machine_state
+		pop eax
+		popfd
 %endmacro
 
 vstack_pop:
@@ -85,28 +84,26 @@ vstack_pop:
 		push ebx
 		push ecx
 		push edx
-		push edi
+		push eax
 		mov ax, word [vstack_pointer] ; Get the current pointer
 		cmp ax, 0 ; Check if the pointer is 0
-		je  vp_pre_terminate ; If it is, we can't pop anything, we need to return 0 to prevent writing into the memory before the vstack
+		je  .pre_terminate ; If it is, we can't pop anything, we need to return 0 to prevent writing into the memory before the vstack
 
 		sub ax, 2	; Decrement the pointer
 		mov word [vstack_pointer], ax ; Store the new pointer
 		
-		mov eax, vstack
-		add eax, [vstack_pointer]
-		mov eax, [eax] ; store the result in eax
+		mov edi, vstack
+		add edi, [vstack_pointer]
+		mov edi, [edi] ; store the result in eax
 
 		mov ebx, vstack 
 		add ebx, [vstack_pointer] 
 		mov word [ebx], 0x00 ; reset the value in the array to 0
-		jmp vp_end
-	vp_pre_terminate:
-		mov eax, 0x00
-	vp_end:
-		; print "POP"
-		; print_vstack
-		pop edi
+		jmp .end
+	.pre_terminate:
+		mov edi, 0x00
+	.end:
+		pop eax
 		pop edx
 		pop ecx
 		pop ebx
@@ -301,46 +298,100 @@ test_for_string:
 		mov ecx, 0
 
 		cmp byte [esi], '"'
-		je  tfs_test_rest_chars_loop
-		jmp tfs_not_matching
+		je  .test_rest_chars_loop
+		jmp .not_matching
 		; Manual string comparison loop
 
-tfs_test_rest_chars_loop:
-		; Load the next byte from [esi] into AL, incrementing esi
-		lodsb
-		; Move the char into last_match at the current index
-		mov ebx, last_match
-		add ebx, ecx
-		mov byte [ebx], al
-		; Add a null terminator
-		add ebx, 1
-		mov byte [ebx], '"'
-		add ebx, 1
-		mov byte [ebx], 0x00
-		inc ecx
+	.test_rest_chars_loop:
+			; Load the next byte from [esi] into AL, incrementing esi
+			lodsb
+			; Move the char into last_match at the current index
+			mov ebx, last_match
+			add ebx, ecx
+			mov byte [ebx], al
+			; Add a null terminator
+			add ebx, 1
+			mov byte [ebx], '"'
+			add ebx, 1
+			mov byte [ebx], 0x00
+			inc ecx
 
-		cmp byte [esi], '"'       ; Check for space
-		je  tfs_end_of_string       ; If space is reached, end the loop
-		cmp byte [esi], 0
-		je tfs_end_of_string ; TODO: Maybe terminate?
+			cmp byte [esi], '"'       ; Check for space
+			je  .end_of_string       ; If space is reached, end the loop
+			cmp byte [esi], 0
+			je .end_of_string ; TODO: Maybe terminate?
 
-		; Otherwise match the next chars
-		jmp tfs_test_rest_chars_loop
+			; Otherwise match the next chars
+			jmp .test_rest_chars_loop
 
-tfs_not_matching:
-		; Strings are not equal
-		call set_false
-		jmp tfs_end
+	.not_matching:
+			; Strings are not equal
+			call set_false
+			jmp .end
 
-tfs_end_of_string:
-		; Add the length of the match and 2 characters for the quotes
-		add ecx, 1
-		add [input_string_offset], ecx
-		call set_true
+	.end_of_string:
+			; Add the length of the match and 2 characters for the quotes
+			add ecx, 1
+			add [input_string_offset], ecx
+			call set_true
 
-tfs_end:
-		cmp eax, 1
-		ret
+	.end:
+			cmp eax, 1
+			ret
+
+; Tests the input string for a string ("[...]")
+; but unlike test_for_string, it doesn't copy the quotation marks 
+; into the last_match
+test_for_string_raw:
+		call input_blanks
+		xor eax, eax
+		mov esi, input_string
+		add esi, [input_string_offset]
+		mov ecx, 0
+
+		cmp byte [esi], '"'
+		je  .test_rest_chars_loop
+		jmp .not_matching
+		; Manual string comparison loop
+
+	.test_rest_chars_loop:
+			add esi, 1
+			; Load the next byte from [esi] into AL, incrementing esi
+			mov al, byte [esi]
+			cmp al, 0
+			je .end_of_string 
+			cmp al, '"'       ; Check for quote
+			je  .end_of_string       ; If we hit a quote, end the loop
+
+			; Move the char into last_match at the current index
+			mov ebx, last_match
+			add ebx, ecx
+			mov byte [ebx], al
+			inc ecx
+
+			; Otherwise match the next chars
+			jmp .test_rest_chars_loop
+
+	.not_matching:
+			; Strings are not equal
+			call set_false
+			jmp .end
+
+	.end_of_string:
+			; Add the length of the match and 2 characters for the quotes
+			; add ecx, 1
+			; Add a null terminator to last_match
+			mov ebx, last_match
+			add ebx, ecx
+			mov byte [ebx], 0x00
+			add ecx, 2
+			add [input_string_offset], ecx
+			call set_true
+
+	.end:
+			cmp eax, 1
+			ret
+
 
 test_for_id:
 		call input_blanks
@@ -454,10 +505,11 @@ section .text
 
 %%_strings_equal:
 		; Strings are equal
-		mov esi, %%_str ; Source
-		mov edi, last_match ; Destination
-		mov ecx, %%_str_length
-		rep movsb ; Copy the string into last_match
+		; TODO: Don't move result into last_match, never necessary and really infuriating...
+		; mov esi, %%_str ; Source
+		; mov edi, last_match ; Destination
+		; mov ecx, %%_str_length
+		; rep movsb ; Copy the string into last_match
 		mov eax, %%_str_length
 		add [input_string_offset], eax
 		call set_true ; Set zero flag to 0 to indicate equality
@@ -471,58 +523,6 @@ section .text
 		cmp eax, 1
 %endmacro
 
-test_for_number:
-		call input_blanks
-		mov esi, input_string
-		add esi, [input_string_offset]
-
-		; Store the length of the match
-		mov cl, 0
-
-		; Manual string comparison loop
-		xor eax, eax            ; Clear EAX (result)
-
-tfn_test_digit:
-		cmp byte [esi], ' '       ; Check for space
-		je  tfn_end_of_string       ; If space is reached, end the loop
-		cmp byte [esi], 0
-		je tfn_end_of_string
-		cmp byte [esi], '0'
-		jl tfn_not_matching
-		cmp byte [esi], '9'
-		jg tfn_not_matching
-
-		; Move the char into last_match at index esi - (start) esi
-		mov eax, input_string
-		add eax, [input_string_offset]
-		mov ebx, esi
-		sub ebx, eax
-		mov eax, last_match
-		add eax, ebx
-		mov ebx, [esi]
-		mov [eax], ebx
-		add eax, 1
-		inc cl ; Increment the length of the match
-		mov byte [eax], 0x00
-
-		; Otherwise match the next chars
-		lodsb                   ; Load the next byte from [esi] into AL, incrementing esi
-		jmp tfn_test_digit
-
-tfn_not_matching:
-		cmp cl, 0
-		add byte [input_string_offset], cl
-		jg tfn_end_of_string
-		; Strings are not equal
-		call set_false ; Set zero flag to 1 to indicate inequality
-		jmp tfn_end
-
-tfn_end_of_string:
-		call set_true
-
-tfn_end:
-		cmp eax, 1
-		ret
 
 copy_last_match:
 		save_machine_state ; Save the flags register
@@ -542,28 +542,28 @@ cl_end_calculate_length:
 
 gn1:
 		save_machine_state ; Save the flags register
-		call vstack_pop ; result will be in eax
-		cmp eax, 0xFFFF
-		je gn1_generate_new_number
+		call vstack_pop ; result will be in edi
+		cmp edi, 0xFFFF
+		je .generate_new_number
 
-gn1_print_label:
-		print "LB"
-		print_int eax
+	.print_label:
+			print "LB"
+			print_int edi
 
-		mov bx, ax
+			mov bx, di
 
-		vstack_push bx
+			vstack_push bx
 
-		jmp gn1_end
+			jmp .end
 
-gn1_generate_new_number:
-		add word [gn1_number], 1
-		mov eax, [gn1_number]
-		jmp gn1_print_label
+	.generate_new_number:
+			add word [gn1_number], 1
+			mov edi, [gn1_number]
+			jmp .print_label
 
-gn1_end:
-		restore_machine_state ; Restore the flags register
-		ret
+	.end:
+			restore_machine_state ; Restore the flags register
+			ret
 
 set_false:
 		; How to set the zero flag to false:
@@ -618,3 +618,9 @@ _read_file_argument_loop:
 
 _read_file_argument_end:
 		ret
+
+%include "./lib/vectors.asm"
+%include "./lib/string.asm"
+%include "./lib/print.asm"
+%include "./lib/import.asm"
+%include "./lib/test-for-number.asm"

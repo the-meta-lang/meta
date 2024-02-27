@@ -1,0 +1,76 @@
+.SYNTAX PROGRAM
+
+PROGRAM = 
+.LABEL("section .text")
+	->("global _start")
+.LABEL("_start:")
+$ (LET_EXPRESSION ";" | FN_EXPRESSION | FN_CALL ";")
+->("mov eax, 4")
+->("mov ebx, 1")
+->("int 0x80");
+
+.IMPORT "./gyro/arithmetic.meta";
+
+FN_EXPRESSION = "fn" ->("jmp " *1) .ID .LABEL(* ":") "(" $ FN_ARGUMENTS ")" "{" 
+	BODY 
+"}" ->("push ebp") 
+		->("ret") 
+		.LABEL(*1 ":");
+
+// Function Arguments
+// A list of arguments passed when initializing a function
+// @example: fn add(a, b) <- a and b are the arguments
+FN_ARGUMENTS = .ID 
+	.LABEL("section .data") 
+		->(* " dd 0x00") 
+	.LABEL("section .text") 
+		->("pop ebp") 
+		->("pop eax") 
+		->("mov [" * "], eax") 
+$("," .ID ->("pop " *));
+
+// Function Body
+BODY = $(RETURN_EXPRESSION ";" | IF_STATEMENT | LET_EXPRESSION ";" | FN_CALL ";" | FN_EXPRESSION);
+
+FN_CALL = .ID %> "(" $ FN_CALL_ARGUMENTS ")" ->("call " %);
+
+// Function Call Arguments
+// A list of arguments passed when calling a function
+// @example: add(1, num) <- 1 and `num` are the arguments
+// needs to support both .ID and .NUMBER arguments
+FN_CALL_ARGUMENTS = (FN_CALL_NUM_ARG | FN_CALL_ID_ARG) $("," (FN_CALL_NUM_ARG | FN_CALL_ID_ARG));
+
+// Number argument when calling a function.
+// Gets pushed onto the stack as an imm32
+FN_CALL_NUM_ARG = .NUMBER ->("push " *);
+
+// ID argument when calling a function.
+// Gets pushed onto the stack as a resolved imm32
+FN_CALL_ID_ARG = .ID ->("push [" * "]");
+
+IF_STATEMENT = "if" "(" AEXP ")" 
+	->("pop eax")
+	->("cmp eax, 0")
+	->("jne " *1) "{"
+		BODY 
+	"}" 
+.LABEL(*1 ":");
+
+
+// Return Expression
+// @example: return 1;
+RETURN_EXPRESSION = "return" AEXP 
+	->("pop eax")
+	->("push ebp")
+	->("ret");
+
+LET_EXPRESSION = "let" .ID 
+	.LABEL("section .data") 
+		->(* " dd 0x00")
+	.LABEL("section .text")
+		%> "=" AEXP
+		->("pop eax")
+		->("mov [" % "], eax");
+
+
+.END
