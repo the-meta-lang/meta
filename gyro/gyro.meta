@@ -96,7 +96,7 @@ $("," (.NUMBER ->("mov esi, " *)
 // Arithmetic Expressions
 // These follow the precedence set by the C language
 // https://en.cppreference.com/w/c/language/operator_precedence
-AEXP = EX1 $(
+AEXP = EX1 [set AEXP_SEC_NUM 0] $(
 	("=" EX1 
 		->("pop eax")
 		->("mov dword [ebp+" [hash-get ST *last_match] "], eax")
@@ -272,7 +272,7 @@ EX9 = EX10 $("<<" EX10
 			->("shr eax, ebx")
 			->("push eax"));
 
-EX10 = EX11 $("+" EX11 ->("pop eax") ->("pop ebx") ->("add eax, ebx") ->("push eax")
+EX10 = EX11 [set AEXP_SEC_NUM 0] $("+" [set AEXP_SEC_NUM 1] EX11 ->("pop eax") ->("pop ebx") ->("add eax, ebx") ->("push eax")
 		| "-" EX11 ->("pop eax") ->("pop ebx") ->("sub eax, ebx") ->("push eax"));
 
 EX11 = EX12 $("*" EX12

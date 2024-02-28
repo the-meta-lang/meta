@@ -1,5 +1,6 @@
 fn fibonacci(num) {
-	let x = 2;
+	let x = 2 + 2;
+	let y = 4 + 4;
 	return x;
 }
 
