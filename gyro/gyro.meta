@@ -1,76 +1,396 @@
+.DATA
+
+// This is the symbol table
+// It is used to keep track of the variables and their memory locations
+ST = { 65536 };
+
+// This is the symbol table offset
+STO = 12;
+
+// This number keeps track of the number of variables in the current context frame
+// e.g. the function body
+VAR_IN_BODY = 0;
+
+// This boolean checks if we are currently evaluating the second operand in a arithmetic expression.
+// Without this we would have to rely on the stack instead of directly using eax and ebx in calculations.
+AEXP_SEC_NUM = 0;
+
 .SYNTAX PROGRAM
+
+// .INCLUDE "./gyro/includes/while-statement.meta";
+// .INCLUDE "./gyro/includes/let-expression.meta";
+// .INCLUDE "./gyro/includes/if-statement.meta";
+// .INCLUDE "./gyro/includes/arithmetic.meta";
 
 PROGRAM = 
 .LABEL("section .text")
 	->("global _start")
 .LABEL("_start:")
-$ (LET_EXPRESSION ";" | FN_EXPRESSION | FN_CALL ";")
+->("push ebp")
+->("mov ebp, esp")
+$ (LET_EXPRESSION ";" | FN_EXPRESSION | FN_CALL ";" | IF_STATEMENT | WHILE_STATEMENT)
+->("pop ebp")
 ->("mov eax, 4")
-->("mov ebx, 1")
+->("mov ebx, 0")
 ->("int 0x80");
 
-.IMPORT "./gyro/arithmetic.meta";
-
-FN_EXPRESSION = "fn" ->("jmp " *1) .ID .LABEL(* ":") "(" $ FN_ARGUMENTS ")" "{" 
+FN_EXPRESSION = "fn" ->("jmp " *1) .ID .LABEL(* ":") ->("push ebp") ->("mov ebp, esp") "(" 
+$(.ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [STO] "], edi"))
+$(("," .ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [STO] "], esi"))
+	$("," .ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [STO] "], edx") 
+		$("," .ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [STO] "], ecx")
+			$("," .ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]]))))
+")" "{" 
 	BODY 
-"}" ->("push ebp") 
+"}" 
+		[set STO [- STO [* VAR_IN_BODY 4]]]
+		->("pop ebp")
 		->("ret") 
 		.LABEL(*1 ":");
 
-// Function Arguments
-// A list of arguments passed when initializing a function
-// @example: fn add(a, b) <- a and b are the arguments
-FN_ARGUMENTS = .ID 
-	.LABEL("section .data") 
-		->(* " dd 0x00") 
-	.LABEL("section .text") 
-		->("pop ebp") 
-		->("pop eax") 
-		->("mov [" * "], eax") 
-$("," .ID ->("pop " *));
-
 // Function Body
-BODY = $(RETURN_EXPRESSION ";" | IF_STATEMENT | LET_EXPRESSION ";" | FN_CALL ";" | FN_EXPRESSION);
+BODY = $(RETURN_EXPRESSION ";" | IF_STATEMENT | WHILE_STATEMENT | LET_EXPRESSION ";" | FN_CALL ";" | FN_EXPRESSION);
 
-FN_CALL = .ID %> "(" $ FN_CALL_ARGUMENTS ")" ->("call " %);
+FN_CALL = .ID %> "(" FN_CALL_ARGUMENTS ")" ->("call " %);
 
 // Function Call Arguments
 // A list of arguments passed when calling a function
 // @example: add(1, num) <- 1 and `num` are the arguments
-// needs to support both .ID and .NUMBER arguments
-FN_CALL_ARGUMENTS = (FN_CALL_NUM_ARG | FN_CALL_ID_ARG) $("," (FN_CALL_NUM_ARG | FN_CALL_ID_ARG));
+FN_CALL_ARGUMENTS = 
+$(.NUMBER ->("mov edi, " *))
+$("," (.NUMBER ->("mov esi, " *)
+	| .ID ->("mov esi, [" * "]")
+	| "*" .ID ->("mov esi, " *)
+	| .STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov esi, " *3))
+	$("," (.NUMBER ->("mov edx, " *)
+		| .ID ->("mov edx, [" * "]")
+		| "*" .ID ->("mov edx, " *)
+		| .STRING 
+			.LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				->("mov edx, " *3))
+		$("," (.NUMBER ->("mov ecx, " *)
+			| .ID ->("mov ecx, [" * "]")
+			| "*" .ID ->("mov ecx, " *)
+			| .STRING 
+				.LABEL("section .data")
+					->(*3 " db " * ", 0x00")
+				.LABEL("section .text")
+					->("mov ecx, " *3))
+			$("," (.NUMBER ->("push " *)
+				| .ID ->("push [" * "]")
+				| "*" ->("push " *)
+				| .STRING 
+					.LABEL("section .data")
+						->(*3 " db " * ", 0x00")
+					.LABEL("section .text")
+						->("push " *3))))));
 
-// Number argument when calling a function.
-// Gets pushed onto the stack as an imm32
-FN_CALL_NUM_ARG = .NUMBER ->("push " *);
 
-// ID argument when calling a function.
-// Gets pushed onto the stack as a resolved imm32
-FN_CALL_ID_ARG = .ID ->("push [" * "]");
+
+// Arithmetic Expressions
+// These follow the precedence set by the C language
+// https://en.cppreference.com/w/c/language/operator_precedence
+AEXP = EX1 $(
+	("=" EX1 
+		->("pop eax")
+		->("mov dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	// NOTE: Since the other operators take precedence over the arithmetic assignment operators,
+	// we need to check for them first
+	// This will destroy precedence though, so we need to think of a better solution...
+	| ("+=" EX1 
+		->("pop eax")
+		->("add dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	| ("-=" EX1
+		->("pop eax")
+		->("sub dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	// Assignment by product, quotient, and remainder
+	| ("*=" EX1
+		->("pop eax")
+		->("mul dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	| ("/=" EX1
+		->("pop eax")
+		->("idiv dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	| ("%=" EX1
+		->("pop eax")
+		->("idiv dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push edx"))
+	// Assignment by bitwise left shift and right shift
+	| ("<<=" EX1
+		->("pop eax")
+		->("shl dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	| (">>=" EX1
+		->("pop eax")
+		->("shr dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	// Assignment by bitwise AND, XOR, and OR
+	| ("&=" EX1
+		->("pop eax")
+		->("and dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	| ("^=" EX1
+		->("pop eax")
+		->("xor dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+	| ("|=" EX1
+		->("pop eax")
+		->("or dword [ebp+" [hash-get ST *last_match] "], eax")
+		->("push eax"))
+);
+
+// Ternary Conditional
+EX1 = EX2 $("?" 
+			->("pop eax")
+			->("cmp eax, 0")
+			// Result is null, if so jump over the true condition
+			->("je " *1)
+				EX2
+			// Don't invoke the false condition if the true condition is true
+			->("jmp " *2) ":"
+		.LABEL(*1 ":") EX2
+		.LABEL(*2 ":"));
+
+// Logical OR
+EX2 = EX3 $("||" EX3 
+			->("pop eax")
+			->("pop ebx")
+			->("or eax, ebx")
+			->("push eax"));
+
+// Logical AND
+EX3 = EX4 $("&&" EX4 
+			->("pop eax")
+			->("pop ebx")
+			->("and eax, ebx")
+			->("push eax"));
+
+// Bitwise OR
+EX4 = EX5 $("|" EX5 
+			->("pop eax")
+			->("pop ebx")
+			->("or eax, ebx")
+			->("push eax"));
+
+// Bitwise XOR
+EX5 = EX6 $("^" EX6 
+			->("pop eax")
+			->("pop ebx")
+			->("xor eax, ebx")
+			->("push eax"));
+
+// Bitwise AND
+EX6 = EX7 $("&" EX7 
+			->("pop eax")
+			->("pop ebx")
+			->("and eax, ebx")
+			->("push eax"));
+
+// Relational == and !=
+EX7 = EX8 $("==" EX9 
+			->("pop eax")
+			->("pop ebx")
+			->("cmp eax, ebx")
+			->("je " *1)
+			->("push 0")
+			->("jmp " *2) 
+		.LABEL(*1 ":")
+			->("push 1")
+		.LABEL(*2 ":")
+		| "!=" EX9 
+			->("pop eax")
+			->("pop ebx")
+			->("cmp eax, ebx")
+			->("jne " *1)
+			->("push 0")
+			->("jmp " *2) 
+		.LABEL(*1 ":")
+			->("push 1")
+		.LABEL(*2 ":"));
+
+// Comparison / Relational Operators
+EX8 = EX9 $("<=" EX9 
+			->("pop eax")
+			->("pop ebx")
+			->("cmp eax, ebx")
+			->("jle " *1)
+			->("push 0")
+			->("jmp " *2) 
+		.LABEL(*1 ":")
+			->("push 1")
+		.LABEL(*2 ":")
+		| ">=" EX9 
+			->("pop eax")
+			->("pop ebx")
+			->("cmp eax, ebx")
+			->("jge " *1)
+			->("push 0")
+			->("jmp " *2)
+		.LABEL(*1 ":")
+			->("push 1")
+		.LABEL(*2 ":")
+		| "<" EX9 
+			->("pop eax") 
+			->("pop ebx") 
+			->("cmp eax, ebx") 
+			->("jl " *1) 
+			->("push 0") 
+			->("jmp " *2) 
+		.LABEL(*1 ":") 
+			->("push 1") 
+		.LABEL(*2 ":")
+		| ">" EX9
+			->("pop eax")
+			->("pop ebx")
+			->("cmp eax, ebx")
+			->("jg " *1)
+			->("push 0")
+			->("jmp " *2)
+		.LABEL(*1 ":")
+			->("push 1")
+		.LABEL(*2 ":"));
+
+// Bitwise left and right shift
+EX9 = EX10 $("<<" EX10 
+			->("pop eax") 
+			->("pop ebx") 
+			->("shl eax, ebx") 
+			->("push eax")
+		| ">>" EX10 
+			->("pop eax")
+			->("pop ebx")
+			->("shr eax, ebx")
+			->("push eax"));
+
+EX10 = EX11 $("+" EX11 ->("pop eax") ->("pop ebx") ->("add eax, ebx") ->("push eax")
+		| "-" EX11 ->("pop eax") ->("pop ebx") ->("sub eax, ebx") ->("push eax"));
+
+EX11 = EX12 $("*" EX12
+			->("pop eax")
+			->("pop ebx")
+			->("mul eax, ebx")
+			->("push eax") 
+		| "/" EX12
+			->("pop eax")
+			->("pop ebx")
+			->("idiv eax, ebx")
+			->("push eax")
+		| "%" EX12 
+			->("pop eax")
+			->("pop ebx")
+			->("idiv eax, ebx")
+			->("push edx"));
+					
+// TODO: Exponentiation
+EX12 = EX13 $("**" EX12 
+						->("pop eax")
+						->("pop ebx")
+						->("exp"));
+
+EX13 = "++" EX14
+			->("mov eax, dword [ebp+" [hash-get ST *last_match] "]")
+			->("inc eax")
+			->("mov dword [ebp+" [hash-get ST *last_match] "], eax")
+			->("push eax")
+		| "--" EX14
+			->("mov eax, dword [ebp+" [hash-get ST *last_match] "]")
+			->("dec eax")
+			->("mov dword [ebp+" [hash-get ST *last_match] "], eax")
+			->("push eax")
+		// Dereference
+		| "*" .ID
+			->("mov eax, dword [ebp+" [hash-get ST *last_match] "]")
+			->("mov eax, dword [eax]")
+			->("push eax")
+		// Address of
+		| "&" .ID 
+			->("lea eax, [ebp+" [hash-get ST *last_match] "]")
+			->("push eax")
+		| "+" EX14 
+		| "-" EX14 
+			->("pop eax")
+			->("neg eax")
+			->("push eax")
+		| EX14;
+
+EX14 = .ID %> (("(" $ FN_CALL_ARGUMENTS ")" ->("call " %)) 
+			// Post increment operator
+			| "++" 
+				->("mov eax, dword [ebp+" [hash-get ST *last_match] "]")
+				->("inc eax")
+				->("mov dword [ebp+" [hash-get ST *last_match] "], eax")
+				->("push eax")
+			// Post decrement operator
+			| "--"
+				->("mov eax, dword [ebp+" [hash-get ST *last_match] "]")
+				->("dec eax")
+				->("mov dword [ebp+" [hash-get ST *last_match] "], eax")
+				->("push eax")
+			| .EMPTY ->("push dword [ebp+" [hash-get ST *last_match] "]" ))
+		| .NUMBER ->("push " *)
+		| "(" AEXP ")";
+
+
+
+
+
+
+
+
+
+
 
 IF_STATEMENT = "if" "(" AEXP ")" 
 	->("pop eax")
 	->("cmp eax, 0")
-	->("jne " *1) "{"
+	->("je " *1) "{"
 		BODY 
-	"}" 
-.LABEL(*1 ":");
+	"}"
+	->("jmp " *2)
+	.LABEL(*1 ":")
+		$(ELIF) $(ELSE)
+	.LABEL(*2 ":");
 
+ELIF = "elif" "(" AEXP ")" 
+		->("pop eax")
+		->("cmp eax, 0")
+		->("jne " *1) "{"
+			BODY 
+		"}"
+		.LABEL(*1 ":");
+
+ELSE = "else" "{" 
+		BODY 
+	"}";
+
+LET_EXPRESSION = "let" .ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] "=" AEXP
+		->("pop eax")
+		->("mov dword [ebp+" [STO] "], eax");
+
+WHILE_STATEMENT = "while" .LABEL(*2 ":") "(" AEXP ")" "{" 
+		->("pop eax")
+		->("cmp eax, 0")
+		->("je " *1)
+		BODY 
+	"}"
+	->("jmp " *2)
+	.LABEL(*1 ":");
 
 // Return Expression
 // @example: return 1;
-RETURN_EXPRESSION = "return" AEXP 
-	->("pop eax")
-	->("push ebp")
-	->("ret");
+RETURN_EXPRESSION = "return" AEXP ->("pop eax");
 
-LET_EXPRESSION = "let" .ID 
-	.LABEL("section .data") 
-		->(* " dd 0x00")
-	.LABEL("section .text")
-		%> "=" AEXP
-		->("pop eax")
-		->("mov [" % "], eax");
+
 
 
 .END

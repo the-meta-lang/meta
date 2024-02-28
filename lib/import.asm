@@ -44,9 +44,8 @@ import_meta_file_mm32:
 		mov esi, input_string
 		add esi, [input_string_offset]
 		mov edi, temp_import_buffer
-
 		call copy_string ; Store the input_string in a temporary buffer
-		; We have now stored the input_string inside a temporary buffer.
+		
 		; Let's write the imported file content into the input_string
 		; and then append the temporary buffer again.
 		mov esi, import_file_content
@@ -58,8 +57,8 @@ import_meta_file_mm32:
 		mov edi, input_string
 		add edi, [import_file_content_length]
 		add edi, [input_string_offset]
-
 		call copy_string
+
 		restore_machine_state
 		ret
 
@@ -91,6 +90,8 @@ copy_string:
 		add edi, 1
 		jmp .copy_loop
 	.end_copy:
+		; Add the null terminator to the end of the string
+		mov byte [edi], 0x00
 		pop edi
 		pop esi
 		pop eax

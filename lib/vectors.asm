@@ -1,28 +1,28 @@
 ; Push into a vector
 ; Usage: vector_push vector, value
-; %1: vector (mm32)
-; %2: value (imm32)
-%macro vector_push 2
-	mov eax, %1
+; edi: vector (mm32)
+; esi: value (imm32)
+vector_push:
+	mov eax, edi
 	; Get the length of the vector
 	mov ebx, [eax]
 	; Add the length to the pointer to set the value
 	add eax, ebx
 	add eax, 4
 	; Set the value
-	mov dword [eax], %2
+	mov dword [eax], esi
 	; Increment the length
 	add ebx, 4
-	mov eax, %1
+	mov eax, edi
 	mov [eax], ebx
-%endmacro
+	ret
 
 ; Pop from a vector
 ; Usage: vector_pop vector
-; %1: vector (mm32)
-; @return eax
-%macro vector_pop 1
-	mov eax, %1
+; esi: vector (mm32)
+; @return edi
+vector_pop:
+	mov eax, esi
 	; Get the length of the vector
 	mov ebx, [eax]
 	; Get the old value
@@ -33,11 +33,11 @@
 	mov dword [eax], 0
 	; Decrement the length
 	sub ebx, 4
-	mov eax, %1
+	mov eax, esi
 	mov [eax], ebx
 
-	mov eax, ecx
-%endmacro
+	mov edi, ecx
+	ret
 
 ; Push a string into a vector
 ; Usage: vector_push_string vector, value

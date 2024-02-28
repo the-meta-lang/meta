@@ -9,6 +9,11 @@ $(rawfilename): $(rawfilename).asm
 		ld -m elf_i386 -o $@ $@.o \
 		&& rm $@.o
 
+compile:
+	nasm -F dwarf -g -f elf32 -i ./assembly -o $(target).o $(target) \
+	&& ld -m elf_i386 -o $(out) $(target).o \
+	&& rm $(target).o
+
 watch:
 		while inotifywait -e close_write $(rawfilename).asm >/dev/null 2>&1; do \
 				make all && clear && $(rawfilename) "./assembly/input.meta"; \

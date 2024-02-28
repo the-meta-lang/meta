@@ -1,0 +1,8 @@
+WHILE_STATEMENT = "while" .LABEL(*2 ":") "(" AEXP ")" "{" 
+		->("pop eax")
+		->("cmp eax, 0")
+		->("je " *1)
+		BODY 
+	"}"
+	->("jmp " *2)
+	.LABEL(*1 ":");

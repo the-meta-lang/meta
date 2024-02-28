@@ -1,6 +1,6 @@
 .DATA
 
-x = 5;
+line = 0;
 
 .SYNTAX PROGRAM
 
@@ -10,7 +10,7 @@ PROGRAM =
 	$(
 		(".DATA" 
 		.LABEL("section .data") 
-			$(DATA_DEFINITION))
+			$(DATA_DEFINITION | COMMENT))
 	 | (".SYNTAX" .ID
 		.LABEL("section .text")
 			->("global _start")
@@ -21,16 +21,18 @@ PROGRAM =
 			->("mov eax, 1")
 			->("mov ebx, 0")
 			->("int 0x80")
-  	$(DEFINITION | IMPORT_STATEMENT | COMMENT) ".END"));
+  	$(DEFINITION | INCLUDE_STATEMENT | COMMENT) ".END"));
 
-IMPORT_STATEMENT = ".IMPORT" .STRING_RAW ";" .DIRECT("mov esi, last_match") .DIRECT("call import_meta_file_mm32");
+INCLUDE_STATEMENT = ".INCLUDE" .STRING_RAW ";" .DIRECT("mov esi, last_match") .DIRECT("call import_meta_file_mm32") .DIRECT("call set_true");
 
 DATA_DEFINITION = .ID .RS(*) "=" DATA_TYPE ";";
 
-DATA_TYPE = (.STRING ->(" db " * ", 0x00")) | (.NUMBER ->(" dd " *));
+DATA_TYPE = ("{" .NUMBER ->(" times " * " dd 0x00") "}") | (.STRING ->(" db " * ", 0x00")) | (.NUMBER ->(" dd " *));
 
 OUT1 = "*1" ->("call gn1")
 	| "*2" ->("call gn2")
+	| "*3" ->("call gn3")
+	| "*4" ->("call gn4")
 	| "*" ->("call copy_last_match")
 	| "%" ->("mov edi, str_vector_8192")
 				->("call vector_pop_string")
@@ -44,16 +46,15 @@ OUT1 = "*1" ->("call gn1")
 
 OUT_IMMEDIATE = .STRING_RAW ->(*);
 
-OUTPUT = ("->" "(" $ OUT1 ")" ->("call newline")
-		| ".LABEL" ->("call label") "(" $ OUT1 ")" ->("call newline")
+OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline") [set line [+ line 1]]
+		| ".LABEL" ->("call label") "(" $(OUT1) ")" ->("call newline") 
 		| ".RS" "(" $ OUT1 ")")
-		| ".DIRECT" "(" $ OUT_IMMEDIATE ")"
-		| ".OUT" "(" $ OUT1 ")";
+		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
-EX3 = .ID ->("vstack_push 0xFFFF") ->("call " *) ->("call vstack_pop")
+EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 	| .STRING           ->("test_input_string " *)
 	| ".ID"             ->("call test_for_id")
-	| ".RET"	->("ret")
+	| ".RET"						->("ret")
 	| ".NOT" (.STRING | .NUMBER) ->("match_not " *)
 	| ".NUMBER"         ->("call test_for_number")
 	| ".STRING_RAW"			->("call test_for_string_raw")
@@ -65,9 +66,10 @@ EX3 = .ID ->("vstack_push 0xFFFF") ->("call " *) ->("call vstack_pop")
 	| "(" EX1 ")"
 	| "[" ->("pushfd") ->("push eax") BRACKET_EXPR "]" ->("pop edi") ->("pop eax") ->("popfd")
 	| ".EMPTY" ->("call set_true")
-	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true");
+	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
+	| COMMENT;
 
-EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("jne terminate_program") | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [line]) ->("jne terminate_program ; " [line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
 
@@ -84,7 +86,7 @@ BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG
 	| ("*" BRACKET_ARG BRACKET_ARG 
 		->("pop eax") 
 		->("pop ebx")
-		->("mul eax, ebx")
+		->("mul ebx")
 		->("push eax")) 
 	| ("/" BRACKET_ARG BRACKET_ARG 
 		->("pop ebx") 
@@ -95,10 +97,35 @@ BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG
 		->("pop eax")
 		->("mov [" % "], eax")
 		->("push eax"))
+	| ("if" BRACKET_ARG 
+			->("pop eax") 
+			->("cmp eax, 0") 
+			->("je " *1)
+				BRACKET_ARG
+			->("jmp " *2)
+			.LABEL(*1 ":")
+				BRACKET_ARG)
+			.LABEL(*2 ":")
+	| ("hash-set" .ID %> BRACKET_ARG BRACKET_ARG
+		->("mov edi, " %)
+		->("pop edx")
+		->("pop esi")
+		->("call hash_set")
+		->("push edx"))
+	| ("hash-get" .ID %> BRACKET_ARG
+		->("mov edi, " %)
+		->("pop esi")
+		->("call hash_get")
+		->("push eax"))
 	| (.ID ->("push dword [" * "]"))
+	| (.ID %> $(BRACKET_ARG) ->("call " %))
 	| (.NUMBER ->("push " *));
 
-BRACKET_ARG = ("[" BRACKET_EXPR "]") | (.NUMBER ->("push " *)) | (.ID ->("push dword [" * "]"));
+BRACKET_ARG = ("[" BRACKET_EXPR "]")
+	| (.NUMBER ->("push " *))
+	| (.ID ->("push dword [" * "]"))
+	| ("*" .ID ->("push " *))
+	| (.STRING .LABEL("section .data") ->(*3 " db " * ", 0x00") .LABEL("section .text") ->("push " *3));
 
 DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
 

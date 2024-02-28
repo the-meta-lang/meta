@@ -1,0 +1,26 @@
+AEXP = EX2 $("+" EX2 ->("pop eax") ->("pop ebx") ->("add eax, ebx") ->("push eax")
+					 | "-" EX2 ->("pop eax") ->("pop ebx") ->("sub eax, ebx") ->("push eax")
+					 | "<=" EX2 ->("pop eax") ->("pop ebx") ->("cmp eax, ebx") ->("jle " *1) ->("push 0") ->("jmp " *2) .LABEL(*1 ":") ->("push 1") .LABEL(*2 ":")
+					 | ">=" EX2 ->("pop eax") ->("pop ebx") ->("cmp eax, ebx") ->("jge " *1) ->("push 0") ->("jmp " *2) .LABEL(*1 ":") ->("push 1") .LABEL(*2 ":")
+					 | "<" EX2 
+					 		->("pop eax") 
+							->("pop ebx") 
+							->("cmp eax, ebx") 
+							->("jl " *1) 
+							->("push 0") 
+							->("jmp " *2) 
+						.LABEL(*1 ":") 
+							->("push 1") 
+						.LABEL(*2 ":")
+					 | ">" EX2 ->("pop eax") ->("pop ebx") ->("cmp eax, ebx") ->("jg " *1) ->("push 0") ->("jmp " *2) .LABEL(*1 ":") ->("push 1") .LABEL(*2 ":"));
+
+EX2 = EX3 $("*" EX3 ->("pop eax") ->("pop ebx") ->("mul eax, ebx") ->("push eax") |
+            "/" EX3 ->("pop eax") ->("pop ebx") ->("idiv eax, ebx") ->("push eax") );
+
+EX3 = EX4 $("^" EX3 ->("exp"));
+
+EX4 = "+" EX5 | "-" EX5 ->("minus") | EX5;
+
+EX5 = .ID %> (("(" $ FN_CALL_ARGUMENTS ")" ->("call " %)) | .EMPTY ->("push dword [ebp+" [hash-get ST *last_match] "]" ))
+		| .NUMBER ->("push " *)
+		| "(" AEXP ")";

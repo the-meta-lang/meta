@@ -1,0 +1,3 @@
+LET_EXPRESSION = "let" .ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] "=" AEXP
+		->("pop eax")
+		->("mov dword [ebp+" [STO] "], eax");

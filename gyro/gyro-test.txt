@@ -1,9 +1,6 @@
 fn fibonacci(num) {
-	if (4 * 4) {
-		return 5;
-	}
-
-	return 4 + 2;
+	let x = 2;
+	return x;
 }
 
-fibonacci(4);
+fibonacci(1);

@@ -1,0 +1,22 @@
+IF_STATEMENT = "if" "(" AEXP ")" 
+	->("pop eax")
+	->("cmp eax, 0")
+	->("je " *1) "{"
+		BODY 
+	"}"
+	->("jmp " *2)
+	.LABEL(*1 ":")
+		$(ELIF) $(ELSE)
+	.LABEL(*2 ":");
+
+ELIF = "elif" "(" AEXP ")" 
+		->("pop eax")
+		->("cmp eax, 0")
+		->("jne " *1) "{"
+			BODY 
+		"}"
+		.LABEL(*1 ":");
+
+ELSE = "else" "{" 
+		BODY 
+	"}";
