@@ -408,3 +408,4 @@ _read_file_argument_end:
 %include "./lib/vstack.asm"
 %include "./lib/hash-map.asm"
 %include "./lib/test-for-string.asm"
+%include "./lib/string-to-int.asm"

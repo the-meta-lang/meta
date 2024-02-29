@@ -1,7 +1,14 @@
 fn fibonacci(num) {
-	let x = 2 + 2;
-	let y = 4 + 4;
+	let x: i32 | fn<T>(i32) -> T = 2 + 2;
+	let y = 4 * x;
 	return x;
 }
 
+type Template = i32 | u32;
+
 fibonacci(1);
+
+enum Fibers {	
+	RED,
+	GREEN
+}

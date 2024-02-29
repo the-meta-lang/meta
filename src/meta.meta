@@ -37,10 +37,7 @@ OUT1 = "*1" ->("call gn1")
 	| "%" ->("mov edi, str_vector_8192")
 				->("call vector_pop_string")
 				->("call print_mm32")
-	| "[" ->("pushfd") ->("push eax") BRACKET_EXPR "]"
-		->("pop edi")
-		->("pop eax")
-		->("popfd")
+	| BRACKET_EXPR_WRAPPER
 		->("print_int edi")
 	| .STRING ->("print " *);
 
@@ -64,7 +61,7 @@ EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 		->("mov esi, last_match")
 		->("call vector_push_string_mm32")
 	| "(" EX1 ")"
-	| "[" ->("pushfd") ->("push eax") BRACKET_EXPR "]" ->("pop edi") ->("pop eax") ->("popfd")
+	| BRACKET_EXPR_WRAPPER
 	| ".EMPTY" ->("call set_true")
 	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
 	| COMMENT;
@@ -72,6 +69,12 @@ EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [line]) ->("jne terminate_program ; " [line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
+
+BRACKET_EXPR_WRAPPER = "[" (("<<" BRACKET_ARG
+		->("pop eax")
+		->("cmp eax, 0"))
+	// Set the flags according to the result of the last operation
+	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("pop edi") ->("pop eax") ->("popfd"))) "]";
 
 BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG 
 		->("pop eax") 
@@ -100,7 +103,7 @@ BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG
 	| ("if" BRACKET_ARG 
 			->("pop eax") 
 			->("cmp eax, 0") 
-			->("je " *1)
+			->("jne " *1)
 				BRACKET_ARG
 			->("jmp " *2)
 			.LABEL(*1 ":")
@@ -116,6 +119,10 @@ BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG
 		->("mov edi, " %)
 		->("pop esi")
 		->("call hash_get")
+		->("push eax"))
+	| ("to-int" BRACKET_ARG
+		->("pop esi")
+		->("call string_to_int")
 		->("push eax"))
 	| (.ID ->("push dword [" * "]"))
 	| (.ID %> $(BRACKET_ARG) ->("call " %))
