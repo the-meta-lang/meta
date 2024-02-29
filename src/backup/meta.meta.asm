@@ -7,19 +7,6 @@ section .data
     line dd 0
     
 section .text
-    
-hello:
-    push ebp
-    mov ebp, esp
-    push 2
-    pop eax
-    mov [line], eax
-    push eax
-    pop edi
-    pop ebp
-    ret
-    
-section .text
     global _start
     
 _start:
@@ -1080,13 +1067,12 @@ LA134:
     
 LA135:
     je LA111
-    test_input_string "<>"
+    call test_for_id
     jne LA136
-    call vstack_clear
-    call BRACKET_ARG
-    call vstack_restore
-    mov esi, 147
-    jne terminate_program ; 147
+    print "push dword ["
+    call copy_last_match
+    print "]"
+    call newline
     
 LA136:
     
@@ -1121,8 +1107,6 @@ LA142:
     call vector_pop_string
     call print_mm32
     call newline
-    print "push eax"
-    call newline
     
 LA139:
     
@@ -1153,11 +1137,11 @@ BRACKET_ARG:
     call vstack_clear
     call BRACKET_EXPR
     call vstack_restore
+    mov esi, 152
+    jne terminate_program ; 152
+    test_input_string "]"
     mov esi, 153
     jne terminate_program ; 153
-    test_input_string "]"
-    mov esi, 154
-    jne terminate_program ; 154
     
 LA148:
     
@@ -1196,8 +1180,8 @@ LA157:
     test_input_string "*"
     jne LA158
     call test_for_id
-    mov esi, 157
-    jne terminate_program ; 157
+    mov esi, 156
+    jne terminate_program ; 156
     print "push "
     call copy_last_match
     call newline
@@ -1244,11 +1228,11 @@ CODE_DEFINITION:
     print ":"
     call newline
     test_input_string "="
+    mov esi, 160
+    jne terminate_program ; 160
+    test_input_string "["
     mov esi, 161
     jne terminate_program ; 161
-    test_input_string "["
-    mov esi, 162
-    jne terminate_program ; 162
     print "push ebp"
     call newline
     print "mov ebp, esp"
@@ -1256,10 +1240,10 @@ CODE_DEFINITION:
     call vstack_clear
     call BRACKET_EXPR
     call vstack_restore
+    mov esi, 164
+    jne terminate_program ; 164
     mov esi, 165
     jne terminate_program ; 165
-    mov esi, 166
-    jne terminate_program ; 166
     print "pop edi"
     call newline
     print "pop ebp"
@@ -1267,11 +1251,8 @@ CODE_DEFINITION:
     print "ret"
     call newline
     test_input_string "]"
-    mov esi, 170
-    jne terminate_program ; 170
-    test_input_string ";"
-    mov esi, 171
-    jne terminate_program ; 171
+    mov esi, 169
+    jne terminate_program ; 169
     
 LA164:
     
@@ -1286,16 +1267,16 @@ DEFINITION:
     print ":"
     call newline
     test_input_string "="
-    mov esi, 172
-    jne terminate_program ; 172
+    mov esi, 170
+    jne terminate_program ; 170
     call vstack_clear
     call EX1
     call vstack_restore
-    mov esi, 173
-    jne terminate_program ; 173
+    mov esi, 171
+    jne terminate_program ; 171
     test_input_string ";"
-    mov esi, 174
-    jne terminate_program ; 174
+    mov esi, 172
+    jne terminate_program ; 172
     print "ret"
     call newline
     
@@ -1308,8 +1289,8 @@ COMMENT:
     test_input_string "//"
     jne LA168
     match_not 10
-    mov esi, 176
-    jne terminate_program ; 176
+    mov esi, 174
+    jne terminate_program ; 174
     
 LA168:
     

@@ -31,9 +31,9 @@ PROGRAM =
 .LABEL("_start:")
 ->("push ebp")
 ->("mov ebp, esp")
-$ (LET_EXPRESSION ";" | TYPE_EXPRESSION ";" | ENUM_EXPRESSION | FN_EXPRESSION | FN_CALL ";" | IF_STATEMENT | WHILE_STATEMENT)
+$ (LET_EXPRESSION ";" | TYPE_EXPRESSION ";" | COMMENT | ENUM_EXPRESSION | FN_EXPRESSION | DIRECT_ASSEMBLY_EXPRESSION ";" | FN_CALL ";" | IF_STATEMENT | WHILE_STATEMENT)
 ->("pop ebp")
-->("mov eax, 4")
+->("mov eax, 1")
 ->("mov ebx, 0")
 ->("int 0x80");
 
@@ -52,7 +52,7 @@ $(("," .ID [hash-set ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR
 		.LABEL(*1 ":");
 
 // Function Body
-BODY = $(RETURN_EXPRESSION ";" | IF_STATEMENT | WHILE_STATEMENT | LET_EXPRESSION ";" | TYPE_EXPRESSION ";" | ENUM_EXPRESSION | FN_CALL ";" | FN_EXPRESSION);
+BODY = $(RETURN_EXPRESSION ";" | IF_STATEMENT | COMMENT | WHILE_STATEMENT | LET_EXPRESSION ";" | DIRECT_ASSEMBLY_EXPRESSION ";" | TYPE_EXPRESSION ";" | ENUM_EXPRESSION | FN_CALL ";" | FN_EXPRESSION);
 
 FN_CALL = .ID %> "(" FN_CALL_ARGUMENTS ")" ->("call " %);
 
@@ -60,26 +60,33 @@ FN_CALL = .ID %> "(" FN_CALL_ARGUMENTS ")" ->("call " %);
 // A list of arguments passed when calling a function
 // @example: add(1, num) <- 1 and `num` are the arguments
 FN_CALL_ARGUMENTS = 
-$(.NUMBER ->("mov edi, " *))
+$(.NUMBER ->("mov edi, " *)
+	| .ID ->("mov edi, dword [ebp+" [hash-get ST *last_match] "]")
+	| "*" .ID ->("mov edi, dword ebp+" [hash-get ST *last_match])
+	| .STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov edi, " *3))
 $("," (.NUMBER ->("mov esi, " *)
-	| .ID ->("mov esi, [" * "]")
-	| "*" .ID ->("mov esi, " *)
+	| .ID ->("mov esi, dword [ebp+" [hash-get ST *last_match] "]")
+	| "*" .ID ->("mov esi, dword ebp+" [hash-get ST *last_match])
 	| .STRING 
 		.LABEL("section .data")
 			->(*3 " db " * ", 0x00")
 		.LABEL("section .text")
 			->("mov esi, " *3))
 	$("," (.NUMBER ->("mov edx, " *)
-		| .ID ->("mov edx, [" * "]")
-		| "*" .ID ->("mov edx, " *)
+		| .ID ->("mov edx, dword [ebp+" [hash-get ST *last_match] "]")
+		| "*" .ID ->("mov edx, dword ebp+" [hash-get ST *last_match])
 		| .STRING 
 			.LABEL("section .data")
 				->(*3 " db " * ", 0x00")
 			.LABEL("section .text")
 				->("mov edx, " *3))
 		$("," (.NUMBER ->("mov ecx, " *)
-			| .ID ->("mov ecx, [" * "]")
-			| "*" .ID ->("mov ecx, " *)
+			| .ID ->("mov ecx, dword [ebp+" [hash-get ST *last_match] "]")
+			| "*" .ID ->("mov ecx, dword ebp+" [hash-get ST *last_match])
 			| .STRING 
 				.LABEL("section .data")
 					->(*3 " db " * ", 0x00")
@@ -111,7 +118,7 @@ AEXP = EX1 [set AEXP_SEC_NUM 0] $(
 		->("sub dword [ebp+" [hash-get ST *last_match] "], eax"))
 	// Assignment by product, quotient, and remainder
 	| ("*=" EX1
-		->("mul dword [ebp+" [hash-get ST *last_match] "], eax"))
+		->("imul dword [ebp+" [hash-get ST *last_match] "]"))
 	| ("/=" EX1
 		->("idiv dword [ebp+" [hash-get ST *last_match] "], eax"))
 	| ("%=" EX1
@@ -163,21 +170,21 @@ EX6 = EX7 $("&" EX7
 			->("and eax, ebx"));
 
 // Relational == and !=
-EX7 = EX8 $("==" EX9 
+EX7 = EX8 [set AEXP_SEC_NUM 0] $("==" [set AEXP_SEC_NUM 1] EX9
 			->("cmp eax, ebx")
 			->("je " *1)
-			->("push 0")
+			->("mov eax, 1")
 			->("jmp " *2) 
 		.LABEL(*1 ":")
-			->("push 1")
+			->("mov eax, 0")
 		.LABEL(*2 ":")
 		| "!=" EX9 
 			->("cmp eax, ebx")
 			->("jne " *1)
-			->("push 0")
+			->("mov eax, 1")
 			->("jmp " *2) 
 		.LABEL(*1 ":")
-			->("push 1")
+			->("mov eax, 0")
 		.LABEL(*2 ":"));
 
 // Comparison / Relational Operators
@@ -224,7 +231,7 @@ EX10 = EX11 [set AEXP_SEC_NUM 0] $("+" [set AEXP_SEC_NUM 1] EX11   ->("add eax, 
 		| "-" EX11   ->("sub eax, ebx") );
 
 EX11 = EX12 [set AEXP_SEC_NUM 0] $("*" [set AEXP_SEC_NUM 1] EX12
-			->("mul eax, ebx")
+			->("imul ebx")
 		| "/" [set AEXP_SEC_NUM 1] EX12
 			->("idiv eax, ebx")
 		| "%" [set AEXP_SEC_NUM 1] EX12 
@@ -263,7 +270,8 @@ EX14 = .ID %> (("(" $ FN_CALL_ARGUMENTS ")" ->("call " %))
 			| "--"
 				->("dec dword [ebp+" [hash-get ST *last_match] "]")
 			| .EMPTY ([<< AEXP_SEC_NUM] ->("mov eax, dword [ebp+" [hash-get ST *last_match] "]") | ->("mov ebx, dword [ebp+" [hash-get ST *last_match] "]") .DIRECT("call set_true")))
-		| .NUMBER ([<< AEXP_SEC_NUM] ->("mov eax, " *) | ->("mov ebx, " *) .DIRECT("call set_true")) 
+		| .NUMBER ([<< AEXP_SEC_NUM] ->("mov eax, " *) | ->("mov ebx, " *) .DIRECT("call set_true"))
+		| .STRING (.LABEL("section .data") ->(*3 " db " * ", 0x00") .LABEL("section .text") ([<< AEXP_SEC_NUM] ->("mov eax, " *3) | ->("mov ebx, " *3) .DIRECT("call set_true")))
 		| "(" AEXP ")";
 
 // SECTION Types
@@ -344,6 +352,10 @@ TYPE_ANNOTATION = COMPLEX_TYPE;
 TYPE_EXPRESSION = "type" .ID ->("; define type " *) "=" COMPLEX_TYPE;
 
 ENUM_EXPRESSION = "enum" .ID ->("; define enum " *) "{" (.ID ->("; enum value " *) | .EMPTY) $("," .ID ->("; enum value " *)) "}";
+
+DIRECT_ASSEMBLY_EXPRESSION = "asm" .STRING_RAW ->(*);
+
+COMMENT = "//" .NOT 10;
 
 IF_STATEMENT = "if" "(" AEXP ")" 
 	->("cmp eax, 0")

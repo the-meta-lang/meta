@@ -11,6 +11,10 @@ terminate_program:
 		print "Error signal id: "
 		print_int esi
 
+		mov edi, input_string
+		add edi, [input_string_offset]
+		call print_mm32
+
 
 		; Exit the program
 		mov eax, 1            ; System call number for sys_exit

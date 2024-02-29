@@ -1,14 +1,32 @@
-fn fibonacci(num) {
-	let x: i32 | fn<T>(i32) -> T = 2 + 2;
-	let y = 4 * x;
-	return x;
+let x = 0;
+
+fn get_string() {
+	if (x == 1) {
+		print("Hello");
+	} else {
+		print("World!");
+	}
 }
 
-type Template = i32 | u32;
+get_string();
 
-fibonacci(1);
-
-enum Fibers {	
-	RED,
-	GREEN
+fn print(x) {
+	// 4 is the syscall number for "sys_write"
+	asm "mov eax, 4";
+	// file descriptor: 1 - stdout
+	asm "mov ebx, 1";
+	// move the string we want to write into ecx
+	asm "mov ecx, edi";
+	// we will determine the length dynamically
+	asm "mov edx, 0";
+	asm ".calculate_length:";
+	// if we hit a null terminator we stop and print
+	asm "cmp byte [ecx + edx], 0";
+	asm "je  .end_calculate_length";
+	asm "inc edx";
+	asm "jmp .calculate_length";
+	asm ".end_calculate_length:";
+	// invoke the syscall, this will print to stdout
+	asm "int 0x80";
 }
+

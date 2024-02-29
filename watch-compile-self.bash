@@ -1,65 +1,83 @@
-rawfilename="./test"
-input_file="./assembly/input.meta"
-watchfiles="$rawfilename.asm $input_file"
+compiler_asm=$1
+grammar_file=$2
+watchfiles="$compiler_asm $grammar_file"
+
+if [ -z "$compiler_asm" ]; then
+	echo "Usage: ./watch-compile-self.bash <compiler_asm> <grammar_file>"
+	exit 1
+fi
+
+if [ -z "$grammar_file" ]; then
+	echo "Usage: ./watch-compile-self.bash <compiler_asm> <grammar_file>"
+	exit 1
+fi
 
 compile() {
-	nasm -F dwarf -g -f elf32 -i ./assembly -o $rawfilename.o $rawfilename.asm 
-	ld -m elf_i386 -o $rawfilename $rawfilename.o
-	rm $rawfilename.o
+	nasm -F dwarf -g -f elf32 -i ./assembly -o $compiler_asm.o $compiler_asm 
+	ld -m elf_i386 -o $compiler_asm.bin $compiler_asm.o
+	rm $compiler_asm.o
 }
 
-while inotifywait -e close_write $watchfiles >/dev/null 2>&1; do
-		content=$(cat $rawfilename.asm);
+await_first_change() {
+	while inotifywait -e close_write $watchfiles >/dev/null 2>&1; do
+		clear;
+		content=$(cat $compiler_asm);
 
 		compile;
 
 		if [ $? == 0 ]; then
-			echo "Compilation 1 successful"
-			OUTPUT=$($rawfilename $input_file)
+			echo "Compilation successful - running..."
+			OUTPUT=$($compiler_asm.bin $grammar_file)
+			# Try to run the newly compiled program.
+			# if it fails, revert the changes
 			if [ $? -gt 0 ]; then
 				echo "Run 1 failed - reverting changes"
 				echo "$OUTPUT"
-				echo "$content" > "$rawfilename.asm"
+				echo "$content" > "$compiler_asm"
 				continue
 			fi
-			echo "$OUTPUT" > "$rawfilename.asm"
+
+			echo "Run successful - awaiting input file change to implement new features..."
+			echo "$OUTPUT" > "$compiler_asm"
+			await_implementation_change;
+			break;
+
 		else
-			echo "Compilation 1 failed"
+			echo "Compilation 1 failed - reverting changes"
+			echo "$content" > "$compiler_asm"
 			continue
 		fi
+	done
+}
 
+await_implementation_change() {
+	while inotifywait -e close_write $watchfiles >/dev/null 2>&1; do
+		clear;
 		compile;
 
-
 		if [ $? == 0 ]; then
-			echo "Compilation 2 successful"
-			OUTPUT=$($rawfilename $input_file)
+			echo "Compilation successful - running..."
+			OUTPUT=$($compiler_asm.bin $grammar_file)
+			# Try to run the newly compiled program.
+			# if it fails, revert the changes
 			if [ $? -gt 0 ]; then
-				echo "Run 2 failed - reverting changes"
+				echo "Implementation run failed - reverting changes"
 				echo "$OUTPUT"
-				echo "$content" > "$rawfilename.asm"
+				echo "$content" > "$compiler_asm"
 				continue
 			fi
-			echo "$OUTPUT" > "$rawfilename.asm"
+
+			echo "Run successful - program is ready for new compilation run..."
+			echo "$OUTPUT" > "$compiler_asm"
+			await_first_change;
+			break;
+
 		else
 			echo "Compilation 2 failed - reverting changes"
-			echo "$content" > "$rawfilename.asm"
+			echo "$content" > "$compiler_asm"
+			continue
 		fi
+	done
+}
 
-		compile;
-
-		if [ $? == 0 ]; then
-			echo "Compilation 3 successful"
-			OUTPUT=$($rawfilename $input_file)
-			if [ $? -gt 0 ]; then
-				echo "Run 3 failed - reverting changes"
-				echo "$OUTPUT"
-				echo "$content" > "$rawfilename.asm"
-				continue
-			fi
-			echo "$OUTPUT" > "$rawfilename.asm"
-		else
-			echo "Compilation 3 failed - reverting changes"
-			echo "$content" > "$rawfilename.asm"
-		fi
-done
+await_first_change;
