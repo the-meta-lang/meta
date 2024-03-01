@@ -9,7 +9,7 @@ terminate_program:
 
 		label_with_newline "Error Encountered, recovery impossible."
 		print "Error signal id: "
-		print_int esi
+		call print_int
 
 		mov edi, input_string
 		add edi, [input_string_offset]

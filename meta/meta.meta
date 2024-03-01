@@ -60,7 +60,6 @@ OUT1 = "*1" ->("call gn1")
 				->("call vector_pop_string")
 				->("call print_mm32")
 	| BRACKET_EXPR_WRAPPER
-		->("print_int edi")
 	| .STRING ->("print " *);
 
 OUT_IMMEDIATE = .STRING_RAW ->(*);
@@ -88,14 +87,14 @@ EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
 	| COMMENT;
 
-EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [<> line]) ->("jne terminate_program ; " [<> line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov edi, " [print_int line]) ->("jne terminate_program ; " [print_int line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
 
 BRACKET_EXPR_WRAPPER = "[" (("<<" [set ARG_NUM 0] BRACKET_ARG
 		->("cmp eax, 0"))
 	// Set the flags according to the result of the last operation
-	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("mov edi, eax") ->("pop eax") ->("popfd"))) "]";
+	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("pop eax") ->("popfd"))) "]";
 
 BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
 		->("add eax, ebx")) 
@@ -121,7 +120,7 @@ BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
 	| ("hash-get" FN_CALL_ARG
 		->("call hash_get"))
 	| ("<>" [set ARG_NUM 0] BRACKET_ARG)
-	| (.ID %> $(FN_CALL_ARG [set ARG_NUM [+ ARG_NUM 1]]) ->("call " %) ->("push eax"));
+	| (.ID %> FN_CALL_ARG ->("call " %));
 
 
 // Assignment order
@@ -172,7 +171,7 @@ BRACKET_ARG = ("[" BRACKET_EXPR "]")
 				->("mov ebx, dword [ebp+" [hash-get *ST *last_match] "]") 
 				->("mov ebx, dword [eax]")
 			| ->("mov ebx, dword [" * "]") .DIRECT("call set_true"))))
-			
+
 	| ("*" .ID ([<< ARG_NUM] ([<< [hash-get *GLOBALS *last_match]] ->("mov eax, dword [ebp+" [hash-get *ST *last_match] "]") | ->("mov eax, " *) .DIRECT("call set_true"))  | ([<< [hash-get *GLOBALS *last_match]] ->("mov ebx, dword [ebp+" [hash-get *ST *last_match] "]") | ->("mov ebx, " *) .DIRECT("call set_true"))))
 	| (.STRING 
 	.LABEL("section .data")

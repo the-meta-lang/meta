@@ -39,7 +39,7 @@ gn4:
 
 	.print_label:
 			print "LD"
-			print_int edi
+			call print_int
 
 			mov esi, edi
 			mov edi, vstack
@@ -65,7 +65,7 @@ gn3:
 
 	.print_label:
 			print "LC"
-			print_int edi
+			call print_int
 
 			mov esi, edi
 			mov edi, vstack
@@ -91,7 +91,7 @@ gn2:
 
 	.print_label:
 			print "LB"
-			print_int edi
+			call print_int
 
 			mov esi, edi
 			mov edi, vstack
@@ -117,7 +117,7 @@ gn1:
 
 	.print_label:
 			print "LA"
-			print_int edi
+			call print_int
 
 			mov esi, edi
 			mov edi, vstack

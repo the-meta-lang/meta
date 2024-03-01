@@ -88,7 +88,7 @@ EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
 	| COMMENT;
 
-EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [<> line]) ->("jne terminate_program ; " [<> line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [print_int line]) ->("jne terminate_program ; " [print_int line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
 

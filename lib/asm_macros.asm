@@ -50,45 +50,6 @@ section .text
 		pop ebp ; Restore the base pointer
 		popfd ; Restore the flags register
 %endmacro
-%macro print_int 1
-		save_machine_state
-		mov eax, %1 ; Move the number into eax
-		cmp eax, 0x00 ; Check if the number is zero, if it is, we need to print 0 directly since the checks will not work
-		je	%%_print_zero
-		mov edi, 0 ; Clear the counter
-%%_divide_loop:
-		cmp eax, 0
-		je  %%_print_loop
-		mov edx, 0
-		mov ebx, 10
-		div ebx
-		add edx, 0x30
-		push edx
-		inc edi ; Increment the counter for every new digit we add
-		jmp %%_divide_loop
-%%_print_loop:
-		cmp edi, 0
-		je  %%_end_print_loop
-		dec edi ; Decrement the counter
-
-		mov eax, 4 ; syscall number for sys_write
-		mov ebx, 1 ; file descriptor 1 is stdout
-		mov ecx, esp ; Move the address of the next digit to ecx
-		mov edx, 1 ; we are going to write one byte
-		int 0x80            ; invoke syscall
-		pop ecx ; Pop the next digit off the stack
-		jmp %%_print_loop
-%%_print_zero:
-		push 0x30 ; Push the ASCII value of 0 to the stack
-		mov eax, 4 ; syscall number for sys_write
-		mov ebx, 1 ; file descriptor 1 is stdout
-		mov ecx, esp
-		mov edx, 1 ; we are going to write one byte
-		int 0x80            ; invoke syscall
-		pop ecx ; Pop the next digit off the stack
-%%_end_print_loop:
-		restore_machine_state
-%endmacro
 
 ; Macro for printing to stdout
 ; Expects 1 argument (string) and automatically calculates it's length and outputs it
@@ -351,12 +312,12 @@ copy_last_match:
 		mov ebx, 1          ; file descriptor: STDOUT
 		mov ecx, last_match  ; string to write
 		mov edx, 0          ; length will be determined dynamically
-cl_calculate_length:
+.calculate_length:
 		cmp byte [ecx + edx], 0  ; check for null terminator
-		je  cl_end_calculate_length
+		je  .end_calculate_length
 		inc edx
-		jmp cl_calculate_length
-cl_end_calculate_length:
+		jmp .calculate_length
+.end_calculate_length:
 		int 0x80            ; invoke syscall
 		restore_machine_state ; Restore the flags register
 		ret

@@ -704,7 +704,7 @@ LA91:
     print "mov esi, "
     pushfd
     push eax
-    mov edi, dword [line]
+    mov eax, dword [line]
     mov edi, eax
     pop eax
     popfd
@@ -713,7 +713,7 @@ LA91:
     print "jne terminate_program ; "
     pushfd
     push eax
-    mov edi, dword [line]
+    mov eax, dword [line]
     mov edi, eax
     pop eax
     popfd
@@ -1994,7 +1994,7 @@ LA262:
     print "mov dword [ebp+"
     pushfd
     push eax
-    mov edi, dword [STO]
+    mov eax, dword [STO]
     mov edi, eax
     pop eax
     popfd
@@ -2034,7 +2034,7 @@ LA264:
     print "mov dword [ebp+"
     pushfd
     push eax
-    mov edi, dword [STO]
+    mov eax, dword [STO]
     mov edi, eax
     pop eax
     popfd
@@ -2074,7 +2074,7 @@ LA266:
     print "mov dword [ebp+"
     pushfd
     push eax
-    mov edi, dword [STO]
+    mov eax, dword [STO]
     mov edi, eax
     pop eax
     popfd
@@ -2114,7 +2114,7 @@ LA268:
     print "mov dword [ebp+"
     pushfd
     push eax
-    mov edi, dword [STO]
+    mov eax, dword [STO]
     mov edi, eax
     pop eax
     popfd
