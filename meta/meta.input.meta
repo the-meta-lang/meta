@@ -15,6 +15,10 @@ ARG_NUM = 0;
 
 VAR_IN_BODY = 0;
 
+.CODE
+
+hello = [[awd] [set line 2]]
+
 .SYNTAX PROGRAM
 
 PROGRAM = 
@@ -60,7 +64,6 @@ OUT1 = "*1" ->("call gn1")
 				->("call vector_pop_string")
 				->("call print_mm32")
 	| BRACKET_EXPR_WRAPPER
-		->("print_int edi")
 	| .STRING ->("print " *);
 
 OUT_IMMEDIATE = .STRING_RAW ->(*);
@@ -88,14 +91,14 @@ EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
 	| COMMENT;
 
-EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [print_int line]) ->("jne terminate_program ; " [print_int line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov edi, " [print_int line]) ->("jne terminate_program ; " [print_int line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
 
 BRACKET_EXPR_WRAPPER = "[" (("<<" [set ARG_NUM 0] BRACKET_ARG
 		->("cmp eax, 0"))
 	// Set the flags according to the result of the last operation
-	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("mov edi, eax") ->("pop eax") ->("popfd"))) "]";
+	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("pop eax") ->("popfd"))) "]";
 
 BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
 		->("add eax, ebx")) 
@@ -120,8 +123,11 @@ BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
 		->("call hash_set"))
 	| ("hash-get" FN_CALL_ARG
 		->("call hash_get"))
+	// Print the result of the last operation
+	| (">>" [set ARG_NUM 0] FN_CALL_ARG
+		->("call print_int"))
 	| ("<>" [set ARG_NUM 0] BRACKET_ARG)
-	| (.ID %> $(FN_CALL_ARG [set ARG_NUM [+ ARG_NUM 1]]) ->("call " %) ->("push eax"));
+	| (.ID %> FN_CALL_ARG ->("call " %));
 
 
 // Assignment order
@@ -132,9 +138,9 @@ BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
 FN_CALL_ARG = 
 $((("[" BRACKET_EXPR "]" ->("mov edi, eax"))
 	| (.NUMBER ->("mov edi, " *))
-	| (.ID ([<< [hash-get *GLOBALS *last_match]] ->("mov edi, dword [ebp+" [hash-get *ST *last_match] "]") ->("mov edi, dword [edi]") | ->("mov edi, dword [" * "]") .DIRECT("call set_true")))
+	| (.ID ([<< [hash-get *GLOBALS *last_match]] ->("mov edi, dword [ebp+" [>> [hash-get *ST *last_match]] "]") ->("mov edi, dword [edi]") | ->("mov edi, dword [" * "]") .DIRECT("call set_true")))
 		| ("*" .ID 
-			([<< [hash-get *GLOBALS *last_match]] ->("mov edi, dword [ebp+" [hash-get *ST *last_match] "]") | ->("mov edi, " *) .DIRECT("call set_true")))
+			([<< [hash-get *GLOBALS *last_match]] ->("mov edi, dword [ebp+" [>> [hash-get *ST *last_match]] "]") | ->("mov edi, " *) .DIRECT("call set_true")))
 	| (.STRING 
 		.LABEL("section .data")
 			->(*3 " db " * ", 0x00")
@@ -142,9 +148,9 @@ $((("[" BRACKET_EXPR "]" ->("mov edi, eax"))
 			->("mov edi, " *3)))
 	$((("[" BRACKET_EXPR "]" ->("mov esi, eax"))
 		| (.NUMBER ->("mov esi, " *))
-		| (.ID ([<< [hash-get *GLOBALS *last_match]] ->("mov esi, dword [ebp+" [hash-get *ST *last_match] "]") ->("mov esi, dword [esi]") | ->("mov esi, dword [" * "]") .DIRECT("call set_true")))
+		| (.ID ([<< [hash-get *GLOBALS *last_match]] ->("mov esi, dword [ebp+" [>> [hash-get *ST *last_match]] "]") ->("mov esi, dword [esi]") | ->("mov esi, dword [" * "]") .DIRECT("call set_true")))
 		| ("*" .ID 
-			([<< [hash-get *GLOBALS *last_match]] ->("mov esi, dword [ebp+" [hash-get *ST *last_match] "]") | ->("mov esi, " *) .DIRECT("call set_true")))
+			([<< [hash-get *GLOBALS *last_match]] ->("mov esi, dword [ebp+" [>> [hash-get *ST *last_match]] "]") | ->("mov esi, " *) .DIRECT("call set_true")))
 		| (.STRING 
 			.LABEL("section .data")
 				->(*3 " db " * ", 0x00")
@@ -152,9 +158,9 @@ $((("[" BRACKET_EXPR "]" ->("mov edi, eax"))
 				->("mov esi, " *3)))
 		$((("[" BRACKET_EXPR "]" ->("mov edx, eax"))
 			| (.NUMBER ->("mov edx, " *))
-			| (.ID ([<< [hash-get *GLOBALS *last_match]] ->("mov edx, dword [ebp+" [hash-get *ST *last_match] "]") ->("mov edx, dword [edx]") | ->("mov edx, dword [" * "]") .DIRECT("call set_true")))
+			| (.ID ([<< [hash-get *GLOBALS *last_match]] ->("mov edx, dword [ebp+" [>> [hash-get *ST *last_match]] "]") ->("mov edx, dword [edx]") | ->("mov edx, dword [" * "]") .DIRECT("call set_true")))
 		| ("*" .ID 
-			([<< [hash-get *GLOBALS *last_match]] ->("mov edx, dword [ebp+" [hash-get *ST *last_match] "]") | ->("mov edx, " *) .DIRECT("call set_true")))
+			([<< [hash-get *GLOBALS *last_match]] ->("mov edx, dword [ebp+" [>> [hash-get *ST *last_match]] "]") | ->("mov edx, " *) .DIRECT("call set_true")))
 			| (.STRING 
 				.LABEL("section .data")
 					->(*3 " db " * ", 0x00")
@@ -165,15 +171,15 @@ BRACKET_ARG = ("[" BRACKET_EXPR "]")
 	| (.NUMBER ([<< ARG_NUM] ->("mov eax, " *) | ->("mov ebx, " *) .DIRECT("call set_true")))
 	| (.ID ([<< ARG_NUM] 
 			([<< [hash-get *GLOBALS *last_match]] 
-				->("mov eax, dword [ebp+" [hash-get *ST *last_match] "]") 
+				->("mov eax, dword [ebp+" [>> [hash-get *ST *last_match]] "]") 
 				->("mov eax, dword [eax]")
 			| ->("mov eax, dword [" * "]") .DIRECT("call set_true")) 
 		| ([<< [hash-get *GLOBALS *last_match]] 
-				->("mov ebx, dword [ebp+" [hash-get *ST *last_match] "]") 
+				->("mov ebx, dword [ebp+" [>> [hash-get *ST *last_match]] "]") 
 				->("mov ebx, dword [eax]")
 			| ->("mov ebx, dword [" * "]") .DIRECT("call set_true"))))
-			
-	| ("*" .ID ([<< ARG_NUM] ([<< [hash-get *GLOBALS *last_match]] ->("mov eax, dword [ebp+" [hash-get *ST *last_match] "]") | ->("mov eax, " *) .DIRECT("call set_true"))  | ([<< [hash-get *GLOBALS *last_match]] ->("mov ebx, dword [ebp+" [hash-get *ST *last_match] "]") | ->("mov ebx, " *) .DIRECT("call set_true"))))
+
+	| ("*" .ID ([<< ARG_NUM] ([<< [hash-get *GLOBALS *last_match]] ->("mov eax, dword [ebp+" [>> [hash-get *ST *last_match]] "]") | ->("mov eax, " *) .DIRECT("call set_true"))  | ([<< [hash-get *GLOBALS *last_match]] ->("mov ebx, dword [ebp+" [>> [hash-get *ST *last_match]] "]") | ->("mov ebx, " *) .DIRECT("call set_true"))))
 	| (.STRING 
 	.LABEL("section .data")
 		->(*3 " db " * ", 0x00")
@@ -187,10 +193,10 @@ CODE_DEFINITION = .ID .LABEL(* ":") "=" "["
 	->("push ebp")
 	->("mov ebp, esp") 
 	"[" 
-		$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [<> STO] "], edi")
-			$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [<> STO] "], esi")
-				$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [<> STO] "], edx") 
-					$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [<> STO] "], ecx")
+		$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [>> STO] "], edi")
+			$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [>> STO] "], esi")
+				$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [>> STO] "], edx") 
+					$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]] ->("mov dword [ebp+" [>> STO] "], ecx")
 						$(.ID [hash-set *ST *last_match [set STO [+ STO 4]]] [set VAR_IN_BODY [+ VAR_IN_BODY 1]])))))
 	"]"
 	// Code
