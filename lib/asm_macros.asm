@@ -1,5 +1,5 @@
 section .bss
-		last_match resb 512
+		; last_match resb 512
 		input_string resb MAX_INPUT_LENGTH
 		input_string_offset resb 2
 		input_pointer resb 4
