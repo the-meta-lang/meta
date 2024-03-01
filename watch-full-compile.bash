@@ -5,6 +5,11 @@ metafile=$2
 input_file=$3
 watchfiles="$metafile $input_file"
 
+if [ -z "$compiler" ] || [ -z "$metafile" ] || [ -z "$input_file" ]; then
+	echo "Usage: ./watch-compile-self.bash <compiler (binary)> <metafile (meta)> <input_file (any)>"
+	exit 1
+fi
+
 # Usage: ./watch-full-compile.bash <compiler> <metafile> <input_file>
 
 compile() {

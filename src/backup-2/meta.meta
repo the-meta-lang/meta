@@ -1,6 +1,15 @@
 .DATA
 
 line = 0;
+// Symbol Table
+ST = { 65536 };
+// Symbol Table Offset
+STO = 12;
+
+// The current argument counter for the function call
+ARG_NUM = 0;
+
+.CODE
 
 .SYNTAX PROGRAM
 
@@ -73,36 +82,36 @@ EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [<> line]) ->("jne term
 
 EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
 
-BRACKET_EXPR_WRAPPER = "[" (("<<" BRACKET_ARG
-		->("pop eax")
+BRACKET_EXPR_WRAPPER = "[" (("<<" [set ARG_NUM 0] BRACKET_ARG
+		->("pop eax ; REMOVE")
 		->("cmp eax, 0"))
 	// Set the flags according to the result of the last operation
-	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("pop edi") ->("pop eax") ->("popfd"))) "]";
+	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("pop edi ; mov edi, eax") ->("pop eax") ->("popfd"))) "]";
 
-BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG 
-		->("pop eax") 
-		->("pop ebx")
+BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG 
+		->("pop eax ; REMOVE") 
+		->("pop ebx ; REMOVE")
 		->("add eax, ebx")
-		->("push eax")) 
-	| ("-" BRACKET_ARG BRACKET_ARG 
+		->("push eax ; REMOVE")) 
+	| ("-" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG 
 		->("pop ebx") 
 		->("pop eax")
 		->("sub eax, ebx")
 		->("push eax"))
-	| ("*" BRACKET_ARG BRACKET_ARG 
+	| ("*" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG 
 		->("pop eax") 
 		->("pop ebx")
 		->("mul ebx")
 		->("push eax")) 
-	| ("/" BRACKET_ARG BRACKET_ARG 
+	| ("/" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG 
 		->("pop ebx") 
 		->("pop eax")
 		->("idiv eax, ebx")
 		->("push eax"))
 	| ("set" .ID %> BRACKET_ARG
-		->("pop eax")
+		->("pop eax ; REMOVE")
 		->("mov [" % "], eax")
-		->("push eax"))
+		->("push eax ; REMOVE"))
 	| ("if" BRACKET_ARG 
 			->("pop eax") 
 			->("cmp eax, 0") 
@@ -123,29 +132,83 @@ BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG
 		->("pop esi")
 		->("call hash_get")
 		->("push eax"))
-	| ("to-int" BRACKET_ARG
-		->("pop esi")
-		->("call string_to_int")
-		->("push eax"))
 	| ("<>" BRACKET_ARG)
-	| (.ID %> $(BRACKET_ARG) ->("call " %))
-	| (.NUMBER ->("push " *));
+	| (.ID %> $(FN_CALL_ARG [set ARG_NUM [+ ARG_NUM 1]]) ->("call " %) ->("push eax"));
+
+
+// Assignment order
+// edi - 1
+// esi - 2
+// edx - 3
+// ecx - 4
+FN_CALL_ARG = 
+$(("[" BRACKET_EXPR "]" ->("mov edi, eax"))
+	| (.NUMBER ->("mov edi, " *))
+	| (.ID ->("mov edi, dword [ebp+" [hash-get ST *last_match] "]"))
+	| ("*" .ID ->("mov edi, dword ebp+" [hash-get ST *last_match]))
+	| (.STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov edi, " *3)))
+$(("[" BRACKET_EXPR "]" ->("mov esi, eax"))
+	| (.NUMBER ->("mov esi, " *)
+	| .ID ->("mov esi, dword [ebp+" [hash-get ST *last_match] "]")
+	| "*" .ID ->("mov esi, dword ebp+" [hash-get ST *last_match])
+	| .STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov esi, " *3))
+	$(("[" BRACKET_EXPR "]" ->("mov edx, eax"))
+		| (.NUMBER ->("mov edx, " *)
+		| .ID ->("mov edx, dword [ebp+" [hash-get ST *last_match] "]")
+		| "*" .ID ->("mov edx, dword ebp+" [hash-get ST *last_match])
+		| .STRING 
+			.LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				->("mov edx, " *3))
+		$(("[" BRACKET_EXPR "]" ->("mov ecx, eax"))
+			| (.NUMBER ->("mov ecx, " *)
+			| .ID ->("mov ecx, dword [ebp+" [hash-get ST *last_match] "]")
+			| "*" .ID ->("mov ecx, dword ebp+" [hash-get ST *last_match])
+			| .STRING 
+				.LABEL("section .data")
+					->(*3 " db " * ", 0x00")
+				.LABEL("section .text")
+					->("mov ecx, " *3))
+			$((.NUMBER ->("push " *)
+				| .ID ->("push [" * "]")
+				| "*" ->("push " *)
+				| .STRING 
+					.LABEL("section .data")
+						->(*3 " db " * ", 0x00")
+					.LABEL("section .text")
+						->("push " *3))))));
 
 BRACKET_ARG = ("[" BRACKET_EXPR "]")
-	| (.NUMBER ->("push " *))
-	| (.ID ->("push dword [" * "]"))
-	| ("*" .ID ->("push " *))
-	| (.STRING .LABEL("section .data") ->(*3 " db " * ", 0x00") .LABEL("section .text") ->("push " *3));
+	| (.NUMBER ->("push " *) ([<< ARG_NUM] ->("; mov eax, " *) | ->("; mov ebx, " *) .DIRECT("call set_true")))
+	| (.ID ->("push dword [" * "]") ([<< ARG_NUM] ->("; mov eax, dword [ebp+" [hash-get ST *last_match] "]") | ->("; mov ebx, dword [ebp+" [hash-get ST *last_match] "]") .DIRECT("call set_true")))
+	| ("*" .ID ->("push " *) ([<< ARG_NUM] ->("; mov eax, ebp+" [hash-get ST *last_match]) | ->("; mov ebx, ebp+" [hash-get ST *last_match]) .DIRECT("call set_true")))
+	| (.STRING 
+	.LABEL("section .data")
+		->(*3 " db " * ", 0x00")
+	.LABEL("section .text")
+		->("push " *3));
 
 // Code Definitions
 
-CODE_DEFINITION = .ID .LABEL(* ":") "=" "[" 
+CODE_DEFINITION = .ID .LABEL(* ":") "=" "["
+	// Arguments
 	->("push ebp")
-	->("mov ebp, esp") BRACKET_EXPR
+	->("mov ebp, esp") 
+	"[" $(.ID [hash-set ST *last_match [set STO [+ STO 4]]] ->("pop [" * "]" "; " [<> [hash-get ST *last_match]])) "]"
+	// Code
 	// BRACKET_EXPR will leave the result on the stack
-	->("pop edi")
+	$("[" BRACKET_EXPR "]")
 	->("pop ebp")
-	->("ret") "]";
+	->("ret") "]" ";";
 
 DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
 

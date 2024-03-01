@@ -3,6 +3,8 @@ hash_set:
     ;   edi - pointer to the beginning of the hashmap
     ;   esi - pointer to the beginning of the key
 		;   edx - value to store in the hashmap
+		; Output:
+		;   eax - value that was passed in edx
 	push edi
 	push edx
 	mov edi, esi
@@ -12,6 +14,7 @@ hash_set:
 	pop edx
 	pop edi	
 	mov [edi + esi], edx ; store value in hashmap
+	mov eax, edx ; return the value in edx
 	ret
 
 hash_get:
