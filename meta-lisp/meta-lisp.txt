@@ -1,0 +1,9 @@
+[define [xor num1 num2]
+	[asm "xor edi, esi"]
+	[asm "mov eax, edi"]]
+
+[define [zfrs num1 num2]
+	[asm "mov eax, esi"]
+	[asm "mov cl, al"]
+	[asm "shr edi, cl"]
+	[asm "mov eax, edi"]]

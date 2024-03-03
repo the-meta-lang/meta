@@ -1,0 +1,239 @@
+.DATA
+
+last_match = { 512 };
+line = 0;
+// Symbol Table
+// TODO: Fehler wird geworfen, weil last_match nicht definiert wird im symbol table
+ST = { 65536 };
+// Symbol Table Offset
+// 4 for return address + 8 for pushing eax and ebx on calculations
+STO = 12;
+
+LOCALS = { 65536 };
+
+// The current argument counter for the function call
+ARG_NUM = 0;
+
+VAR_IN_BODY = 0;
+
+POINTER_VARS = { 65536 };
+
+DEFER = 0;
+
+WAS_LOCAL = 0;
+
+.SYNTAX PROGRAM
+
+PROGRAM =
+.LABEL("section .text")
+	->("global _start")
+.LABEL("_start:")
+	->("push ebp")
+	->("mov ebp, esp")
+	$(BRACKET_EXPR_WRAPPER | COMMENT)
+	->("pop ebp")
+	->("mov eax, 1")
+	->("mov ebx, 0")
+	->("int 0x80");
+
+
+BRACKET_EXPR_WRAPPER = "[" BRACKET_EXPR "]";
+
+BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
+		->("add eax, ebx")) 
+	| ("-" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
+		->("sub eax, ebx"))
+	| ("*" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
+		->("mul ebx")) 
+	| ("/" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
+		->("idiv eax, ebx"))
+	| ("<" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
+		->("cmp eax, ebx") 
+		->("jl " *1)
+		->("mov eax, 0")
+		->("jmp " *2)
+		.LABEL(*1 ":")
+		->("mov eax, 1")
+		.LABEL(*2 ":"))
+	| ("!=" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
+		->("cmp eax, ebx") 
+		->("jne " *1)
+		->("mov eax, 0")
+		->("jmp " *2)
+		.LABEL(*1 ":")
+		->("mov eax, 1")
+		.LABEL(*2 ":"))
+	| ("return" [set ARG_NUM 0] BRACKET_ARG ->("pop ebp") ->("ret"))
+	| ("set" .ID %> [set WAS_LOCAL [hash-get *LOCALS *last_match]] [set DEFER [hash-get *ST *last_match]] [set ARG_NUM 0] BRACKET_ARG
+			([<< WAS_LOCAL] ->("mov dword [ebp+" [>> DEFER] "], eax ; set " %)
+			| ->("mov dword [ebp-" [>> DEFER] "], eax ; set " %) .DIRECT("call set_true")))
+	| ("if" BRACKET_ARG 
+			->("cmp eax, 0") 
+			->("je " *1)
+				BRACKET_ARG
+			->("jmp " *2)
+			.LABEL(*1 ":")
+				BRACKET_ARG
+			.LABEL(*2 ":"))
+	| ("while" "[" 
+		.LABEL(*1 ":") BRACKET_EXPR 
+			->("cmp eax, 0 ; while") 
+			->("je " *2)
+		"]"
+			$(BRACKET_EXPR_WRAPPER)
+			->("jmp " *1)
+			.LABEL(*2 ":"))
+	| ("asm" .STRING_RAW ->(*))
+	| ("define" (("["
+		->("jmp " *1)
+		.ID .LABEL(* ":")
+			->("push ebp")
+			->("mov ebp, esp")
+			// Function Arguments
+				DEF_FN_ARGS
+			"]"
+			// Function Body
+			$(BRACKET_EXPR_WRAPPER)
+			->("pop ebp")
+			->("ret")
+			.LABEL(*1 ":")
+			[set STO [- STO [* VAR_IN_BODY 4]]]
+			[set VAR_IN_BODY 0])
+		// Simple variable declaration
+		| .ID %> 
+			[hash-set *ST *last_match [set STO [+ STO 4]]] 
+			[hash-set *LOCALS *last_match STO]
+			[set DEFER STO]
+			[set VAR_IN_BODY [+ VAR_IN_BODY 1]]
+			BRACKET_ARG 
+				->("mov dword [ebp-" [>> DEFER] "], eax ; define " %)
+				.DIRECT("call set_true")))
+	| (.ID %> FN_CALL_ARG ->("call " %));
+
+DEF_FN_ARGS = 
+$(DEF_FN_ARG
+	->("mov dword [ebp-" [>> STO] "], edi ; use " *)
+	$(DEF_FN_ARG 
+		->("mov dword [ebp-" [>> STO] "], esi ; use " *)
+		$(DEF_FN_ARG
+			->("mov dword [ebp-" [>> STO] "], edx ; use " *) 
+			$(DEF_FN_ARG
+				->("mov dword [ebp-" [>> STO] "], ecx ; use " *)))));
+
+DEF_FN_ARG = ("*" .ID | .ID)
+	[hash-set *ST *last_match [set STO [+ STO 4]]]
+	[set VAR_IN_BODY [+ VAR_IN_BODY 1]];
+
+// Assignment order
+// edi - 1
+// esi - 2
+// edx - 3
+// ecx - 4
+FN_CALL_ARG = 
+$(((BRACKET_EXPR_WRAPPER ->("mov edi, eax"))
+	| (.NUMBER ->("mov edi, " *))
+	| (.ID
+		([<< [hash-get *LOCALS *last_match]]
+			->("mov edi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+			| ->("mov edi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true")))
+	| ("*" .ID
+		([<< [hash-get *LOCALS *last_match]]
+			->("mov edi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+			| ->("mov edi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true")))
+	| (.STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov edi, " *3)))
+	$(((BRACKET_EXPR_WRAPPER ->("mov esi, eax"))
+		| (.NUMBER ->("mov esi, " *))
+		| (.ID
+		([<< [hash-get *LOCALS *last_match]]
+			->("mov esi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+			| ->("mov esi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true")))
+	| ("*" .ID
+		([<< [hash-get *LOCALS *last_match]]
+			->("mov esi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+			| ->("mov esi, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true")))
+		| (.STRING 
+			.LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				->("mov esi, " *3)))
+		$(((BRACKET_EXPR_WRAPPER ->("mov edx, eax"))
+			| (.NUMBER ->("mov edx, " *))
+			| (.ID
+		([<< [hash-get *LOCALS *last_match]]
+			->("mov edx, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+			| ->("mov edx, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true")))
+	| ("*" .ID
+		([<< [hash-get *LOCALS *last_match]]
+			->("mov edx, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+			| ->("mov edx, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true")))
+			| (.STRING 
+				.LABEL("section .data")
+					->(*3 " db " * ", 0x00")
+				.LABEL("section .text")
+					->("mov edx, " *3))))));
+
+BRACKET_ARG = 
+	("&1" BRACKET_EXPR_WRAPPER ->("push ebx") ->("mov ebx, eax") ->("xor eax, eax") ->("mov al, byte [ebx]") ->("pop ebx"))
+	| ("&2" BRACKET_EXPR_WRAPPER ->("push ebx") ->("mov ebx, eax") ->("xor eax, eax") ->("mov ax, word [ebx]") ->("pop ebx"))
+	| ("&" BRACKET_EXPR_WRAPPER ->("mov eax, dword [eax]"))
+	| BRACKET_EXPR_WRAPPER
+	| (.NUMBER ([<< ARG_NUM] ->("mov eax, " *) | ->("mov ebx, " *) .DIRECT("call set_true")))
+	| (.ID ([<< ARG_NUM]
+			([<< [hash-get *LOCALS *last_match]] 
+			->("mov eax, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+		| ->("mov eax, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true"))
+		| ([<< [hash-get *LOCALS *last_match]] 
+				->("mov ebx, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *)
+			| ->("mov ebx, dword [ebp-" [>> [hash-get *ST *last_match]] "] ; use " *) .DIRECT("call set_true"))))
+	| (.STRING 
+	.LABEL("section .data")
+		->(*3 " db " * ", 0x00")
+	.LABEL("section .text")
+		([<< ARG_NUM] ->("mov eax, " *3) | ->("mov ebx, " *3) .DIRECT("call set_true")))
+	| DATA_TYPES;
+
+COMMENT = "//" .NOT 10;
+
+
+DATA_TYPES = ARRAY | STRING | NUMBER;
+
+// --------------------------------- Arrays ---------------------------------
+// Example:
+// - #[1 2 #[3 4]]
+// TODO: Right now there are only arrays of numbers implemented
+ARRAY = "#["
+.LABEL("section .data")
+	.RS(*3 " dd ") $(.NUMBER .RS(* ", ")) ->("0x00")
+.LABEL("section .text")
+	->("mov eax, " *3)
+"]";
+
+// --------------------------------- Numbers --------------------------------
+
+NUMBER = .NUMBER ->("mov eax, " *);
+
+// --------------------------------- Strings --------------------------------
+
+STRING = .STRING
+.LABEL("section .data")
+	->(*3 " db " * ", 0x00")
+.LABEL("section .text")
+	->("mov eax, " *3);
+
+.END
