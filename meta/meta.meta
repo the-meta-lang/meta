@@ -96,11 +96,17 @@ BRACKET_EXPR_WRAPPER = "[" (("<<" [set ARG_NUM 0] BRACKET_ARG
 	// Set the flags according to the result of the last operation
 	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("pop eax") ->("popfd"))) "]";
 
-BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
+BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
 		->("add eax, ebx")) 
-	| ("-" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
+	| ("-" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
 		->("sub eax, ebx"))
-	| ("*" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
+	| ("*" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] BRACKET_ARG ->("push ebx")
+		->("pop ebx")
+		->("pop eax")
 		->("mul ebx")) 
 	| ("/" [set ARG_NUM 0] BRACKET_ARG [set ARG_NUM 1] BRACKET_ARG
 		->("idiv eax, ebx"))

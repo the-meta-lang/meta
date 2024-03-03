@@ -141,8 +141,8 @@ LA1:
 xor:
     push ebp
     mov ebp, esp
-    mov dword [ebp-24], edi ; use num1
-    mov dword [ebp-28], esi ; use num2
+    mov dword [ebp-36], edi ; use num1
+    mov dword [ebp-40], esi ; use num2
     xor edi, esi
     mov eax, edi
     pop ebp
@@ -154,8 +154,8 @@ LA7:
 zfrs:
     push ebp
     mov ebp, esp
-    mov dword [ebp-12], edi ; use num1
-    mov dword [ebp-16], esi ; use num2
+    mov dword [ebp-40], edi ; use num1
+    mov dword [ebp-44], esi ; use num2
     mov eax, esi
     mov cl, al
     shr edi, cl
@@ -169,21 +169,198 @@ LA8:
 and:
     push ebp
     mov ebp, esp
-    mov dword [ebp-12], edi ; use num1
-    mov dword [ebp-16], esi ; use num2
+    mov dword [ebp-44], edi ; use num1
+    mov dword [ebp-48], esi ; use num2
     and edi, esi
     mov eax, edi
     pop ebp
     ret
     
 LA9:
+    jmp LA10
     
-section .data
-    LC1 db "Hello", 0x00
+print_int:
+    push ebp
+    mov ebp, esp
+    mov dword [ebp-48], edi ; use num
+    
+section .bss
+    LC1 resb 10
     
 section .text
-    mov edi, LC1
+    mov eax, LC1
+    mov dword [ebp-52], eax ; define space
+    mov eax, 0
+    mov dword [ebp-56], eax ; define i
+    mov eax, 0
+    mov dword [ebp-60], eax ; define length
+    
+LA11:
+    mov eax, dword [ebp-48] ; use num
+    push eax
+    mov ebx, 0
+    push ebx
+    pop ebx
+    pop eax
+    cmp eax, ebx
+    jne LA12
+    mov eax, 0
+    jmp LB12
+    
+LA12:
+    mov eax, 1
+    
+LB12:
+    cmp eax, 0 ; while
+    je LB11
+    mov eax, dword [ebp-48] ; use num
+    push eax
+    mov ebx, 10
+    push ebx
+    pop ebx
+    pop eax
+    xor edx, edx
+    div ebx
+    mov eax, edx
+    push eax
+    mov ebx, 48
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov dword [ebp-64], eax ; define mod
+    mov eax, dword [ebp-52] ; use space
+    push eax
+    mov ebx, dword [ebp-56] ; use i
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov edi, eax
+    mov esi, dword [ebp-64] ; use mod
+    call memset
+    mov eax, dword [ebp-48] ; use num
+    push eax
+    mov ebx, 10
+    push ebx
+    pop ebx
+    pop eax
+    xor edx, edx
+    div ebx
+    mov dword [ebp-48], eax ; set num
+    mov eax, dword [ebp-56] ; use i
+    push eax
+    mov ebx, 1
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov dword [ebp-56], eax ; set i
+    mov eax, dword [ebp-60] ; use length
+    push eax
+    mov ebx, 1
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov dword [ebp-60], eax ; set length
+    jmp LA11
+    
+LB11:
+    mov ebx, 0
+    mov dword [ebp-68], eax ; define j
+    
+LA13:
+    mov eax, dword [ebp-56] ; use i
+    push eax
+    mov ebx, 0
+    push ebx
+    pop ebx
+    pop eax
+    cmp eax, ebx
+    jge LA14
+    mov eax, 0
+    jmp LB14
+    
+LA14:
+    mov eax, 1
+    
+LB14:
+    cmp eax, 0 ; while
+    je LB13
+    mov eax, dword [ebp-52] ; use space
+    push eax
+    mov ebx, dword [ebp-60] ; use length
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    push eax
+    mov ebx, dword [ebp-68] ; use j
+    push ebx
+    pop ebx
+    pop eax
+    sub eax, ebx
+    mov ecx, eax
+    mov eax, 4
+    mov ebx, 1
+    mov edx, 1
+    int 0x80
+    mov eax, dword [ebp-68] ; use j
+    push eax
+    mov ebx, 1
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov dword [ebp-68], eax ; set j
+    mov eax, dword [ebp-56] ; use i
+    push eax
+    mov ebx, 1
+    push ebx
+    pop ebx
+    pop eax
+    sub eax, ebx
+    mov dword [ebp-56], eax ; set i
+    jmp LA13
+    
+LB13:
+    pop ebp
+    ret
+    
+LA10:
+    jmp LA15
+    
+memget:
+    push ebp
+    mov ebp, esp
+    mov dword [ebp-68], edi ; use mem
+    mov eax, [edi]
+    pop ebp
+    ret
+    
+LA15:
+    jmp LA16
+    
+memset:
+    push ebp
+    mov ebp, esp
+    mov dword [ebp-68], edi ; use mem
+    mov dword [ebp-72], esi ; use value
+    mov [edi], esi
+    pop ebp
+    ret
+    
+LA16:
+    
+section .data
+    LC2 db "Hello", 0x00
+    
+section .text
+    mov edi, LC2
     call crc32
+    mov edi, eax
+    call print_int
     pop ebp
     mov eax, 1
     mov ebx, 0
