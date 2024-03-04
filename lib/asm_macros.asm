@@ -6,6 +6,7 @@ section .bss
 		lfbuffer resb 1
 		FILE resb 256
 		str_vector_8192 resb 8192
+		last_match resb 512
 section .text
 global _start
 
