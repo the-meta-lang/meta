@@ -85,6 +85,12 @@ EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 	| BRACKET_EXPR_WRAPPER
 	| ".EMPTY" ->("call set_true")
 	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
+	// Make a second pass over the input to allow for error handling
+	| ".PASS" .DIRECT("mov byte [input_string_offset], 0")
+	// Enable Backtracking for a subset of the code that might be problematic.
+	// This will cause the output to be printed into a buffer
+	// And a restore point will be saved at the current position.
+	| "{" EX1 $("|" EX1) "}"
 	| COMMENT;
 
 EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov edi, " [print_int line]) ->("jne terminate_program ; " [print_int line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");

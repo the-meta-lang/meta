@@ -93,23 +93,6 @@
 [premalloc 0]
 [define memory [malloc 20]]
 
-[define [printf *str *value]
-	[define last_was_percent 0]
-	[define i 0]
-	[while [!= &1[+ str i] 0]
-		[define char &1[+ str i]]
-		// Check if we hit a % sign
-		[if [= char 37]
-			[set last_was_percent 1]]
-		[if [= last_was_percent 1]
-			// Check if we hit an "s" character
-			[if [= char 115]
-				[printm value]]
-			// Check if we hit an "d" character
-			[if [= char 100]
-				[printi value]]]
-		[set i [+ i 1]]]]
-
 [define [memwritestring *address *str]
 	[define i 0]
 	// Loop until we hit a null terminator
@@ -117,27 +100,6 @@
 		[memwrite [+ address i] &1[+ str i]]
 		[set i [+ i 1]]]
 	[return i]]
-
-[define [printi num]
-	[define space [malloc 10]]
-	[define i 0]
-	[define length 0]
-	[while [!= num 0]
-		[define mod [+ [% num 10] 48]]
-		[memwrite [+ space i] mod]
-		[set num [/ num 10]]
-		[set i [+ i 1]]
-		[set length [+ length 1]]]
-	[define j 0]
-	[while [>= i 0]
-		[asm/mov ecx [- [+ space length] j]]
-		[asm "mov eax, 4"]
-		[asm "mov ebx, 1"]
-		[asm "mov edx, 1"]
-		[asm "int 0x80"]
-		[set j [+ j 1]]
-		[set i [- i 1]]]
-	[free space]]
 
 [define [printm *pt]
 	[define i 0]
@@ -152,7 +114,8 @@
 [define [memwrite *address value]
 	[asm "mov [edi], esi"]]
 
-// [memwritestring *memory "H"]
-[printf "%d" 123456576]
+[memwritestring *memory "Hey"]
+
+[printm *memory]
 
 [free *memory]

@@ -24,6 +24,9 @@ section .data
 section .data
     VAR_IN_BODY dd 0
     
+section .data
+    IS_FUNC dd 0
+    
 section .bss
     POINTER_VARS resb 65536
     
@@ -605,7 +608,7 @@ LA35:
     
 LA36:
     je LA12
-    test_input_string "return"
+    test_input_string "="
     jne LA37
     pushfd
     push eax
@@ -620,9 +623,46 @@ LA36:
     call vstack_restore
     mov edi, 111
     jne terminate_program ; 111
-    print "pop ebp"
+    print "push eax"
     call newline
-    print "ret"
+    pushfd
+    push eax
+    mov eax, 1
+    mov dword [ARG_NUM], eax
+    pop eax
+    popfd
+    mov edi, 113
+    jne terminate_program ; 113
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    mov edi, 114
+    jne terminate_program ; 114
+    print "push ebx"
+    call newline
+    print "pop ebx"
+    call newline
+    print "pop eax"
+    call newline
+    print "cmp eax, ebx"
+    call newline
+    print "je "
+    call gn1
+    call newline
+    print "mov eax, 0"
+    call newline
+    print "jmp "
+    call gn2
+    call newline
+    call label
+    call gn1
+    print ":"
+    call newline
+    print "mov eax, 1"
+    call newline
+    call label
+    call gn2
+    print ":"
     call newline
     
 LA37:
@@ -632,16 +672,43 @@ LA38:
     
 LA39:
     je LA12
-    test_input_string "set"
+    test_input_string "return"
     jne LA40
+    pushfd
+    push eax
+    mov eax, 0
+    mov dword [ARG_NUM], eax
+    pop eax
+    popfd
+    mov edi, 123
+    jne terminate_program ; 123
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    mov edi, 124
+    jne terminate_program ; 124
+    print "pop ebp"
+    call newline
+    print "ret"
+    call newline
+    
+LA40:
+    
+LA41:
+    jne LA42
+    
+LA42:
+    je LA12
+    test_input_string "set"
+    jne LA43
     call test_for_id
-    mov edi, 114
-    jne terminate_program ; 114
+    mov edi, 127
+    jne terminate_program ; 127
     mov edi, str_vector_8192
     mov esi, last_match
     call vector_push_string_mm32
-    mov edi, 115
-    jne terminate_program ; 115
+    mov edi, 128
+    jne terminate_program ; 128
     pushfd
     push eax
     mov edi, LOCALS
@@ -650,8 +717,8 @@ LA39:
     mov dword [WAS_LOCAL], eax
     pop eax
     popfd
-    mov edi, 116
-    jne terminate_program ; 116
+    mov edi, 129
+    jne terminate_program ; 129
     pushfd
     push eax
     mov edi, ST
@@ -660,39 +727,33 @@ LA39:
     mov dword [DEFER], eax
     pop eax
     popfd
-    mov edi, 117
-    jne terminate_program ; 117
+    mov edi, 130
+    jne terminate_program ; 130
     pushfd
     push eax
     mov eax, 0
     mov dword [ARG_NUM], eax
     pop eax
     popfd
-    mov edi, 118
-    jne terminate_program ; 118
+    mov edi, 131
+    jne terminate_program ; 131
     call vstack_clear
     call BRACKET_ARG
     call vstack_restore
-    mov edi, 119
-    jne terminate_program ; 119
+    mov edi, 132
+    jne terminate_program ; 132
     mov eax, dword [WAS_LOCAL]
     cmp eax, 0
-    jne LA41
-    print "mov dword [ebp-"
-    pushfd
-    push eax
-    mov edi, dword [DEFER]
-    call print_int
-    pop eax
-    popfd
-    print "], eax ; set "
+    jne LA44
+    print "mov dword ["
     mov edi, str_vector_8192
     call vector_pop_string
     call print_mm32
+    print "], eax"
     call newline
     
-LA41:
-    je LA42
+LA44:
+    je LA45
     print "mov dword [ebp-"
     pushfd
     push eax
@@ -707,99 +768,48 @@ LA41:
     call newline
     call set_true
     
-LA43:
-    
-LA42:
-    mov edi, 122
-    jne terminate_program ; 122
-    
-LA40:
-    
-LA44:
-    jne LA45
+LA46:
     
 LA45:
-    je LA12
-    test_input_string "if"
-    jne LA46
-    call vstack_clear
-    call BRACKET_ARG
-    call vstack_restore
-    mov edi, 123
-    jne terminate_program ; 123
-    print "cmp eax, 0"
-    call newline
-    print "je "
-    call gn1
-    call newline
-    call vstack_clear
-    call BRACKET_ARG
-    call vstack_restore
-    mov edi, 126
-    jne terminate_program ; 126
-    print "jmp "
-    call gn2
-    call newline
-    call label
-    call gn1
-    print ":"
-    call newline
-    call vstack_clear
-    call BRACKET_ARG
-    call vstack_restore
-    mov edi, 128
-    jne terminate_program ; 128
-    call label
-    call gn2
-    print ":"
-    call newline
+    mov edi, 135
+    jne terminate_program ; 135
     
-LA46:
+LA43:
     
 LA47:
     jne LA48
     
 LA48:
     je LA12
-    test_input_string "while"
+    test_input_string "if/else"
     jne LA49
-    test_input_string "["
-    mov edi, 129
-    jne terminate_program ; 129
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    mov edi, 136
+    jne terminate_program ; 136
+    print "cmp eax, 0"
+    call newline
+    print "je "
+    call gn1
+    call newline
+    call vstack_clear
+    call BODY
+    call vstack_restore
+    mov edi, 139
+    jne terminate_program ; 139
+    print "jmp "
+    call gn2
+    call newline
     call label
     call gn1
     print ":"
     call newline
     call vstack_clear
-    call BRACKET_EXPR
+    call BODY
     call vstack_restore
-    mov edi, 130
-    jne terminate_program ; 130
-    print "cmp eax, 0 ; while"
-    call newline
-    print "je "
-    call gn2
-    call newline
-    test_input_string "]"
-    mov edi, 133
-    jne terminate_program ; 133
-    
-LA50:
-    call vstack_clear
-    call BRACKET_EXPR_WRAPPER
-    call vstack_restore
-    jne LA51
-    
-LA51:
-    
-LA52:
-    je LA50
-    call set_true
-    mov edi, 134
-    jne terminate_program ; 134
-    print "jmp "
-    call gn1
-    call newline
+    mov edi, 141
+    jne terminate_program ; 141
     call label
     call gn2
     print ":"
@@ -807,17 +817,73 @@ LA52:
     
 LA49:
     
+LA50:
+    jne LA51
+    
+LA51:
+    je LA12
+    test_input_string "if"
+    jne LA52
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    mov edi, 142
+    jne terminate_program ; 142
+    print "cmp eax, 0"
+    call newline
+    print "je "
+    call gn1
+    call newline
+    call vstack_clear
+    call BODY
+    call vstack_restore
+    mov edi, 145
+    jne terminate_program ; 145
+    call label
+    call gn1
+    print ":"
+    call newline
+    
+LA52:
+    
 LA53:
     jne LA54
     
 LA54:
     je LA12
-    test_input_string "asm"
+    test_input_string "while"
     jne LA55
-    call test_for_string_raw
-    mov edi, 136
-    jne terminate_program ; 136
-    call copy_last_match
+    test_input_string "["
+    mov edi, 146
+    jne terminate_program ; 146
+    call label
+    call gn1
+    print ":"
+    call newline
+    call vstack_clear
+    call BRACKET_EXPR
+    call vstack_restore
+    mov edi, 147
+    jne terminate_program ; 147
+    print "cmp eax, 0 ; while"
+    call newline
+    print "je "
+    call gn2
+    call newline
+    test_input_string "]"
+    mov edi, 150
+    jne terminate_program ; 150
+    call vstack_clear
+    call BODY
+    call vstack_restore
+    mov edi, 151
+    jne terminate_program ; 151
+    print "jmp "
+    call gn1
+    call newline
+    call label
+    call gn2
+    print ":"
     call newline
     
 LA55:
@@ -827,23 +893,34 @@ LA56:
     
 LA57:
     je LA12
-    test_input_string "reserve"
+    test_input_string "asm/mov"
     jne LA58
-    call test_for_number
-    mov edi, 138
-    jne terminate_program ; 138
-    call label
-    print "section .bss"
-    call newline
-    call gn3
-    print " resb "
-    call copy_last_match
-    call newline
-    call label
-    print "section .text"
-    call newline
-    print "mov eax, "
-    call gn3
+    call test_for_id
+    mov edi, 153
+    jne terminate_program ; 153
+    mov edi, str_vector_8192
+    mov esi, last_match
+    call vector_push_string_mm32
+    mov edi, 154
+    jne terminate_program ; 154
+    pushfd
+    push eax
+    mov eax, 0
+    mov dword [ARG_NUM], eax
+    pop eax
+    popfd
+    mov edi, 155
+    jne terminate_program ; 155
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    mov edi, 156
+    jne terminate_program ; 156
+    print "mov "
+    mov edi, str_vector_8192
+    call vector_pop_string
+    call print_mm32
+    print ", eax ; asm/mov"
     call newline
     
 LA58:
@@ -853,16 +930,64 @@ LA59:
     
 LA60:
     je LA12
-    test_input_string "define"
+    test_input_string "asm"
     jne LA61
+    call test_for_string_raw
+    mov edi, 158
+    jne terminate_program ; 158
+    call copy_last_match
+    call newline
+    
+LA61:
+    
+LA62:
+    jne LA63
+    
+LA63:
+    je LA12
+    test_input_string "reserve"
+    jne LA64
+    call test_for_id
+    mov edi, 160
+    jne terminate_program ; 160
+    mov edi, str_vector_8192
+    mov esi, last_match
+    call vector_push_string_mm32
+    mov edi, 161
+    jne terminate_program ; 161
+    call test_for_number
+    mov edi, 162
+    jne terminate_program ; 162
+    call label
+    print "section .bss"
+    call newline
+    mov edi, str_vector_8192
+    call vector_pop_string
+    call print_mm32
+    print " resb "
+    call copy_last_match
+    call newline
+    call label
+    print "section .text"
+    call newline
+    
+LA64:
+    
+LA65:
+    jne LA66
+    
+LA66:
+    je LA12
+    test_input_string "define"
+    jne LA67
     test_input_string "["
-    jne LA62
+    jne LA68
     print "jmp "
     call gn1
     call newline
     call test_for_id
-    mov edi, 142
-    jne terminate_program ; 142
+    mov edi, 165
+    jne terminate_program ; 165
     call label
     call copy_last_match
     print ":"
@@ -871,32 +996,47 @@ LA60:
     call newline
     print "mov ebp, esp"
     call newline
-    mov edi, 145
-    jne terminate_program ; 145
+    mov edi, 168
+    jne terminate_program ; 168
     call vstack_clear
     call DEF_FN_ARGS
     call vstack_restore
-    mov edi, 146
-    jne terminate_program ; 146
+    mov edi, 169
+    jne terminate_program ; 169
     test_input_string "]"
-    mov edi, 147
-    jne terminate_program ; 147
-    mov edi, 148
-    jne terminate_program ; 148
+    mov edi, 170
+    jne terminate_program ; 170
+    pushfd
+    push eax
+    mov eax, 1
+    mov dword [IS_FUNC], eax
+    pop eax
+    popfd
+    mov edi, 171
+    jne terminate_program ; 171
+    mov edi, 172
+    jne terminate_program ; 172
     
-LA63:
+LA69:
     call vstack_clear
     call BRACKET_EXPR_WRAPPER
     call vstack_restore
-    jne LA64
+    jne LA70
     
-LA64:
+LA70:
+    je LA71
+    call vstack_clear
+    call COMMENT
+    call vstack_restore
+    jne LA72
     
-LA65:
-    je LA63
+LA72:
+    
+LA71:
+    je LA69
     call set_true
-    mov edi, 149
-    jne terminate_program ; 149
+    mov edi, 173
+    jne terminate_program ; 173
     print "pop ebp"
     call newline
     print "ret"
@@ -923,33 +1063,75 @@ LA65:
     mov dword [STO], eax
     pop eax
     popfd
-    mov edi, 152
-    jne terminate_program ; 152
+    mov edi, 176
+    jne terminate_program ; 176
     pushfd
     push eax
     mov eax, 0
     mov dword [VAR_IN_BODY], eax
     pop eax
     popfd
-    mov edi, 153
-    jne terminate_program ; 153
+    mov edi, 177
+    jne terminate_program ; 177
+    pushfd
+    push eax
+    mov eax, 0
+    mov dword [IS_FUNC], eax
+    pop eax
+    popfd
+    mov edi, 178
+    jne terminate_program ; 178
     
-LA62:
+LA68:
     
-LA66:
-    jne LA67
-    mov edi, 154
-    jne terminate_program ; 154
+LA73:
+    jne LA74
+    mov edi, 179
+    jne terminate_program ; 179
     
-LA67:
-    je LA68
+LA74:
+    je LA75
     call test_for_id
-    jne LA69
+    jne LA76
     mov edi, str_vector_8192
     mov esi, last_match
     call vector_push_string_mm32
-    mov edi, 155
-    jne terminate_program ; 155
+    mov edi, 180
+    jne terminate_program ; 180
+    mov edi, str_vector_8192
+    mov esi, last_match
+    call vector_push_string_mm32
+    mov edi, 181
+    jne terminate_program ; 181
+    mov eax, dword [IS_FUNC]
+    cmp eax, 0
+    jne LA77
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    mov edi, 182
+    jne terminate_program ; 182
+    call label
+    print "section .data"
+    call newline
+    mov edi, str_vector_8192
+    call vector_pop_string
+    call print_mm32
+    print " dd 0x00"
+    call newline
+    call label
+    print "section .text"
+    call newline
+    print "mov ["
+    mov edi, str_vector_8192
+    call vector_pop_string
+    call print_mm32
+    print "], eax"
+    call newline
+    
+LA77:
+    je LA78
+    call set_true
     pushfd
     push eax
     mov edi, ST
@@ -966,8 +1148,8 @@ LA67:
     call hash_set
     pop eax
     popfd
-    mov edi, 156
-    jne terminate_program ; 156
+    mov edi, 185
+    jne terminate_program ; 185
     pushfd
     push eax
     mov edi, LOCALS
@@ -976,16 +1158,16 @@ LA67:
     call hash_set
     pop eax
     popfd
-    mov edi, 157
-    jne terminate_program ; 157
+    mov edi, 186
+    jne terminate_program ; 186
     pushfd
     push eax
     mov eax, dword [STO]
     mov dword [DEFER], eax
     pop eax
     popfd
-    mov edi, 158
-    jne terminate_program ; 158
+    mov edi, 187
+    jne terminate_program ; 187
     pushfd
     push eax
     mov eax, dword [VAR_IN_BODY]
@@ -998,13 +1180,21 @@ LA67:
     mov dword [VAR_IN_BODY], eax
     pop eax
     popfd
-    mov edi, 159
-    jne terminate_program ; 159
+    mov edi, 188
+    jne terminate_program ; 188
+    pushfd
+    push eax
+    mov eax, 0
+    mov dword [ARG_NUM], eax
+    pop eax
+    popfd
+    mov edi, 189
+    jne terminate_program ; 189
     call vstack_clear
     call BRACKET_ARG
     call vstack_restore
-    mov edi, 160
-    jne terminate_program ; 160
+    mov edi, 190
+    jne terminate_program ; 190
     print "mov dword [ebp-"
     pushfd
     push eax
@@ -1017,56 +1207,88 @@ LA67:
     call vector_pop_string
     call print_mm32
     call newline
-    call set_true
     
-LA69:
+LA79:
     
-LA68:
-    mov edi, 162
-    jne terminate_program ; 162
+LA78:
+    mov edi, 192
+    jne terminate_program ; 192
     
-LA61:
+LA76:
     
-LA70:
-    jne LA71
+LA75:
+    mov edi, 193
+    jne terminate_program ; 193
     
-LA71:
+LA67:
+    
+LA80:
+    jne LA81
+    
+LA81:
     je LA12
     call test_for_id
-    jne LA72
+    jne LA82
     mov edi, str_vector_8192
     mov esi, last_match
     call vector_push_string_mm32
-    mov edi, 163
-    jne terminate_program ; 163
+    mov edi, 194
+    jne terminate_program ; 194
     call vstack_clear
     call FN_CALL_ARG
     call vstack_restore
-    mov edi, 164
-    jne terminate_program ; 164
+    mov edi, 195
+    jne terminate_program ; 195
     print "call "
     mov edi, str_vector_8192
     call vector_pop_string
     call print_mm32
     call newline
     
-LA72:
+LA82:
     
-LA73:
-    jne LA74
+LA83:
+    jne LA84
     
-LA74:
+LA84:
     
 LA12:
     ret
     
+BODY:
+    
+LA85:
+    call vstack_clear
+    call BRACKET_EXPR_WRAPPER
+    call vstack_restore
+    jne LA86
+    
+LA86:
+    je LA87
+    call vstack_clear
+    call COMMENT
+    call vstack_restore
+    jne LA88
+    
+LA88:
+    
+LA87:
+    je LA85
+    call set_true
+    jne LA89
+    
+LA89:
+    
+LA90:
+    ret
+    
 DEF_FN_ARGS:
     
-LA75:
+LA91:
     call vstack_clear
     call DEF_FN_ARG
     call vstack_restore
-    jne LA76
+    jne LA92
     print "mov dword [ebp-"
     pushfd
     push eax
@@ -1078,11 +1300,11 @@ LA75:
     call copy_last_match
     call newline
     
-LA77:
+LA93:
     call vstack_clear
     call DEF_FN_ARG
     call vstack_restore
-    jne LA78
+    jne LA94
     print "mov dword [ebp-"
     pushfd
     push eax
@@ -1094,11 +1316,11 @@ LA77:
     call copy_last_match
     call newline
     
-LA79:
+LA95:
     call vstack_clear
     call DEF_FN_ARG
     call vstack_restore
-    jne LA80
+    jne LA96
     print "mov dword [ebp-"
     pushfd
     push eax
@@ -1110,11 +1332,11 @@ LA79:
     call copy_last_match
     call newline
     
-LA81:
+LA97:
     call vstack_clear
     call DEF_FN_ARG
     call vstack_restore
-    jne LA82
+    jne LA98
     print "mov dword [ebp-"
     pushfd
     push eax
@@ -1126,58 +1348,58 @@ LA81:
     call copy_last_match
     call newline
     
-LA82:
+LA98:
     
-LA83:
-    je LA81
+LA99:
+    je LA97
     call set_true
-    mov edi, 170
-    jne terminate_program ; 170
+    mov edi, 201
+    jne terminate_program ; 201
     
-LA80:
+LA96:
     
-LA84:
-    je LA79
+LA100:
+    je LA95
     call set_true
-    mov edi, 171
-    jne terminate_program ; 171
+    mov edi, 202
+    jne terminate_program ; 202
     
-LA78:
+LA94:
     
-LA85:
-    je LA77
+LA101:
+    je LA93
     call set_true
-    mov edi, 172
-    jne terminate_program ; 172
+    mov edi, 203
+    jne terminate_program ; 203
     
-LA76:
+LA92:
     
-LA86:
-    je LA75
+LA102:
+    je LA91
     call set_true
-    jne LA87
+    jne LA103
     
-LA87:
+LA103:
     
-LA88:
+LA104:
     ret
     
 DEF_FN_ARG:
     test_input_string "*"
-    jne LA89
+    jne LA105
     call test_for_id
-    mov edi, 173
-    jne terminate_program ; 173
+    mov edi, 204
+    jne terminate_program ; 204
     
-LA89:
-    je LA90
+LA105:
+    je LA106
     call test_for_id
-    jne LA91
+    jne LA107
     
-LA91:
+LA107:
     
-LA90:
-    jne LA92
+LA106:
+    jne LA108
     pushfd
     push eax
     mov edi, ST
@@ -1194,8 +1416,18 @@ LA90:
     call hash_set
     pop eax
     popfd
-    mov edi, 174
-    jne terminate_program ; 174
+    mov edi, 205
+    jne terminate_program ; 205
+    pushfd
+    push eax
+    mov edi, LOCALS
+    mov esi, last_match
+    mov edx, dword [STO]
+    call hash_set
+    pop eax
+    popfd
+    mov edi, 206
+    jne terminate_program ; 206
     pushfd
     push eax
     mov eax, dword [VAR_IN_BODY]
@@ -1208,151 +1440,135 @@ LA90:
     mov dword [VAR_IN_BODY], eax
     pop eax
     popfd
-    mov edi, 175
-    jne terminate_program ; 175
+    mov edi, 207
+    jne terminate_program ; 207
     
-LA92:
+LA108:
     
-LA93:
+LA109:
     ret
     
 FN_CALL_ARG:
     
-LA94:
+LA110:
     call vstack_clear
     call BRACKET_EXPR_WRAPPER
     call vstack_restore
-    jne LA95
+    jne LA111
     print "mov edi, eax"
     call newline
     
-LA95:
-    
-LA96:
-    jne LA97
-    
-LA97:
-    je LA98
-    call test_for_number
-    jne LA99
-    print "mov edi, "
-    call copy_last_match
-    call newline
-    
-LA99:
-    
-LA100:
-    jne LA101
-    
-LA101:
-    je LA98
-    call test_for_id
-    jne LA102
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
-    jne LA103
-    print "mov edi, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    
-LA103:
-    je LA104
-    print "mov edi, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    call set_true
-    
-LA105:
-    
-LA104:
-    mov edi, 180
-    jne terminate_program ; 180
-    
-LA102:
-    
-LA106:
-    jne LA107
-    
-LA107:
-    je LA98
-    test_input_string "*"
-    jne LA108
-    call test_for_id
-    mov edi, 181
-    jne terminate_program ; 181
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
-    jne LA109
-    print "mov edi, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    
-LA109:
-    je LA110
-    print "mov edi, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    call set_true
-    
 LA111:
-    
-LA110:
-    mov edi, 184
-    jne terminate_program ; 184
-    
-LA108:
     
 LA112:
     jne LA113
     
 LA113:
-    je LA98
+    je LA114
+    call test_for_number
+    jne LA115
+    print "mov edi, "
+    call copy_last_match
+    call newline
+    
+LA115:
+    
+LA116:
+    jne LA117
+    
+LA117:
+    je LA114
+    call test_for_id
+    jne LA118
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
+    jne LA119
+    print "mov edi, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
+    
+LA119:
+    je LA120
+    print "mov edi, dword [ebp-"
+    pushfd
+    push eax
+    mov edi, ST
+    mov esi, last_match
+    call hash_get
+    mov edi, eax
+    call print_int
+    pop eax
+    popfd
+    print "] ; use "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA121:
+    
+LA120:
+    mov edi, 212
+    jne terminate_program ; 212
+    
+LA118:
+    
+LA122:
+    jne LA123
+    
+LA123:
+    je LA114
+    test_input_string "*"
+    jne LA124
+    call test_for_id
+    mov edi, 213
+    jne terminate_program ; 213
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
+    jne LA125
+    print "mov edi, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
+    
+LA125:
+    je LA126
+    print "mov edi, dword [ebp-"
+    pushfd
+    push eax
+    mov edi, ST
+    mov esi, last_match
+    call hash_get
+    mov edi, eax
+    call print_int
+    pop eax
+    popfd
+    print "] ; use "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA127:
+    
+LA126:
+    mov edi, 216
+    jne terminate_program ; 216
+    
+LA124:
+    
+LA128:
+    jne LA129
+    
+LA129:
+    je LA114
     call test_for_string
-    jne LA114
+    jne LA130
     call label
     print "section .data"
     call newline
@@ -1368,121 +1584,68 @@ LA113:
     call gn3
     call newline
     
-LA114:
-    
-LA115:
-    jne LA116
-    
-LA116:
-    
-LA98:
-    jne LA117
-    
-LA118:
-    call vstack_clear
-    call BRACKET_EXPR_WRAPPER
-    call vstack_restore
-    jne LA119
-    print "mov esi, eax"
-    call newline
-    
-LA119:
-    
-LA120:
-    jne LA121
-    
-LA121:
-    je LA122
-    call test_for_number
-    jne LA123
-    print "mov esi, "
-    call copy_last_match
-    call newline
-    
-LA123:
-    
-LA124:
-    jne LA125
-    
-LA125:
-    je LA122
-    call test_for_id
-    jne LA126
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
-    jne LA127
-    print "mov esi, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    
-LA127:
-    je LA128
-    print "mov esi, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    call set_true
-    
-LA129:
-    
-LA128:
-    mov edi, 191
-    jne terminate_program ; 191
-    
-LA126:
-    
 LA130:
-    jne LA131
     
 LA131:
-    je LA122
-    test_input_string "*"
     jne LA132
-    call test_for_id
-    mov edi, 192
-    jne terminate_program ; 192
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
+    
+LA132:
+    je LA114
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
     jne LA133
-    print "mov esi, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
+    print "mov edi, eax"
     call newline
     
 LA133:
-    je LA134
+    
+LA114:
+    jne LA134
+    
+LA135:
+    call vstack_clear
+    call BRACKET_EXPR_WRAPPER
+    call vstack_restore
+    jne LA136
+    print "mov esi, eax"
+    call newline
+    
+LA136:
+    
+LA137:
+    jne LA138
+    
+LA138:
+    je LA139
+    call test_for_number
+    jne LA140
+    print "mov esi, "
+    call copy_last_match
+    call newline
+    
+LA140:
+    
+LA141:
+    jne LA142
+    
+LA142:
+    je LA139
+    call test_for_id
+    jne LA143
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
+    jne LA144
+    print "mov esi, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
+    
+LA144:
+    je LA145
     print "mov esi, dword [ebp-"
     pushfd
     push eax
@@ -1498,21 +1661,67 @@ LA133:
     call newline
     call set_true
     
-LA135:
+LA146:
     
-LA134:
-    mov edi, 195
-    jne terminate_program ; 195
+LA145:
+    mov edi, 224
+    jne terminate_program ; 224
     
-LA132:
+LA143:
     
-LA136:
-    jne LA137
+LA147:
+    jne LA148
     
-LA137:
-    je LA122
+LA148:
+    je LA139
+    test_input_string "*"
+    jne LA149
+    call test_for_id
+    mov edi, 225
+    jne terminate_program ; 225
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
+    jne LA150
+    print "mov esi, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
+    
+LA150:
+    je LA151
+    print "mov esi, dword [ebp-"
+    pushfd
+    push eax
+    mov edi, ST
+    mov esi, last_match
+    call hash_get
+    mov edi, eax
+    call print_int
+    pop eax
+    popfd
+    print "] ; use "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA152:
+    
+LA151:
+    mov edi, 228
+    jne terminate_program ; 228
+    
+LA149:
+    
+LA153:
+    jne LA154
+    
+LA154:
+    je LA139
     call test_for_string
-    jne LA138
+    jne LA155
     call label
     print "section .data"
     call newline
@@ -1528,212 +1737,214 @@ LA137:
     call gn3
     call newline
     
-LA138:
+LA155:
+    
+LA156:
+    jne LA157
+    
+LA157:
+    je LA139
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    jne LA158
+    print "mov esi, eax"
+    call newline
+    
+LA158:
     
 LA139:
-    jne LA140
+    jne LA159
     
-LA140:
-    
-LA122:
-    jne LA141
-    
-LA142:
+LA160:
     call vstack_clear
     call BRACKET_EXPR_WRAPPER
     call vstack_restore
-    jne LA143
+    jne LA161
     print "mov edx, eax"
     call newline
     
-LA143:
-    
-LA144:
-    jne LA145
-    
-LA145:
-    je LA146
-    call test_for_number
-    jne LA147
-    print "mov edx, "
-    call copy_last_match
-    call newline
-    
-LA147:
-    
-LA148:
-    jne LA149
-    
-LA149:
-    je LA146
-    call test_for_id
-    jne LA150
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
-    jne LA151
-    print "mov edx, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    
-LA151:
-    je LA152
-    print "mov edx, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    call set_true
-    
-LA153:
-    
-LA152:
-    mov edi, 202
-    jne terminate_program ; 202
-    
-LA150:
-    
-LA154:
-    jne LA155
-    
-LA155:
-    je LA146
-    test_input_string "*"
-    jne LA156
-    call test_for_id
-    mov edi, 203
-    jne terminate_program ; 203
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
-    jne LA157
-    print "mov edx, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    
-LA157:
-    je LA158
-    print "mov edx, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    call set_true
-    
-LA159:
-    
-LA158:
-    mov edi, 206
-    jne terminate_program ; 206
-    
-LA156:
-    
-LA160:
-    jne LA161
-    
 LA161:
-    je LA146
-    call test_for_string
-    jne LA162
-    call label
-    print "section .data"
-    call newline
-    call gn3
-    print " db "
-    call copy_last_match
-    print ", 0x00"
-    call newline
-    call label
-    print "section .text"
-    call newline
-    print "mov edx, "
-    call gn3
-    call newline
     
 LA162:
+    jne LA163
     
 LA163:
-    jne LA164
-    
-LA164:
-    
-LA146:
+    je LA164
+    call test_for_number
     jne LA165
+    print "mov edx, "
+    call copy_last_match
+    call newline
     
 LA165:
     
 LA166:
-    je LA142
-    call set_true
-    mov edi, 209
-    jne terminate_program ; 209
-    
-LA141:
+    jne LA167
     
 LA167:
-    je LA118
-    call set_true
-    mov edi, 210
-    jne terminate_program ; 210
-    
-LA117:
-    
-LA168:
-    je LA94
-    call set_true
+    je LA164
+    call test_for_id
+    jne LA168
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
     jne LA169
+    print "mov edx, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
     
 LA169:
+    je LA170
+    print "mov edx, dword [ebp-"
+    pushfd
+    push eax
+    mov edi, ST
+    mov esi, last_match
+    call hash_get
+    mov edi, eax
+    call print_int
+    pop eax
+    popfd
+    print "] ; use "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA171:
     
 LA170:
+    mov edi, 236
+    jne terminate_program ; 236
+    
+LA168:
+    
+LA172:
+    jne LA173
+    
+LA173:
+    je LA164
+    test_input_string "*"
+    jne LA174
+    call test_for_id
+    mov edi, 237
+    jne terminate_program ; 237
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
+    jne LA175
+    print "mov edx, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
+    
+LA175:
+    je LA176
+    print "mov edx, dword [ebp-"
+    pushfd
+    push eax
+    mov edi, ST
+    mov esi, last_match
+    call hash_get
+    mov edi, eax
+    call print_int
+    pop eax
+    popfd
+    print "] ; use "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA177:
+    
+LA176:
+    mov edi, 240
+    jne terminate_program ; 240
+    
+LA174:
+    
+LA178:
+    jne LA179
+    
+LA179:
+    je LA164
+    call test_for_string
+    jne LA180
+    call label
+    print "section .data"
+    call newline
+    call gn3
+    print " db "
+    call copy_last_match
+    print ", 0x00"
+    call newline
+    call label
+    print "section .text"
+    call newline
+    print "mov edx, "
+    call gn3
+    call newline
+    
+LA180:
+    
+LA181:
+    jne LA182
+    
+LA182:
+    je LA164
+    call vstack_clear
+    call BRACKET_ARG
+    call vstack_restore
+    jne LA183
+    print "mov edx, eax"
+    call newline
+    
+LA183:
+    
+LA164:
+    jne LA184
+    
+LA184:
+    
+LA185:
+    je LA160
+    call set_true
+    mov edi, 244
+    jne terminate_program ; 244
+    
+LA159:
+    
+LA186:
+    je LA135
+    call set_true
+    mov edi, 245
+    jne terminate_program ; 245
+    
+LA134:
+    
+LA187:
+    je LA110
+    call set_true
+    jne LA188
+    
+LA188:
+    
+LA189:
     ret
     
 BRACKET_ARG:
     test_input_string "&1"
-    jne LA171
+    jne LA190
     call vstack_clear
     call BRACKET_EXPR_WRAPPER
     call vstack_restore
-    mov edi, 211
-    jne terminate_program ; 211
+    mov edi, 246
+    jne terminate_program ; 246
     print "push ebx"
     call newline
     print "mov ebx, eax"
@@ -1745,20 +1956,20 @@ BRACKET_ARG:
     print "pop ebx"
     call newline
     
-LA171:
+LA190:
     
-LA172:
-    jne LA173
+LA191:
+    jne LA192
     
-LA173:
-    je LA174
+LA192:
+    je LA193
     test_input_string "&2"
-    jne LA175
+    jne LA194
     call vstack_clear
     call BRACKET_EXPR_WRAPPER
     call vstack_restore
-    mov edi, 217
-    jne terminate_program ; 217
+    mov edi, 252
+    jne terminate_program ; 252
     print "push ebx"
     call newline
     print "mov ebx, eax"
@@ -1770,171 +1981,155 @@ LA173:
     print "pop ebx"
     call newline
     
-LA175:
+LA194:
     
-LA176:
-    jne LA177
+LA195:
+    jne LA196
     
-LA177:
-    je LA174
+LA196:
+    je LA193
     test_input_string "&"
-    jne LA178
+    jne LA197
     call vstack_clear
     call BRACKET_EXPR_WRAPPER
     call vstack_restore
-    mov edi, 223
-    jne terminate_program ; 223
+    mov edi, 258
+    jne terminate_program ; 258
     print "mov eax, dword [eax]"
     call newline
     
-LA178:
-    
-LA179:
-    jne LA180
-    
-LA180:
-    je LA174
-    call vstack_clear
-    call BRACKET_EXPR_WRAPPER
-    call vstack_restore
-    jne LA181
-    
-LA181:
-    je LA174
-    call test_for_number
-    jne LA182
-    mov eax, dword [ARG_NUM]
-    cmp eax, 0
-    jne LA183
-    print "mov eax, "
-    call copy_last_match
-    call newline
-    
-LA183:
-    je LA184
-    print "mov ebx, "
-    call copy_last_match
-    call newline
-    call set_true
-    
-LA185:
-    
-LA184:
-    mov edi, 227
-    jne terminate_program ; 227
-    
-LA182:
-    
-LA186:
-    jne LA187
-    
-LA187:
-    je LA174
-    call test_for_id
-    jne LA188
-    mov eax, dword [ARG_NUM]
-    cmp eax, 0
-    jne LA189
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
-    jne LA190
-    print "mov eax, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    
-LA190:
-    je LA191
-    print "mov eax, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    call set_true
-    
-LA192:
-    
-LA191:
-    mov edi, 230
-    jne terminate_program ; 230
-    
-LA189:
-    je LA193
-    mov edi, LOCALS
-    mov esi, last_match
-    call hash_get
-    cmp eax, 0
-    jne LA194
-    print "mov ebx, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    
-LA194:
-    je LA195
-    print "mov ebx, dword [ebp-"
-    pushfd
-    push eax
-    mov edi, ST
-    mov esi, last_match
-    call hash_get
-    mov edi, eax
-    call print_int
-    pop eax
-    popfd
-    print "] ; use "
-    call copy_last_match
-    call newline
-    call set_true
-    
-LA196:
-    
-LA195:
-    jne LA197
-    
 LA197:
-    
-LA193:
-    mov edi, 233
-    jne terminate_program ; 233
-    
-LA188:
     
 LA198:
     jne LA199
     
 LA199:
-    je LA174
-    call test_for_string
+    je LA193
+    call vstack_clear
+    call BRACKET_EXPR_WRAPPER
+    call vstack_restore
     jne LA200
+    
+LA200:
+    je LA193
+    call test_for_number
+    jne LA201
+    mov eax, dword [ARG_NUM]
+    cmp eax, 0
+    jne LA202
+    print "mov eax, "
+    call copy_last_match
+    call newline
+    
+LA202:
+    je LA203
+    print "mov ebx, "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA204:
+    
+LA203:
+    mov edi, 262
+    jne terminate_program ; 262
+    
+LA201:
+    
+LA205:
+    jne LA206
+    
+LA206:
+    je LA193
+    call test_for_id
+    jne LA207
+    mov eax, dword [ARG_NUM]
+    cmp eax, 0
+    jne LA208
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
+    jne LA209
+    print "mov eax, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
+    
+LA209:
+    je LA210
+    print "mov eax, dword [ebp-"
+    pushfd
+    push eax
+    mov edi, ST
+    mov esi, last_match
+    call hash_get
+    mov edi, eax
+    call print_int
+    pop eax
+    popfd
+    print "] ; use "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA211:
+    
+LA210:
+    mov edi, 265
+    jne terminate_program ; 265
+    
+LA208:
+    je LA212
+    mov edi, LOCALS
+    mov esi, last_match
+    call hash_get
+    cmp eax, 0
+    jne LA213
+    print "mov ebx, dword ["
+    call copy_last_match
+    print "] ; use "
+    call copy_last_match
+    call newline
+    
+LA213:
+    je LA214
+    print "mov ebx, dword [ebp-"
+    pushfd
+    push eax
+    mov edi, ST
+    mov esi, last_match
+    call hash_get
+    mov edi, eax
+    call print_int
+    pop eax
+    popfd
+    print "] ; use "
+    call copy_last_match
+    call newline
+    call set_true
+    
+LA215:
+    
+LA214:
+    jne LA216
+    
+LA216:
+    
+LA212:
+    mov edi, 268
+    jne terminate_program ; 268
+    
+LA207:
+    
+LA217:
+    jne LA218
+    
+LA218:
+    je LA193
+    call test_for_string
+    jne LA219
     call label
     print "section .data"
     call newline
@@ -1948,100 +2143,100 @@ LA199:
     call newline
     mov eax, dword [ARG_NUM]
     cmp eax, 0
-    jne LA201
+    jne LA220
     print "mov eax, "
     call gn3
     call newline
     
-LA201:
-    je LA202
+LA220:
+    je LA221
     print "mov ebx, "
     call gn3
     call newline
     call set_true
     
-LA203:
+LA222:
     
-LA202:
-    mov edi, 237
-    jne terminate_program ; 237
+LA221:
+    mov edi, 272
+    jne terminate_program ; 272
     
-LA200:
+LA219:
     
-LA204:
-    jne LA205
+LA223:
+    jne LA224
     
-LA205:
-    je LA174
+LA224:
+    je LA193
     call vstack_clear
     call DATA_TYPES
     call vstack_restore
-    jne LA206
+    jne LA225
     
-LA206:
+LA225:
     
-LA174:
+LA193:
     ret
     
 COMMENT:
     test_input_string "//"
-    jne LA207
+    jne LA226
     match_not 10
-    mov edi, 238
-    jne terminate_program ; 238
+    mov edi, 273
+    jne terminate_program ; 273
     
-LA207:
+LA226:
     
-LA208:
+LA227:
     ret
     
 DATA_TYPES:
     call vstack_clear
     call ARRAY
     call vstack_restore
-    jne LA209
+    jne LA228
     
-LA209:
-    je LA210
+LA228:
+    je LA229
     call vstack_clear
     call STRING
     call vstack_restore
-    jne LA211
+    jne LA230
     
-LA211:
-    je LA210
+LA230:
+    je LA229
     call vstack_clear
     call NUMBER
     call vstack_restore
-    jne LA212
+    jne LA231
     
-LA212:
+LA231:
     
-LA210:
+LA229:
     ret
     
 ARRAY:
     test_input_string "#["
-    jne LA213
+    jne LA232
     call label
     print "section .data"
     call newline
     call gn3
     print " dd "
     
-LA214:
+LA233:
     call test_for_number
-    jne LA215
+    jne LA234
     call copy_last_match
     print ", "
     
-LA215:
+LA234:
     
-LA216:
-    je LA214
+LA235:
+    je LA233
     call set_true
-    mov edi, 239
-    jne terminate_program ; 239
+    mov edi, 274
+    jne terminate_program ; 274
     print "0x00"
     call newline
     call label
@@ -2051,29 +2246,29 @@ LA216:
     call gn3
     call newline
     test_input_string "]"
-    mov edi, 242
-    jne terminate_program ; 242
+    mov edi, 277
+    jne terminate_program ; 277
     
-LA213:
+LA232:
     
-LA217:
+LA236:
     ret
     
 NUMBER:
     call test_for_number
-    jne LA218
+    jne LA237
     print "mov eax, "
     call copy_last_match
     call newline
     
-LA218:
+LA237:
     
-LA219:
+LA238:
     ret
     
 STRING:
     call test_for_string
-    jne LA220
+    jne LA239
     call label
     print "section .data"
     call newline
@@ -2089,8 +2284,8 @@ STRING:
     call gn3
     call newline
     
-LA220:
+LA239:
     
-LA221:
+LA240:
     ret
     

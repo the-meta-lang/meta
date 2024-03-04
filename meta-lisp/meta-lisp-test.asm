@@ -1,24 +1,130 @@
+
 section .text
     global _start
     
 _start:
     push ebp
     mov ebp, esp
+    
+section .bss
+    ptr_wilderness resb 4
+    
+section .text
+    
+section .bss
+    ptr_bss_end resb 4
+    
+section .text
+    
+section .bss
+    fbin resb 4
+    
+section .text
     jmp LA1
     
-crc32:
+premalloc:
     push ebp
     mov ebp, esp
-    mov dword [ebp-16], edi ; use input
-    mov eax, 3988292384
-    mov dword [ebp-20], eax ; define divisor
-    mov eax, 4294967295
-    mov dword [ebp-24], eax ; define crc
+    mov dword [ebp-16], edi ; use space
+    mov dword [ptr_wilderness], fbin + 8
+    mov dword [ptr_bss_end], fbin + 8
+    mov ebx, edi
+    add ebx, [ptr_bss_end]
+    mov eax, 0x2d
+    int 0x80
+    add dword [ptr_bss_end], edi
+    pop ebp
+    ret
+    
+LA1:
+    jmp LA2
+    
+free:
+    push ebp
+    mov ebp, esp
+    mov dword [ebp-16], edi ; use pt
+    mov ebx, [fbin]
+    mov [edi - 4], ebx
+    mov [fbin], edi
+    pop ebp
+    ret
+    
+LA2:
+    jmp LA3
+    
+malloc:
+    push ebp
+    mov ebp, esp
+    mov dword [ebp-16], edi ; use size
+    mov edx, [ptr_wilderness]
+    test edx, edx
+    je .error
+    add edi, 8
+    mov eax, [fbin]
+    mov ebx, fbin + 4
+    .size_check_loop:
+    test eax, eax
+    je .check_wilderness
+    cmp edi, [eax - 8]
+    jg .no_fit
+    mov dword [eax - 8], edi
+    mov ecx, [eax - 4]
+    mov dword [ebx - 4], ecx
+    jmp .return
+    .no_fit:
+    mov ebx, eax
+    mov eax, [eax - 4]
+    jmp .size_check_loop
+    .check_wilderness:
+    mov eax, [ptr_bss_end]
+    sub eax, [ptr_wilderness]
+    cmp eax, edi
+    jge .set_meta
+    sub edi, eax
+    mov ebx, edi
+    add ebx, [ptr_bss_end]
+    mov eax, 0x2d
+    int 0x80
+    add dword [ptr_bss_end], edi
+    .set_meta:
+    mov dword [edx], edi
+    add [ptr_wilderness], edi
+    mov eax, edx ; move edx
+    add eax, 8
+    .return:
+    pop ebp
+    ret
+    .error:
+    xor eax, eax
+    jmp .return
+    pop ebp
+    ret
+    
+LA3:
+    mov edi, 0
+    call premalloc
+    mov edi, 20
+    call malloc
+    
+section .data
+    memory dd 0x00
+    
+section .text
+    mov [memory], eax
+    jmp LA4
+    
+printf:
+    push ebp
+    mov ebp, esp
+    mov dword [ebp-16], edi ; use str
+    mov dword [ebp-20], esi ; use value
+    mov eax, 0
+    mov dword [ebp-24], eax ; define last_was_percent
     mov eax, 0
     mov dword [ebp-28], eax ; define i
     
-LA2:
-    mov eax, dword [ebp-16] ; use input
+LA5:
+    mov eax, dword [ebp-16] ; use str
     push eax
     mov ebx, dword [ebp-28] ; use i
     push ebx
@@ -36,17 +142,17 @@ LA2:
     pop ebx
     pop eax
     cmp eax, ebx
-    jne LA3
+    jne LA6
     mov eax, 0
-    jmp LB3
+    jmp LB6
     
-LA3:
+LA6:
     mov eax, 1
     
-LB3:
+LB6:
     cmp eax, 0 ; while
-    je LB2
-    mov eax, dword [ebp-16] ; use input
+    je LB5
+    mov eax, dword [ebp-16] ; use str
     push eax
     mov ebx, dword [ebp-28] ; use i
     push ebx
@@ -58,64 +164,89 @@ LB3:
     xor eax, eax
     mov al, byte [ebx]
     pop ebx
-    mov dword [ebp-32], eax ; define byte
-    mov edi, dword [ebp-24] ; use crc
-    mov esi, dword [ebp-32] ; use byte
-    call xor
-    mov dword [ebp-24], eax ; set crc
-    mov eax, 0
-    mov dword [ebp-36], eax ; define j
-    
-LA4:
-    mov eax, dword [ebp-36] ; use j
+    mov dword [ebp-32], eax ; define char
+    mov eax, dword [ebp-32] ; use char
     push eax
-    mov ebx, 8
+    mov ebx, 37
     push ebx
     pop ebx
     pop eax
     cmp eax, ebx
-    jne LA5
+    je LA7
     mov eax, 0
-    jmp LB5
+    jmp LB7
     
-LA5:
+LA7:
     mov eax, 1
     
-LB5:
-    cmp eax, 0 ; while
-    je LB4
-    mov edi, dword [ebp-24] ; use crc
-    mov esi, 1
-    call and
+LB7:
     cmp eax, 0
-    je LA6
-    mov edi, dword [ebp-24] ; use crc
-    mov esi, 1
-    call zfrs
-    mov edi, eax
-    mov esi, dword [ebp-20] ; use divisor
-    call xor
-    mov dword [ebp-24], eax ; set crc
-    jmp LB6
+    je LA8
+    mov eax, 1
+    mov dword [ebp-24], eax ; set last_was_percent
     
-LA6:
-    mov edi, dword [ebp-24] ; use crc
-    mov esi, 1
-    call zfrs
-    mov dword [ebp-24], eax ; set crc
-    
-LB6:
-    mov eax, dword [ebp-36] ; use j
+LA8:
+    mov eax, dword [ebp-24] ; use last_was_percent
     push eax
     mov ebx, 1
     push ebx
     pop ebx
     pop eax
-    add eax, ebx
-    mov dword [ebp-36], eax ; set j
-    jmp LA4
+    cmp eax, ebx
+    je LA9
+    mov eax, 0
+    jmp LB9
     
-LB4:
+LA9:
+    mov eax, 1
+    
+LB9:
+    cmp eax, 0
+    je LA10
+    mov eax, dword [ebp-32] ; use char
+    push eax
+    mov ebx, 115
+    push ebx
+    pop ebx
+    pop eax
+    cmp eax, ebx
+    je LA11
+    mov eax, 0
+    jmp LB11
+    
+LA11:
+    mov eax, 1
+    
+LB11:
+    cmp eax, 0
+    je LA12
+    mov edi, dword [ebp-20] ; use value
+    call printm
+    
+LA12:
+    mov eax, dword [ebp-32] ; use char
+    push eax
+    mov ebx, 100
+    push ebx
+    pop ebx
+    pop eax
+    cmp eax, ebx
+    je LA13
+    mov eax, 0
+    jmp LB13
+    
+LA13:
+    mov eax, 1
+    
+LB13:
+    cmp eax, 0
+    je LA14
+    mov edi, dword [ebp-20] ; use value
+    call printi
+    
+LA14:
+    
+LA10:
     mov eax, dword [ebp-28] ; use i
     push eax
     mov ebx, 1
@@ -124,96 +255,125 @@ LB4:
     pop eax
     add eax, ebx
     mov dword [ebp-28], eax ; set i
-    jmp LA2
+    jmp LA5
     
-LB2:
-    mov edi, dword [ebp-24] ; use crc
-    mov esi, 4294967295
-    call xor
-    pop ebp
-    ret
+LB5:
     pop ebp
     ret
     
-LA1:
-    jmp LA7
+LA4:
+    jmp LA15
     
-xor:
+memwritestring:
     push ebp
     mov ebp, esp
-    mov dword [ebp-36], edi ; use num1
-    mov dword [ebp-40], esi ; use num2
-    xor edi, esi
-    mov eax, edi
-    pop ebp
-    ret
-    
-LA7:
-    jmp LA8
-    
-zfrs:
-    push ebp
-    mov ebp, esp
-    mov dword [ebp-40], edi ; use num1
-    mov dword [ebp-44], esi ; use num2
-    mov eax, esi
-    mov cl, al
-    shr edi, cl
-    mov eax, edi
-    pop ebp
-    ret
-    
-LA8:
-    jmp LA9
-    
-and:
-    push ebp
-    mov ebp, esp
-    mov dword [ebp-44], edi ; use num1
-    mov dword [ebp-48], esi ; use num2
-    and edi, esi
-    mov eax, edi
-    pop ebp
-    ret
-    
-LA9:
-    jmp LA10
-    
-print_int:
-    push ebp
-    mov ebp, esp
-    mov dword [ebp-48], edi ; use num
-    
-section .bss
-    LC1 resb 10
-    
-section .text
-    mov eax, LC1
-    mov dword [ebp-52], eax ; define space
+    mov dword [ebp-32], edi ; use address
+    mov dword [ebp-36], esi ; use str
     mov eax, 0
-    mov dword [ebp-56], eax ; define i
-    mov eax, 0
-    mov dword [ebp-60], eax ; define length
+    mov dword [ebp-40], eax ; define i
     
-LA11:
-    mov eax, dword [ebp-48] ; use num
+LA16:
+    mov eax, dword [ebp-36] ; use str
+    push eax
+    mov ebx, dword [ebp-40] ; use i
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    push ebx
+    mov ebx, eax
+    xor eax, eax
+    mov al, byte [ebx]
+    pop ebx
     push eax
     mov ebx, 0
     push ebx
     pop ebx
     pop eax
     cmp eax, ebx
-    jne LA12
+    jne LA17
     mov eax, 0
-    jmp LB12
+    jmp LB17
     
-LA12:
+LA17:
     mov eax, 1
     
-LB12:
+LB17:
     cmp eax, 0 ; while
-    je LB11
-    mov eax, dword [ebp-48] ; use num
+    je LB16
+    mov eax, dword [ebp-32] ; use address
+    push eax
+    mov ebx, dword [ebp-40] ; use i
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov edi, eax
+    mov eax, dword [ebp-36] ; use str
+    push eax
+    mov ebx, dword [ebp-40] ; use i
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    push ebx
+    mov ebx, eax
+    xor eax, eax
+    mov al, byte [ebx]
+    pop ebx
+    mov esi, eax
+    call memwrite
+    mov eax, dword [ebp-40] ; use i
+    push eax
+    mov ebx, 1
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov dword [ebp-40], eax ; set i
+    jmp LA16
+    
+LB16:
+    mov eax, dword [ebp-40] ; use i
+    pop ebp
+    ret
+    pop ebp
+    ret
+    
+LA15:
+    jmp LA18
+    
+printi:
+    push ebp
+    mov ebp, esp
+    mov dword [ebp-40], edi ; use num
+    mov edi, 10
+    call malloc
+    mov dword [ebp-44], eax ; define space
+    mov eax, 0
+    mov dword [ebp-48], eax ; define i
+    mov eax, 0
+    mov dword [ebp-52], eax ; define length
+    
+LA19:
+    mov eax, dword [ebp-40] ; use num
+    push eax
+    mov ebx, 0
+    push ebx
+    pop ebx
+    pop eax
+    cmp eax, ebx
+    jne LA20
+    mov eax, 0
+    jmp LB20
+    
+LA20:
+    mov eax, 1
+    
+LB20:
+    cmp eax, 0 ; while
+    je LB19
+    mov eax, dword [ebp-40] ; use num
     push eax
     mov ebx, 10
     push ebx
@@ -228,18 +388,18 @@ LB12:
     pop ebx
     pop eax
     add eax, ebx
-    mov dword [ebp-64], eax ; define mod
-    mov eax, dword [ebp-52] ; use space
+    mov dword [ebp-56], eax ; define mod
+    mov eax, dword [ebp-44] ; use space
     push eax
-    mov ebx, dword [ebp-56] ; use i
+    mov ebx, dword [ebp-48] ; use i
     push ebx
     pop ebx
     pop eax
     add eax, ebx
     mov edi, eax
-    mov esi, dword [ebp-64] ; use mod
-    call memset
-    mov eax, dword [ebp-48] ; use num
+    mov esi, dword [ebp-56] ; use mod
+    call memwrite
+    mov eax, dword [ebp-40] ; use num
     push eax
     mov ebx, 10
     push ebx
@@ -247,121 +407,173 @@ LB12:
     pop eax
     xor edx, edx
     div ebx
-    mov dword [ebp-48], eax ; set num
-    mov eax, dword [ebp-56] ; use i
+    mov dword [ebp-40], eax ; set num
+    mov eax, dword [ebp-48] ; use i
     push eax
     mov ebx, 1
     push ebx
     pop ebx
     pop eax
     add eax, ebx
-    mov dword [ebp-56], eax ; set i
-    mov eax, dword [ebp-60] ; use length
+    mov dword [ebp-48], eax ; set i
+    mov eax, dword [ebp-52] ; use length
     push eax
     mov ebx, 1
     push ebx
     pop ebx
     pop eax
     add eax, ebx
-    mov dword [ebp-60], eax ; set length
-    jmp LA11
+    mov dword [ebp-52], eax ; set length
+    jmp LA19
     
-LB11:
-    mov ebx, 0
-    mov dword [ebp-68], eax ; define j
+LB19:
+    mov eax, 0
+    mov dword [ebp-60], eax ; define j
     
-LA13:
-    mov eax, dword [ebp-56] ; use i
+LA21:
+    mov eax, dword [ebp-48] ; use i
     push eax
     mov ebx, 0
     push ebx
     pop ebx
     pop eax
     cmp eax, ebx
-    jge LA14
+    jge LA22
     mov eax, 0
-    jmp LB14
+    jmp LB22
     
-LA14:
+LA22:
     mov eax, 1
     
-LB14:
+LB22:
     cmp eax, 0 ; while
-    je LB13
-    mov eax, dword [ebp-52] ; use space
+    je LB21
+    mov eax, dword [ebp-44] ; use space
     push eax
-    mov ebx, dword [ebp-60] ; use length
+    mov ebx, dword [ebp-52] ; use length
     push ebx
     pop ebx
     pop eax
     add eax, ebx
     push eax
-    mov ebx, dword [ebp-68] ; use j
+    mov ebx, dword [ebp-60] ; use j
     push ebx
     pop ebx
     pop eax
     sub eax, ebx
-    mov ecx, eax
+    mov ecx, eax ; asm/mov
     mov eax, 4
     mov ebx, 1
     mov edx, 1
     int 0x80
-    mov eax, dword [ebp-68] ; use j
+    mov eax, dword [ebp-60] ; use j
     push eax
     mov ebx, 1
     push ebx
     pop ebx
     pop eax
     add eax, ebx
-    mov dword [ebp-68], eax ; set j
-    mov eax, dword [ebp-56] ; use i
+    mov dword [ebp-60], eax ; set j
+    mov eax, dword [ebp-48] ; use i
     push eax
     mov ebx, 1
     push ebx
     pop ebx
     pop eax
     sub eax, ebx
-    mov dword [ebp-56], eax ; set i
-    jmp LA13
+    mov dword [ebp-48], eax ; set i
+    jmp LA21
     
-LB13:
+LB21:
+    mov edi, dword [ebp-44] ; use space
+    call free
     pop ebp
     ret
     
-LA10:
-    jmp LA15
+LA18:
+    jmp LA23
     
-memget:
+printm:
     push ebp
     mov ebp, esp
-    mov dword [ebp-68], edi ; use mem
-    mov eax, [edi]
+    mov dword [ebp-60], edi ; use pt
+    mov eax, 0
+    mov dword [ebp-64], eax ; define i
+    
+LA24:
+    mov eax, dword [ebp-60] ; use pt
+    push eax
+    mov ebx, dword [ebp-64] ; use i
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    push ebx
+    mov ebx, eax
+    xor eax, eax
+    mov al, byte [ebx]
+    pop ebx
+    push eax
+    mov ebx, 0
+    push ebx
+    pop ebx
+    pop eax
+    cmp eax, ebx
+    jne LA25
+    mov eax, 0
+    jmp LB25
+    
+LA25:
+    mov eax, 1
+    
+LB25:
+    cmp eax, 0 ; while
+    je LB24
+    mov eax, dword [ebp-64] ; use i
+    push eax
+    mov ebx, 1
+    push ebx
+    pop ebx
+    pop eax
+    add eax, ebx
+    mov dword [ebp-64], eax ; set i
+    jmp LA24
+    
+LB24:
+    mov eax, dword [ebp-64] ; use i
+    mov edx, eax ; asm/mov
+    mov eax, 4
+    mov ebx, 1
+    mov ecx, edi
+    int 0x80
     pop ebp
     ret
     
-LA15:
-    jmp LA16
+LA23:
+    jmp LA26
     
-memset:
+memwrite:
     push ebp
     mov ebp, esp
-    mov dword [ebp-68], edi ; use mem
-    mov dword [ebp-72], esi ; use value
+    mov dword [ebp-64], edi ; use address
+    mov dword [ebp-68], esi ; use value
     mov [edi], esi
     pop ebp
     ret
     
-LA16:
+LA26:
     
 section .data
-    LC2 db "Hello", 0x00
+    LC1 db "%d", 0x00
     
 section .text
-    mov edi, LC2
-    call crc32
-    mov edi, eax
-    call print_int
+    mov edi, LC1
+    mov esi, 123456576
+    call printf
+    mov edi, dword [memory] ; use memory
+    call free
     pop ebp
     mov eax, 1
     mov ebx, 0
     int 0x80
+    
