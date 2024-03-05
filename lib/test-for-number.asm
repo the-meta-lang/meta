@@ -34,7 +34,7 @@ test_for_number:
 			cmp ecx, 0
 			jg .end_of_string
 			; Strings are not equal
-			call set_false ; Set zero flag to 1 to indicate inequality
+			mov byte [eswitch], 1 ; Set zero flag to 1 to indicate inequality
 			jmp .end
 
 	.end_of_string:
@@ -42,8 +42,7 @@ test_for_number:
 			mov eax, last_match
 			add eax, ecx
 			mov byte [eax], 0x00 ; add null terminator in last_match
-			call set_true
+			mov byte [eswitch], 0
 
 	.end:
-			cmp eax, 1
 			ret

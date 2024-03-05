@@ -33,17 +33,16 @@ test_for_string:
 
 	.not_matching:
 			; Strings are not equal
-			call set_false
+			mov byte [eswitch], 1
 			jmp .end
 
 	.end_of_string:
 			; Add the length of the match and 2 characters for the quotes
 			add ecx, 1
 			add [input_string_offset], ecx
-			call set_true
+			mov byte [eswitch], 0
 
 	.end:
-			cmp eax, 1
 			ret
 
 ; Tests the input string for a string ("[...]")
@@ -81,7 +80,7 @@ test_for_string_raw:
 
 	.not_matching:
 			; Strings are not equal
-			call set_false
+			mov byte [eswitch], 1
 			jmp .end
 
 	.end_of_string:
@@ -93,8 +92,7 @@ test_for_string_raw:
 			mov byte [ebx], 0x00
 			add ecx, 2
 			add [input_string_offset], ecx
-			call set_true
+			mov byte [eswitch], 0
 
 	.end:
-			cmp eax, 1
 			ret

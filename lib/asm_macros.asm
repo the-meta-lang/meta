@@ -1,5 +1,13 @@
+section .data
+	pflag db 0
+	tflag db 0
+	; Error Flag, indicates a parsing error which may be recovered from
+	; by backtracking 
+	eflag db 0
+	; Error switch, indicates a parsing error that is not recoverable
+	eswitch db 0
+
 section .bss
-		; last_match resb 512
 		input_string resb MAX_INPUT_LENGTH
 		input_string_offset resb 2
 		input_pointer resb 4
@@ -239,7 +247,7 @@ test_for_id:
 	.matching:
 			; Strings are equal
 			add [input_string_offset], ecx
-			call set_true      ; Set EAX to 1 to indicate equality
+			mov byte [eswitch], 0      ; Set EAX to 1 to indicate equality
 			jmp .end
 
 	.not_matching:
@@ -248,11 +256,10 @@ test_for_id:
 			jg .matching
 
 			; Strings are not equal
-			call set_false    ; Set EAX to 0 to indicate inequality
+			mov byte [eswitch], 1    ; Set EAX to 0 to indicate inequality
 			jmp .end
 
 	.end:
-			cmp eax, 1
 			ret
 
 ; Macro for testing against input string
@@ -295,15 +302,14 @@ section .text
 		; rep movsb ; Copy the string into last_match
 		mov eax, %%_str_length
 		add [input_string_offset], eax
-		call set_true ; Set zero flag to 0 to indicate equality
+		mov byte [eswitch], 0 ; Set zero flag to 0 to indicate equality
 		jmp %%_end
 
 %%_strings_not_equal:
 		; Strings are not equal
-		call set_false		; Set the zero flag to false
+		mov byte [eswitch], 1		; Set the zero flag to false
 
 %%_end:
-		cmp eax, 1
 %endmacro
 
 
@@ -372,3 +378,4 @@ _read_file_argument_end:
 %include "./lib/test-for-string.asm"
 %include "./lib/string-to-int.asm"
 %include "./lib/malloc.asm"
+%include "./lib/char-test.asm"

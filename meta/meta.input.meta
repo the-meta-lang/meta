@@ -3,7 +3,10 @@
 PROGRAM = 
 .LABEL("%define MAX_INPUT_LENGTH 65536")
 .LABEL("%include './lib/asm_macros.asm'")
-	$((".SYNTAX" .ID
+	$((".TOKENS" 
+		.LABEL("; -- Tokens --")
+			$(TOKEN_DEFINITION | COMMENT))
+		| (".SYNTAX" .ID
 		.LABEL("section .text")
 			->("global _start")
 		.LABEL("_start:")
@@ -16,9 +19,9 @@ PROGRAM =
 			->("mov eax, 1")
 			->("mov ebx, 0")
 			->("int 0x80")
-  	$(DEFINITION | INCLUDE_STATEMENT | COMMENT) ".END"));
+  	$(DEFINITION | INCLUDE_STATEMENT | COMMENT))) ".END";
 
-INCLUDE_STATEMENT = ".INCLUDE" .STRING_RAW ";" .DIRECT("mov esi, last_match") .DIRECT("call import_meta_file_mm32") .DIRECT("call set_true");
+INCLUDE_STATEMENT = ".INCLUDE" .STRING_RAW ";" .DIRECT("mov esi, last_match") .DIRECT("call import_meta_file_mm32") .DIRECT("mov byte [eswitch], 0");
 
 DATA_TYPE = (("{" 
 	.LABEL("section .bss")
@@ -43,8 +46,7 @@ OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
 		| ".RS" "(" $ OUT1 ")")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
-EX3 = {
-		.ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
+EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 	| .STRING           ->("test_input_string " *)
 	| ".ID"             ->("call test_for_id")
 	| ".RET"						->("ret")
@@ -57,17 +59,82 @@ EX3 = {
 		->("mov esi, last_match")
 		->("call vector_push_string_mm32")
 	| "(" EX1 ")"
-	| ".EMPTY" ->("call set_true")
-	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
-	| COMMENT
-};
+	| ".EMPTY" ->("mov byte [eswitch], 0")
+	| "$" .LABEL(*1 ":") EX3 
+			->("cmp byte [eswitch], 0")
+			->("je " *1) ->("mov byte [eswitch], 0")
+	| "{" EX1 $("|" EX1) "}"
+	| COMMENT;
 
-EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("jne terminate_program") | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3 
+	->("cmp byte [eswitch], 1")
+	->("je " *1) | OUTPUT) $ (EX3 
+	->("cmp byte [eswitch], 1")
+	->("je terminate_program") | OUTPUT) .LABEL(*1 ":");
 
-EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
+EX1 = EX2 $ ("|" 
+	->("cmp byte [eswitch], 0")
+	->("je " *1) EX2) .LABEL(*1 ":");
 
 DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
 
+// --------------------------------- Tokens ------------------------------------
+
+TOKEN_DEFINITION = .ID
+	.LABEL(* ":") ":" TX1 ";" ->("ret");
+
+TX1 = TX2 $("|" ->("je T" *1) TX2) 
+      .LABEL("T" *1 ":") ;
+
+TX2 = TX3
+	->("cmp byte [eswitch], 1")
+	->("je T" *1)
+			// Return from rule if parse flag = 0
+      $(TX3 
+				->("cmp byte [pflag], 0")
+				->("jne T" *1))
+      .LABEL("T" *1 ":");
+
+TX3 = (".TOKEN"
+					// Capture the incoming token
+					->("mov byte [tflag], 1")
+				| ".DELTOK"
+					// Stop capturing the token
+					->("mov byte [tflag], 0")
+				| "$" .LABEL("T" *1 ":") TX3 
+					->("je T" *1)) 
+        ->("mov byte [eswitch], 0")
+			| ".ANYBUT(" CX1 ")"
+				->("NOT" "scan_or_parse")
+			| ".ANY(" CX1 ")"
+				->("call scan_or_parse")
+			| .ID
+				->("CLL " *)
+			| "(" TX1 ")";
+
+CX1 = CX2 $("!" 
+				->("je C" *1) CX2)
+			.LABEL("C" *1 ":");
+
+CX2 = CX3 (":" 
+				->("mov edi, " *)
+				->("call test_char_greater_equal")
+				->("cmp byte [pflag], 1")
+				->("jne D" *1) 
+      CX3
+				->("mov edi, " *)
+        ->("call test_char_less_equal")
+			.LABEL("D"  *1 ":")
+			| .EMPTY ->("CE " *));
+
+CX3 = .NUMBER;
+
+// -------------------------------- Comments -----------------------------------
+
 COMMENT = "//" .NOT 10;
+
+.TOKENS
+
+PREFIX : .TOKEN $.ANY(65:90) .DELTOK;
 
 .END
