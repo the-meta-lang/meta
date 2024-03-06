@@ -21,13 +21,14 @@ PROGRAM =
 			->("int 0x80")
   	$(DEFINITION | INCLUDE_STATEMENT | COMMENT))) ".END";
 
-INCLUDE_STATEMENT = ".INCLUDE" .STRING_RAW ";" .DIRECT("mov esi, last_match") .DIRECT("call import_meta_file_mm32") .DIRECT("mov byte [eswitch], 0");
+// -------------------------------- Includes -----------------------------------
 
-DATA_TYPE = (("{" 
-	.LABEL("section .bss")
-		.NUMBER ->(% " resb " *) "}")
-	| (.STRING .LABEL("section .data") ->(% " db " * ", 0x00"))
-	| (.NUMBER .LABEL("section .data") ->(% " dd " *)));
+INCLUDE_STATEMENT = ".INCLUDE" .STRING_RAW ";" 
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call import_meta_file_mm32")
+	.DIRECT("mov byte [eswitch], 0");
+
+// --------------------------------- Output ------------------------------------
 
 OUT1 = "*1" ->("call gn1")
 	| "*2" ->("call gn2")
@@ -37,7 +38,7 @@ OUT1 = "*1" ->("call gn1")
 	| "%" ->("mov edi, str_vector_8192")
 				->("call vector_pop_string")
 				->("call print_mm32")
-	| .STRING ->("print " *);
+	| STRING ->("print " *);
 
 OUT_IMMEDIATE = .STRING_RAW ->(*);
 
@@ -47,13 +48,10 @@ OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
 EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
-	| .STRING           ->("test_input_string " *)
 	| ".ID"             ->("call test_for_id")
 	| ".RET"						->("ret")
-	| ".NOT" (.STRING | .NUMBER) ->("match_not " *)
-	| ".NUMBER"         ->("call test_for_number")
+	| ".NOT" (STRING | NUMBER) ->("match_not " *)
 	| ".STRING_RAW"			->("call test_for_string_raw")
-	| ".STRING"         ->("call test_for_string")
 	| "%>"
 		->("mov edi, str_vector_8192")
 		->("mov esi, last_match")
@@ -62,7 +60,8 @@ EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
 	| ".EMPTY" ->("mov byte [eswitch], 0")
 	| "$" .LABEL(*1 ":") EX3 
 			->("cmp byte [eswitch], 0")
-			->("je " *1) ->("mov byte [eswitch], 0")
+			->("je " *1) 
+			->("mov byte [eswitch], 0")
 	| "{" EX1 $("|" EX1) "}"
 	| COMMENT;
 
@@ -83,51 +82,57 @@ DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
 TOKEN_DEFINITION = .ID
 	.LABEL(* ":") ":" TX1 ";" ->("ret");
 
-TX1 = TX2 $("|" ->("je T" *1) TX2) 
-      .LABEL("T" *1 ":") ;
+TX1 = TX2 $("|" 
+				->("cmp byte [eswitch], 0")
+				->("je " *1) TX2) 
+      .LABEL(*1 ":") ;
 
 TX2 = TX3
 	->("cmp byte [eswitch], 1")
-	->("je T" *1)
-			// Return from rule if parse flag = 0
+	->("je " *1)
+			// Return from rule if error switch = 1
       $(TX3 
-				->("cmp byte [pflag], 0")
-				->("jne T" *1))
-      .LABEL("T" *1 ":");
+				->("cmp byte [eswitch], 1")
+				->("je " *1))
+      .LABEL(*1 ":");
 
 TX3 = (".TOKEN"
 					// Capture the incoming token
 					->("mov byte [tflag], 1")
+					->("call clear_token")
 				| ".DELTOK"
 					// Stop capturing the token
 					->("mov byte [tflag], 0")
-				| "$" .LABEL("T" *1 ":") TX3 
-					->("je T" *1)) 
+				| "$" .LABEL(*1 ":") TX3 
+					->("cmp byte [eswitch], 0")
+					->("je " *1)) 
         ->("mov byte [eswitch], 0")
 			| ".ANYBUT(" CX1 ")"
 				->("NOT" "scan_or_parse")
 			| ".ANY(" CX1 ")"
 				->("call scan_or_parse")
 			| .ID
-				->("CLL " *)
+				->("call " *)
 			| "(" TX1 ")";
 
 CX1 = CX2 $("!" 
-				->("je C" *1) CX2)
-			.LABEL("C" *1 ":");
+				->("je " *1) CX2)
+			.LABEL(*1 ":");
 
 CX2 = CX3 (":" 
 				->("mov edi, " *)
 				->("call test_char_greater_equal")
-				->("cmp byte [pflag], 1")
-				->("jne D" *1) 
+				->("cmp byte [eswitch], 0")
+				->("jne " *1) 
       CX3
 				->("mov edi, " *)
         ->("call test_char_less_equal")
-			.LABEL("D"  *1 ":")
-			| .EMPTY ->("CE " *));
+			.LABEL(*1 ":")
+			| .EMPTY 
+				->("mov edi, " *)
+				->("call test_char_equal"));
 
-CX3 = .NUMBER;
+CX3 = NUMBER;
 
 // -------------------------------- Comments -----------------------------------
 
@@ -135,6 +140,9 @@ COMMENT = "//" .NOT 10;
 
 .TOKENS
 
-PREFIX : .TOKEN $.ANY(65:90) .DELTOK;
+PREFIX : $.ANY(32!9!13!10);
+NUMBER : PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+DIGIT  : .ANY(48:57);
+STRING : PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34) ;
 
 .END

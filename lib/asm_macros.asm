@@ -1,5 +1,4 @@
 section .data
-	pflag db 0
 	tflag db 0
 	; Error Flag, indicates a parsing error which may be recovered from
 	; by backtracking 

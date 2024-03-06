@@ -69,7 +69,7 @@ one_at_a_time:
 		xor eax, ebx ; hash ^= hash >> 6
 		inc ecx ; i++
 		jmp .loop
-	.done
+	.done:
 		mov ebx, eax
 		shl ebx, 3
 		add eax, ebx ; hash += hash << 3
