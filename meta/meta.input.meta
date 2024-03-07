@@ -6,7 +6,7 @@ PROGRAM =
 	$((".TOKENS" 
 		.LABEL("; -- Tokens --")
 			$(TOKEN_DEFINITION | COMMENT))
-		| (".SYNTAX" .ID
+		| (".SYNTAX" ID
 		.LABEL("section .text")
 			->("global _start")
 		.LABEL("_start:")
@@ -23,7 +23,7 @@ PROGRAM =
 
 // -------------------------------- Includes -----------------------------------
 
-INCLUDE_STATEMENT = ".INCLUDE" .STRING_RAW ";" 
+INCLUDE_STATEMENT = ".INCLUDE" RAW ";" 
 	.DIRECT("mov esi, last_match")
 	.DIRECT("call import_meta_file_mm32")
 	.DIRECT("mov byte [eswitch], 0");
@@ -40,18 +40,19 @@ OUT1 = "*1" ->("call gn1")
 				->("call print_mm32")
 	| STRING ->("print " *);
 
-OUT_IMMEDIATE = .STRING_RAW ->(*);
+OUT_IMMEDIATE = RAW ->(*);
 
 OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
 		| ".LABEL" ->("call label") "(" $(OUT1) ")" ->("call newline") 
 		| ".RS" "(" $ OUT1 ")")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
-EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
-	| ".ID"             ->("call test_for_id")
+EX3 = ID 
+			->("call vstack_clear")
+			->("call " *)
+			->("call vstack_restore")
 	| ".RET"						->("ret")
 	| ".NOT" (STRING | NUMBER) ->("match_not " *)
-	| ".STRING_RAW"			->("call test_for_string_raw")
 	| "%>"
 		->("mov edi, str_vector_8192")
 		->("mov esi, last_match")
@@ -75,11 +76,11 @@ EX1 = EX2 $ ("|"
 	->("cmp byte [eswitch], 0")
 	->("je " *1) EX2) .LABEL(*1 ":");
 
-DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
+DEFINITION = ID .LABEL(* ":") "=" EX1 ";" ->("ret");
 
 // --------------------------------- Tokens ------------------------------------
 
-TOKEN_DEFINITION = .ID
+TOKEN_DEFINITION = ID
 	.LABEL(* ":") ":" TX1 ";" ->("ret");
 
 TX1 = TX2 $("|" 
@@ -108,10 +109,13 @@ TX3 = (".TOKEN"
 					->("je " *1)) 
         ->("mov byte [eswitch], 0")
 			| ".ANYBUT(" CX1 ")"
-				->("NOT" "scan_or_parse")
+				// Negate the error switch
+				->("test byte [eswitch], 0")
+				->("setz [eswitch]")
+				->("call scan_or_parse")
 			| ".ANY(" CX1 ")"
 				->("call scan_or_parse")
-			| .ID
+			| ID
 				->("call " *)
 			| "(" TX1 ")";
 
@@ -140,9 +144,14 @@ COMMENT = "//" .NOT 10;
 
 .TOKENS
 
+// Remove any leading whitespace
 PREFIX : $.ANY(32!9!13!10);
+// Match numbers (sequence of digits)
 NUMBER : PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
 DIGIT  : .ANY(48:57);
-STRING : PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34) ;
+ID     : PREFIX .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+ALPHA  : .ANY(65:90!97:122) ;
+STRING : PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+RAW 	 : PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
 
 .END

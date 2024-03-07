@@ -94,7 +94,7 @@ scan_or_parse:
 		; If the parse flag is not set we encountered an error during parsing.
 		; we're done here...
 		cmp byte [eswitch], 1
-		je .done
+		je .done_error
 		cmp byte [tflag], 1
 		jne .done
 
@@ -121,6 +121,9 @@ scan_or_parse:
 		mov byte [eswitch], 0
 		ret
 	.done:
+		add word [input_string_offset], 1
+		ret
+	.done_error:
 		ret
 
 ; Clears the last_match variable to all zeros

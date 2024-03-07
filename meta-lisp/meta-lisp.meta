@@ -33,6 +33,7 @@ PROGRAM =
 	->("push ebp")
 	->("mov ebp, esp")
 	$(BRACKET_EXPR_WRAPPER | COMMENT)
+	->("mov esp, ebp")
 	->("pop ebp")
 	->("mov eax, 1")
 	->("mov ebx, 0")
@@ -161,6 +162,7 @@ BRACKET_EXPR = ("+" [set ARG_NUM 0] BRACKET_ARG ->("push eax") [set ARG_NUM 1] B
 			[set IS_FUNC 1]
 			// Function Body
 			$(BRACKET_EXPR_WRAPPER | COMMENT)
+			->("mov esp, ebp")
 			->("pop ebp")
 			->("ret")
 			.LABEL(*1 ":")
