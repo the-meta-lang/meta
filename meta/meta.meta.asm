@@ -890,9 +890,11 @@ LA100:
     je terminate_program
     cmp byte [eswitch], 1
     je terminate_program
-    print "test byte [eswitch], 0"
+    print "mov al, byte [eswitch]"
     call newline
-    print "setz [eswitch]"
+    print "xor al, 1"
+    call newline
+    print "mov byte [eswitch], al"
     call newline
     print "call scan_or_parse"
     call newline
@@ -955,6 +957,8 @@ LA107:
     test_input_string "!"
     cmp byte [eswitch], 1
     je LA108
+    print "cmp byte [eswitch], 0"
+    call newline
     print "je "
     call gn1
     call newline

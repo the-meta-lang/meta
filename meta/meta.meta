@@ -112,8 +112,9 @@ TX3 = (".TOKEN"
         ->("mov byte [eswitch], 0")
 			| ".ANYBUT(" CX1 ")"
 				// Negate the error switch
-				->("test byte [eswitch], 0")
-				->("setz [eswitch]")
+				->("mov al, byte [eswitch]")
+				->("xor al, 1")
+				->("mov byte [eswitch], al")
 				->("call scan_or_parse")
 			| ".ANY(" CX1 ")"
 				->("call scan_or_parse")
@@ -122,6 +123,7 @@ TX3 = (".TOKEN"
 			| "(" TX1 ")";
 
 CX1 = CX2 $("!" 
+				->("cmp byte [eswitch], 0")
 				->("je " *1) CX2)
 			.LABEL(*1 ":");
 
