@@ -182,85 +182,6 @@ ib_end_of_string:
 
 
 
-
-test_for_id:
-		call input_blanks
-		mov esi, input_string
-		add esi, [input_string_offset]
-		mov ecx, 0 ; Initialize the length of the match to 0
-
-		jmp .test_first_char
-		jz .not_matching
-		; Manual string comparison loop
-
-	.test_first_char:
-			lodsb                   ; Load the next byte from [esi] into AL, incrementing esi
-			cmp al, 'A'
-			jl  .not_matching
-			cmp al, 'Z'
-			jle .test_rest_chars_loop
-			cmp al, '_'
-			je  .test_rest_chars_loop
-			cmp al, 'a'
-			jl  .not_matching
-			cmp al, 'z'
-			jle .test_rest_chars_loop
-			jg .not_matching
-
-	.test_rest_chars_loop:
-			; Move the char into last_match at the current index
-			mov ebx, last_match
-			add ebx, ecx
-			mov byte [ebx], al
-			; Add a null terminator
-			add ebx, 1
-			mov byte [ebx], 0x00
-			; Increment ecx
-			inc ecx
-			lodsb                   ; Load the next byte from [esi] into AL, incrementing esi
-			test al, al       ; Check for the null terminator
-			je  .matching       ; If null terminator is reached, end the loop
-			cmp al, ' '
-			je  .matching       ; If space is reached, end the loop
-			cmp al, 0x0A
-			je  .matching       ; If newline is reached, end the loop
-			cmp al, ';'
-			je  .matching       ; If line terminator is reached, end the loop
-			; Compare the first byte against 'a' to 'z', 'A' to 'Z', '_', and '0' to '9'
-			cmp al, '0' ; Check for digits - Has to be first because 0x31 is 1 but 0x41 is A
-			jl  .not_matching
-			cmp al, '9'
-			jle .test_rest_chars_loop
-			cmp al, 'A'
-			jl  .not_matching
-			cmp al, 'Z'
-			jle .test_rest_chars_loop
-			cmp al, '_'
-			je  .test_rest_chars_loop
-			cmp al, 'a'
-			jl  .not_matching
-			cmp al, 'z'
-			jle .test_rest_chars_loop
-			jg .not_matching
-
-	.matching:
-			; Strings are equal
-			add [input_string_offset], ecx
-			mov byte [eswitch], 0      ; Set EAX to 1 to indicate equality
-			jmp .end
-
-	.not_matching:
-			; If the size of the match is bigger than 1 then it's a match
-			cmp ecx, 0
-			jg .matching
-
-			; Strings are not equal
-			mov byte [eswitch], 1    ; Set EAX to 0 to indicate inequality
-			jmp .end
-
-	.end:
-			ret
-
 ; Macro for testing against input string
 ; Expects to be given a string to compare the input against
 %macro test_input_string 1
@@ -370,11 +291,9 @@ _read_file_argument_end:
 %include "./lib/string.asm"
 %include "./lib/print.asm"
 %include "./lib/import.asm"
-%include "./lib/test-for-number.asm"
 %include "./lib/terminate-program.asm"
 %include "./lib/vstack.asm"
 %include "./lib/hash-map.asm"
-%include "./lib/test-for-string.asm"
 %include "./lib/string-to-int.asm"
 %include "./lib/malloc.asm"
 %include "./lib/char-test.asm"
