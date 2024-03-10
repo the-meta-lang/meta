@@ -10,6 +10,8 @@ PROGRAM =
 		.LABEL("section .text")
 			->("global _start")
 		.LABEL("_start:")
+			->("mov esi, 0")
+			->("call premalloc")
 			->("call _read_file_argument")
 			->("call _read_file")
 			->("push ebp")
@@ -19,11 +21,11 @@ PROGRAM =
 			->("mov eax, 1")
 			->("mov ebx, 0")
 			->("int 0x80")
-  	$(DEFINITION | INCLUDE_STATEMENT | COMMENT))) ".END";
+  	$(DEFINITION | IMPORT_STATEMENT | COMMENT)));
 
 // -------------------------------- Includes -----------------------------------
 
-INCLUDE_STATEMENT = ".INCLUDE" RAW ";" 
+IMPORT_STATEMENT = "import" RAW ";" 
 	.DIRECT("mov esi, last_match")
 	.DIRECT("call import_meta_file_mm32")
 	.DIRECT("mov byte [eswitch], 0");
@@ -54,7 +56,7 @@ EX3 = ID
 	| STRING ->("test_input_string" *)
 	| ".RET"						->("ret")
 	| ".NOT" (STRING | NUMBER) ->("match_not " *)
-	| "%>"
+	| "%"
 		->("mov edi, str_vector_8192")
 		->("mov esi, last_match")
 		->("call vector_push_string_mm32")
@@ -86,6 +88,16 @@ EX3 = ID
 			->("cmp byte [eswitch], 0")
 			->("je " *1)
 			->("mov byte [eswitch], 0")
+
+	// ----------------------- Tree generation semantics --------------------------
+	// Capture the last match as a tree node without childnodes
+	// e.g. `ID ::address` captures a node called `address` with the string value of `$(ID)`
+	| ("::" ID ->("; Capture " * " as single node")
+		// Capture a tree node with `NUMBER` childnodes which are the captures in reverse order.
+		// e.g. :ADD<2> captures the `ADD` node with 2 childnodes inferred from the last 2 matches.
+		| ":" ID "<" NUMBER ">")
+
+	// ------------------------------ Backtracking --------------------------------
 	| "{" EX1 $("|" EX1) "}"
 	| COMMENT;
 
@@ -104,7 +116,7 @@ DEFINITION = ID .LABEL(* ":") "=" EX1 ";" ->("ret");
 // --------------------------------- Tokens ------------------------------------
 
 TOKEN_DEFINITION = ID
-	.LABEL(* ":") ":" TX1 ";" ->("ret");
+	.LABEL(* ":") "=" TX1 ";" ->("ret");
 
 TX1 = TX2 $("|" 
 				->("cmp byte [eswitch], 0")
@@ -183,25 +195,25 @@ COMMENT = "//" .NOT 10;
 .TOKENS
 
 // Remove any leading whitespace
-PREFIX : $.ANY(32!9!13!10);
+PREFIX = $.ANY(32!9!13!10);
 
 // Match numbers (sequence of digits)
-NUMBER : PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
 
 // Match any digit
-DIGIT  : .ANY(48:57);
+DIGIT  = .ANY(48:57);
 
 // Match any sequence of characters and digits, may not start with a digit.
-ID     : PREFIX  .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+ID     = PREFIX .RESERVED("import") .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
 
 // Matches any uppercase or lowercase character as well as underscore
-ALPHA  : .ANY(65:90!95!97:122) ;
+ALPHA  = .ANY(65:90!95!97:122) ;
 
 // Matches anything but double quotes that is enclosed by double quotes.
 // e.g. "hello world" but not "awd "inner" "
-STRING : PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
 
 // Same as STRING but does not capture the double quotes.
-RAW 	 : PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
+RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
 
 .END
