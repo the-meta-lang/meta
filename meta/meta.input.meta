@@ -3,10 +3,10 @@
 PROGRAM = 
 .LABEL("%define MAX_INPUT_LENGTH 65536")
 .LABEL("%include './lib/asm_macros.asm'")
-	$((".TOKENS" 
+	$((".TOKENS"
 		.LABEL("; -- Tokens --")
 			$(TOKEN_DEFINITION | COMMENT))
-		| (".SYNTAX" ID
+		| (".SYNTAX" ID .DIRECT("awd" "bsdf" "qwe" "awda")
 		.LABEL("section .text")
 			->("global _start")
 		.LABEL("_start:")
@@ -45,7 +45,7 @@ OUT_IMMEDIATE = RAW ->(*);
 OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
 		| ".LABEL" ->("call label") "(" $(OUT1) ")" ->("call newline") 
 		| ".RS" "(" $ OUT1 ")")
-		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
+		| ".DIRECT" "(" $<0:2>(OUT_IMMEDIATE) ")";
 
 EX3 = ID 
 			->("call vstack_clear")
@@ -60,9 +60,31 @@ EX3 = ID
 		->("call vector_push_string_mm32")
 	| "(" EX1 ")"
 	| ".EMPTY" ->("mov byte [eswitch], 0")
-	| "$" .LABEL(*1 ":") EX3 
+	| "$<" NUMBER 
+			.LABEL("section .data")
+				->("MIN_ITER_" *3 " dd " *)
+			(":" NUMBER
+				->("MAX_ITER_" *3 " dd " *)
+			| .EMPTY 
+				->("MAX_ITER_" *3 " dd 0xFFFFFFFF")) ">"
+			.LABEL("section .text")
+				->("xor ecx, ecx")
+			.LABEL(*1 ":")
+			->("push ecx") 
+				EX3
+			->("pop ecx")
+			->("cmp ecx, dword [MAX_ITER_" *3 "]")
+			->("jg " *2)
+			->("cmp ecx, dword [MIN_ITER_" *3 "]")
+			->("jl " *1)
+			->("inc ecx")
 			->("cmp byte [eswitch], 0")
-			->("je " *1) 
+			->("je " *1)
+			.LABEL(*2 ":")
+			->("mov byte [eswitch], 0")
+	| "$" .LABEL(*1 ":") EX3
+			->("cmp byte [eswitch], 0")
+			->("je " *1)
 			->("mov byte [eswitch], 0")
 	| "{" EX1 $("|" EX1) "}"
 	| COMMENT;
@@ -155,6 +177,8 @@ CX3 = NUMBER;
 // -------------------------------- Comments -----------------------------------
 
 COMMENT = "//" .NOT 10;
+
+// ---------------------------- Token Definitions ------------------------------
 
 .TOKENS
 

@@ -59,8 +59,10 @@ gn4:
 gn3:
 		save_machine_state ; Save the flags register
 		mov esi, vstack
-		call vector_pop
-		cmp edi, 0xFFFF
+		call vector_pop ; pop gn4 number off the stack
+		push edi ; store gn4 so we can add it later.
+		call vector_pop ; get gn3 off the stack
+		cmp edi, 0xFFFF ; check if gn3 is "null", we start at 0 so we can't use that, instead 0xFFFF
 		je .generate_new_number
 
 	.print_label:
@@ -70,6 +72,8 @@ gn3:
 			mov esi, edi
 			mov edi, vstack
 			call vector_push
+			pop esi
+			call vector_push 
 
 			jmp .end
 
@@ -85,8 +89,12 @@ gn3:
 gn2:
 		save_machine_state ; Save the flags register
 		mov esi, vstack
-		call vector_pop
-		cmp edi, 0xFFFF
+		call vector_pop ; pop gn4 number off the stack
+		push edi ; store gn4 so we can add it later.
+		call vector_pop ; pop gn3 number off the stack
+		push edi ; store gn3 so we can add it later.
+		call vector_pop ; get gn2 off the stack
+		cmp edi, 0xFFFF ; check if gn2 is "null", we start at 0 so we can't use that, instead 0xFFFF
 		je .generate_new_number
 
 	.print_label:
@@ -96,6 +104,10 @@ gn2:
 			mov esi, edi
 			mov edi, vstack
 			call vector_push
+			pop esi
+			call vector_push
+			pop esi
+			call vector_push 
 
 			jmp .end
 
@@ -111,8 +123,14 @@ gn2:
 gn1:
 		save_machine_state ; Save the flags register
 		mov esi, vstack
-		call vector_pop
-		cmp edi, 0xFFFF
+		call vector_pop ; pop gn4 number off the stack
+		push edi ; store gn4 so we can add it later.
+		call vector_pop ; pop gn3 number off the stack
+		push edi ; store gn3 so we can add it later.
+		call vector_pop ; pop gn2 number off the stack
+		push edi ; store gn2 so we can add it later.
+		call vector_pop ; get gn1 off the stack
+		cmp edi, 0xFFFF ; check if gn1 is "null", we start at 0 so we can't use that, instead 0xFFFF
 		je .generate_new_number
 
 	.print_label:
@@ -122,6 +140,12 @@ gn1:
 			mov esi, edi
 			mov edi, vstack
 			call vector_push
+			pop esi
+			call vector_push
+			pop esi
+			call vector_push
+			pop esi
+			call vector_push 
 
 			jmp .end
 
