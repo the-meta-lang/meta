@@ -1,0 +1,1495 @@
+%define MAX_INPUT_LENGTH 65536
+    
+%include './lib/asm_macros.asm'
+    
+section .text global _start
+    
+_start: mov esi, 0 call premalloc call 
+    _read_file_argument call _read_file 
+    push ebp mov ebp, esp call PROGRAM 
+    pop ebp mov edi, outbuff call 
+    print_mm32 mov eax, 1 mov ebx, 0 int 
+    0x80
+    
+PROGRAM: call label print "%define 
+    MAX_INPUT_LENGTH 65536" call newline 
+    call label print "%include 
+    './lib/asm_macros.asm'" call newline 
+    call label print "section .text" call 
+    newline print "global _start" call 
+    newline
+    
+LA: test_input_string ".TOKENS" cmp byte 
+    [eswitch], 1 je LA call label print 
+    "; -- Tokens --" call newline
+    
+LA: call vstack_clear call 
+    TOKEN_DEFINITION call vstack_restore 
+    cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call COMMENT call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".CODE" cmp byte 
+    [eswitch], 1 je LA call label print 
+    "; -- Code --" call newline
+    
+LA: call vstack_clear call LISP call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call COMMENT call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".SYNTAX" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call ID call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    call label print "_start:" call 
+    newline print "mov esi, 0" call 
+    newline print "call premalloc" call 
+    newline print "call 
+    _read_file_argument" call newline 
+    print "call _read_file" call newline 
+    print "push ebp" call newline print 
+    "mov ebp, esp" call newline print 
+    "call " call copy_last_match call 
+    newline print "pop ebp" call newline 
+    print "mov edi, outbuff" call newline 
+    print "call print_mm32" call newline 
+    print "mov eax, 1" call newline print 
+    "mov ebx, 0" call newline print "int 
+    0x80" call newline
+    
+LA: call vstack_clear call DEFINITION 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call IMPORT_STATEMENT 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call COMMENT call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: ret
+    
+LISP: test_input_string "[" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_DEFINE call vstack_restore 
+    cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "defunc" cmp byte 
+    [eswitch], 1 je LA test_input_string 
+    "[" cmp byte [eswitch], 1 je 
+    terminate_program call vstack_clear 
+    call LISP_ID call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program call label call 
+    copy_last_match print ":" call 
+    newline print "push ebp" call newline 
+    print "mov ebp, esp" call newline
+    
+LA: call vstack_clear call LISP_ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    "]" cmp byte [eswitch], 1 je 
+    terminate_program call vstack_clear 
+    call LISP call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "pop eax" 
+    call newline print "mov esp, ebp" 
+    call newline print "pop ebp" call 
+    newline print "ret" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "set" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_ID call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program mov edi, 
+    str_vector_8192 mov esi, last_match 
+    call vector_push_string_mm32 cmp byte 
+    [eswitch], 1 je terminate_program 
+    call vstack_clear call LISP_ARG call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program print "pop eax" 
+    call newline print "mov dword [" mov 
+    edi, str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print "], eax" call newline print 
+    "push eax" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "+" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_ARG call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program call vstack_clear 
+    call LISP_ARG call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "pop eax" 
+    call newline print "pop ebx" call 
+    newline print "add eax, ebx" call 
+    newline print "push eax" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "asm" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call RAW call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    call copy_last_match call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP_FN_CALL call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    "]" cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: ret
+    
+LISP_DEFINE: test_input_string "define" 
+    cmp byte [eswitch], 1 je LA call 
+    vstack_clear call LISP_ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program mov edi, 
+    str_vector_8192 mov esi, last_match 
+    call vector_push_string_mm32 cmp byte 
+    [eswitch], 1 je terminate_program mov 
+    edi, str_vector_8192 mov esi, 
+    last_match call 
+    vector_push_string_mm32 cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "; -- Define " call 
+    copy_last_match print " --" call 
+    newline call vstack_clear call NUMBER 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je LA call label print 
+    "section .data" call newline mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print " dd " call copy_last_match 
+    call newline call label print 
+    "section .text" call newline print 
+    "mov eax, " mov edi, str_vector_8192 
+    call vector_pop_string call 
+    print_mm32 call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA call label print "section 
+    .data" call newline mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print " db " call copy_last_match 
+    print ", 0x00" call newline call 
+    label print "section .text" call 
+    newline print "mov eax, " mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP_ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA call label print "section 
+    .data" call newline mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print " dd 0" call newline call label 
+    print "section .text" call newline 
+    print "mov eax, " call 
+    copy_last_match call newline print 
+    "mov dword [" mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print "], eax" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "&" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_ID call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program call label print 
+    "section .data" call newline mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print " dd 0" call newline call label 
+    print "section .text" call newline 
+    print "mov eax, [" call 
+    copy_last_match print "]" call 
+    newline print "mov dword [" mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print "], eax" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA call label print "section 
+    .data" call newline mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print " dd 0" call newline call label 
+    print "section .text" call newline 
+    print "mov dword [" mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    print "], eax" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: ret
+    
+LISP_FN_CALL: call vstack_clear call 
+    LISP_ID call vstack_restore cmp byte 
+    [eswitch], 1 je LA mov edi, 
+    str_vector_8192 mov esi, last_match 
+    call vector_push_string_mm32 cmp byte 
+    [eswitch], 1 je terminate_program 
+    call vstack_clear call LISP_CALL_ARGS 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "call " mov edi, 
+    str_vector_8192 call 
+    vector_pop_string call print_mm32 
+    call newline
+    
+LA:
+    
+LA: ret
+    
+LISP_CALL_ARGS:
+    
+LA: call vstack_clear call NUMBER call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "mov esi, " call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA call label print "section 
+    .data" call newline call gn3 print " 
+    db " call copy_last_match print ", 
+    0x00" call newline call label print 
+    "section .text" call newline print 
+    "mov esi, " call gn3 call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP_ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "mov esi, " call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "&" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_ID call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "mov esi, [" 
+    call copy_last_match print "]" call 
+    newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "pop esi" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: call vstack_clear call NUMBER call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "mov edi, " call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA call label print "section 
+    .data" call newline call gn3 print " 
+    db " call copy_last_match print ", 
+    0x00" call newline call label print 
+    "section .text" call newline print 
+    "mov edi, " call gn3 call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP_ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "mov edi, " call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "&" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_ID call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "mov edi, [" 
+    call copy_last_match print "]" call 
+    newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "pop edi" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: call vstack_clear call NUMBER call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "mov edx, " call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA call label print "section 
+    .data" call newline call gn3 print " 
+    db " call copy_last_match print ", 
+    0x00" call newline call label print 
+    "section .text" call newline print 
+    "mov edx, " call gn3 call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP_ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "mov edx, " call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "&" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_ID call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "mov edx, [" 
+    call copy_last_match print "]" call 
+    newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "pop edx" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA
+    
+LA:
+    
+LA: ret
+    
+LISP_ARG: call vstack_clear call NUMBER 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je LA print "push " call 
+    copy_last_match call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA call label print "section 
+    .data" call newline call gn3 print " 
+    db " call copy_last_match print ", 
+    0x00" call newline call label print 
+    "section .text" call newline print 
+    "push " call gn3 call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP_ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "push " call 
+    copy_last_match call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "&" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call LISP_ID call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "push [" call 
+    copy_last_match print "]" call 
+    newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: ret
+    
+IMPORT_STATEMENT: test_input_string 
+    "import" cmp byte [eswitch], 1 je LA 
+    call vstack_clear call RAW call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program 
+    test_input_string ";" cmp byte 
+    [eswitch], 1 je terminate_program mov 
+    esi, last_match call 
+    import_meta_file_mm32 mov byte 
+    [eswitch], 0
+    
+LA:
+    
+LA: ret
+    
+OUT1: test_input_string "*1" cmp byte 
+    [eswitch], 1 je LA print "call gn1" 
+    call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "*2" cmp byte 
+    [eswitch], 1 je LA print "call gn2" 
+    call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "*3" cmp byte 
+    [eswitch], 1 je LA print "call gn3" 
+    call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "*4" cmp byte 
+    [eswitch], 1 je LA print "call gn4" 
+    call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "*" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call ID call vstack_restore cmp byte 
+    [eswitch], 1 je LA print "mov edi, " 
+    call copy_last_match call newline 
+    print "call print_mm32" call newline
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA print "call copy_last_match" call 
+    newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "#" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call ID call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "mov edi, dword [" call 
+    copy_last_match print "]" call 
+    newline print "call print_int" call 
+    newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "%" cmp byte 
+    [eswitch], 1 je LA print "mov edi, 
+    str_vector_8192" call newline print 
+    "call vector_pop_string" call newline 
+    print "call print_mm32" call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "print " call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: ret
+    
+OUT_IMMEDIATE: call vstack_clear call RAW 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je LA call 
+    copy_last_match call newline
+    
+LA:
+    
+LA: ret
+    
+OUTPUT: test_input_string "->" cmp byte 
+    [eswitch], 1 je LA test_input_string 
+    "(" cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA: call vstack_clear call OUT1 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    ")" cmp byte [eswitch], 1 je 
+    terminate_program print "call 
+    newline" call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".LABEL" cmp byte 
+    [eswitch], 1 je LA print "call label" 
+    call newline test_input_string "(" 
+    cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA: call vstack_clear call OUT1 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    ")" cmp byte [eswitch], 1 je 
+    terminate_program print "call 
+    newline" call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".RS" cmp byte 
+    [eswitch], 1 je LA test_input_string 
+    "(" cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA: call vstack_clear call OUT1 call 
+    vstack_restore cmp byte [eswitch], 0 
+    je LA mov byte [eswitch], 0 cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string ")" cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".DIRECT" cmp byte 
+    [eswitch], 1 je LA test_input_string 
+    "(" cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA: call vstack_clear call OUT_IMMEDIATE 
+    call vstack_restore cmp byte 
+    [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    ")" cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: ret
+    
+EX3: call vstack_clear call ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "call vstack_clear" call 
+    newline print "call " call 
+    copy_last_match call newline print 
+    "call vstack_restore" call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "test_input_string " call 
+    copy_last_match call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".RET" cmp byte 
+    [eswitch], 1 je LA print "ret" call 
+    newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".NOT" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call STRING call vstack_restore cmp 
+    byte [eswitch], 1 je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call NUMBER call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je 
+    terminate_program print "match_not " 
+    call copy_last_match call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "%" cmp byte 
+    [eswitch], 1 je LA print "mov edi, 
+    str_vector_8192" call newline print 
+    "mov esi, last_match" call newline 
+    print "call vector_push_string_mm32" 
+    call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "(" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call EX1 call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string ")" cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".EMPTY" cmp byte 
+    [eswitch], 1 je LA print "mov byte 
+    [eswitch], 0" call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "$<" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call NUMBER call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program call label print 
+    "section .data" call newline print 
+    "MIN_ITER_" call gn3 print " dd " 
+    call copy_last_match call newline 
+    test_input_string ":" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call NUMBER call vstack_restore cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "MAX_ITER_" 
+    call gn3 print " dd " call 
+    copy_last_match call newline
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA print "MAX_ITER_" call gn3 print " 
+    dd 0xFFFFFFFF" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    ">" cmp byte [eswitch], 1 je 
+    terminate_program call label print 
+    "section .text" call newline print 
+    "xor ecx, ecx" call newline call 
+    label call gn1 print ":" call newline 
+    print "push ecx" call newline call 
+    vstack_clear call EX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program print "pop ecx" 
+    call newline print "cmp ecx, dword 
+    [MAX_ITER_" call gn3 print "]" call 
+    newline print "jg " call gn2 call 
+    newline print "cmp ecx, dword 
+    [MIN_ITER_" call gn3 print "]" call 
+    newline print "jl " call gn1 call 
+    newline print "inc ecx" call newline 
+    print "cmp byte [eswitch], 0" call 
+    newline print "je " call gn1 call 
+    newline call label call gn2 print ":" 
+    call newline print "mov byte 
+    [eswitch], 0" call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "$" cmp byte 
+    [eswitch], 1 je LA call label call 
+    gn1 print ":" call newline call 
+    vstack_clear call EX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program print "cmp byte 
+    [eswitch], 0" call newline print "je 
+    " call gn1 call newline print "mov 
+    byte [eswitch], 0" call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call LISP call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA cmp byte [eswitch], 1 je 
+    terminate_program cmp byte [eswitch], 
+    1 je terminate_program cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "::" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call ID call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "; Capture " call 
+    copy_last_match print " as single 
+    node" call newline cmp byte 
+    [eswitch], 1 je terminate_program cmp 
+    byte [eswitch], 1 je 
+    terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ":" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call ID call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string "<" cmp byte 
+    [eswitch], 1 je terminate_program 
+    call vstack_clear call NUMBER call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program 
+    test_input_string ">" cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "{" cmp byte 
+    [eswitch], 1 je LA cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "mov edi, bk_outbuff_offset" 
+    call newline print "mov esi, dword 
+    [outbuff_offset]" call newline print 
+    "call vector_push" call newline print 
+    "mov edi, bk_inbuff_offset" call 
+    newline print "mov esi, word 
+    [input_string_offset]" call newline 
+    print "call vector_push" call newline 
+    print "mov edi, bk_token" call 
+    newline print "mov esi, last_match" 
+    call newline print "call 
+    vector_push_string_mm32" call newline 
+    call vstack_clear call EX1 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program
+    
+LA: test_input_string "/" cmp byte 
+    [eswitch], 1 je LA print "cmp byte 
+    [pflag], 1" call newline print "je " 
+    call gn1 call newline cmp byte 
+    [eswitch], 1 je terminate_program cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "cmp byte 
+    [eswitch], 0" call newline print "je 
+    .no_backtrack" call newline call 
+    vstack_clear call BACKTRACK_RESTORE 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    call label print ".no_backtrack:" 
+    call newline call vstack_clear call 
+    EX1 call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    "}" cmp byte [eswitch], 1 je 
+    terminate_program print "cmp byte 
+    [eswitch], 0" call newline print "je 
+    " call gn1 call newline cmp byte 
+    [eswitch], 1 je terminate_program 
+    call vstack_clear call 
+    BACKTRACK_RESTORE call vstack_restore 
+    cmp byte [eswitch], 1 je 
+    terminate_program call label call gn1 
+    print ":" call newline print "mov 
+    esi, bk_inbuff_offset" call newline 
+    print "call vector_pop" call newline 
+    print "mov esi, bk_outbuff_offset" 
+    call newline print "call vector_pop" 
+    call newline print "mov esi, 
+    bk_token" call newline print "call 
+    vector_pop_string" call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call COMMENT call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: ret
+    
+BACKTRACK_RESTORE: cmp byte [eswitch], 1 
+    je LA print "mov byte [eswitch], 0" 
+    call newline cmp byte [eswitch], 1 je 
+    terminate_program print "mov esi, 
+    bk_inbuff_offset" call newline print 
+    "call vector_pop" call newline print 
+    "mov [input_string_offset], ax" call 
+    newline cmp byte [eswitch], 1 je 
+    terminate_program print "mov esi, 
+    bk_outbuff_offset" call newline print 
+    "call vector_pop" call newline print 
+    "mov [outbuff_offset], esi" call 
+    newline cmp byte [eswitch], 1 je 
+    terminate_program print "mov esi, 
+    bk_token" call newline print "call 
+    vector_pop_string" call newline print 
+    "mov edi, eax" call newline print 
+    "mov esi, last_match" call newline 
+    print "call buffc" call newline
+    
+LA:
+    
+LA: ret
+    
+EX2: call vstack_clear call EX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "cmp byte [eswitch], 1" 
+    call newline print "je " call gn1 
+    call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call OUTPUT call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA
+    
+LA: call vstack_clear call EX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "cmp byte [eswitch], 1" 
+    call newline print "je 
+    terminate_program" call newline
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call OUTPUT call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program call label call gn1 
+    print ":" call newline
+    
+LA:
+    
+LA: ret
+    
+EX1: call vstack_clear call EX2 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA: test_input_string "|" cmp byte 
+    [eswitch], 1 je LA print "cmp byte 
+    [eswitch], 0" call newline print "je 
+    " call gn1 call newline call 
+    vstack_clear call EX2 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program call label call gn1 
+    print ":" call newline
+    
+LA:
+    
+LA: ret
+    
+DEFINITION: call vstack_clear call ID 
+    call vstack_restore cmp byte 
+    [eswitch], 1 je LA call label call 
+    copy_last_match print ":" call 
+    newline test_input_string "=" cmp 
+    byte [eswitch], 1 je 
+    terminate_program call vstack_clear 
+    call EX1 call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string ";" cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "ret" call newline
+    
+LA:
+    
+LA: ret
+    
+TOKEN_DEFINITION: call vstack_clear call 
+    ID call vstack_restore cmp byte 
+    [eswitch], 1 je LA call label call 
+    copy_last_match print ":" call 
+    newline test_input_string "=" cmp 
+    byte [eswitch], 1 je 
+    terminate_program call vstack_clear 
+    call TX1 call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string ";" cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "ret" call newline
+    
+LA:
+    
+LA: ret
+    
+TX1: call vstack_clear call TX2 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA: test_input_string "|" cmp byte 
+    [eswitch], 1 je LA print "cmp byte 
+    [eswitch], 0" call newline print "je 
+    " call gn1 call newline call 
+    vstack_clear call TX2 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program call label call gn1 
+    print ":" call newline
+    
+LA:
+    
+LA: ret
+    
+TX2: call vstack_clear call TX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "cmp byte [eswitch], 1" 
+    call newline print "je " call gn1 
+    call newline cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA: call vstack_clear call TX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "cmp byte [eswitch], 1" 
+    call newline print "je " call gn1 
+    call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program call label call gn1 
+    print ":" call newline
+    
+LA:
+    
+LA: ret
+    
+TX3: test_input_string ".TOKEN" cmp byte 
+    [eswitch], 1 je LA cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "mov byte [tflag], 1" call 
+    newline print "call clear_token" call 
+    newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".DELTOK" cmp byte 
+    [eswitch], 1 je LA cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "mov byte [tflag], 0" call 
+    newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "$" cmp byte 
+    [eswitch], 1 je LA call label call 
+    gn1 print ":" call newline call 
+    vstack_clear call TX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program print "cmp byte 
+    [eswitch], 0" call newline print "je 
+    " call gn1 call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je LA print 
+    "mov byte [eswitch], 0" call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".ANYBUT(" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call CX1 call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string ")" cmp byte 
+    [eswitch], 1 je terminate_program cmp 
+    byte [eswitch], 1 je 
+    terminate_program print "mov al, byte 
+    [eswitch]" call newline print "xor 
+    al, 1" call newline print "mov byte 
+    [eswitch], al" call newline print 
+    "call scan_or_parse" call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".ANY(" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call CX1 call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string ")" cmp byte 
+    [eswitch], 1 je terminate_program 
+    print "call scan_or_parse" call 
+    newline cmp byte [eswitch], 1 je 
+    terminate_program cmp byte [eswitch], 
+    1 je terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string ".RESERVED(" cmp 
+    byte [eswitch], 1 je LA
+    
+LA: call vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "test_input_string " call 
+    copy_last_match call newline print 
+    "mov al, byte [eswitch]" call newline 
+    print "xor al, 1" call newline print 
+    "mov byte [eswitch], al" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program test_input_string 
+    ")" cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call ID call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA print "call " call 
+    copy_last_match call newline
+    
+LA: cmp byte [eswitch], 0 je LA 
+    test_input_string "(" cmp byte 
+    [eswitch], 1 je LA call vstack_clear 
+    call TX1 call vstack_restore cmp byte 
+    [eswitch], 1 je terminate_program 
+    test_input_string ")" cmp byte 
+    [eswitch], 1 je terminate_program
+    
+LA:
+    
+LA: ret
+    
+CX1: call vstack_clear call CX2 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA: test_input_string "!" cmp byte 
+    [eswitch], 1 je LA print "cmp byte 
+    [eswitch], 0" call newline print "je 
+    " call gn1 call newline call 
+    vstack_clear call CX2 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    terminate_program call label call gn1 
+    print ":" call newline
+    
+LA:
+    
+LA: ret
+    
+CX2: call vstack_clear call CX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA test_input_string ":" cmp byte 
+    [eswitch], 1 je LA print "mov edi, " 
+    call copy_last_match call newline 
+    print "call test_char_greater_equal" 
+    call newline print "cmp byte 
+    [eswitch], 0" call newline print "jne 
+    " call gn1 call newline call 
+    vstack_clear call CX3 call 
+    vstack_restore cmp byte [eswitch], 1 
+    je terminate_program print "mov edi, 
+    " call copy_last_match call newline 
+    print "call test_char_less_equal" 
+    call newline call label call gn1 
+    print ":" call newline
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA print "mov edi, " call 
+    copy_last_match call newline print 
+    "call test_char_equal" call newline
+    
+LA:
+    
+LA: cmp byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: ret
+    
+CX3: call vstack_clear call NUMBER call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    vstack_clear call STRING call 
+    vstack_restore cmp byte [eswitch], 1 
+    je LA
+    
+LA:
+    
+LA: ret
+    
+COMMENT: test_input_string "//" cmp byte 
+    [eswitch], 1 je LA match_not 10 cmp 
+    byte [eswitch], 1 je 
+    terminate_program
+    
+LA:
+    
+LA: ret
+    
+; -- Tokens --
+    
+PREFIX:
+    
+LA: mov edi, 32 call test_char_equal cmp 
+    byte [eswitch], 0 je LA mov edi, 9 
+    call test_char_equal cmp byte 
+    [eswitch], 0 je LA mov edi, 13 call 
+    test_char_equal cmp byte [eswitch], 0 
+    je LA mov edi, 10 call 
+    test_char_equal
+    
+LA: call scan_or_parse cmp byte 
+    [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA
+    
+LA:
+    
+LA: ret
+    
+NUMBER: call PREFIX cmp byte [eswitch], 1 
+    je LA mov byte [tflag], 1 call 
+    clear_token mov byte [eswitch], 0 cmp 
+    byte [eswitch], 1 je LA call DIGIT 
+    cmp byte [eswitch], 1 je LA
+    
+LA: call DIGIT cmp byte [eswitch], 0 je 
+    LA mov byte [eswitch], 0 cmp byte 
+    [eswitch], 1 je LA mov byte [tflag], 
+    0 mov byte [eswitch], 0 cmp byte 
+    [eswitch], 1 je LA
+    
+LA:
+    
+LA: ret
+    
+DIGIT: mov edi, 48 call 
+    test_char_greater_equal cmp byte 
+    [eswitch], 0 jne LA mov edi, 57 call 
+    test_char_less_equal
+    
+LA:
+    
+LA: call scan_or_parse cmp byte 
+    [eswitch], 1 je LA
+    
+LA:
+    
+LA: ret
+    
+ID: call PREFIX cmp byte [eswitch], 1 je 
+    LA test_input_string "import" mov al, 
+    byte [eswitch] xor al, 1 mov byte 
+    [eswitch], al cmp byte [eswitch], 1 
+    je LA mov byte [tflag], 1 call 
+    clear_token mov byte [eswitch], 0 cmp 
+    byte [eswitch], 1 je LA call ALPHA 
+    cmp byte [eswitch], 1 je LA
+    
+LA: call ALPHA cmp byte [eswitch], 1 je 
+    LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    DIGIT cmp byte [eswitch], 1 je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA mov byte [tflag], 0 mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA
+    
+LA:
+    
+LA: ret
+    
+ALPHA: mov edi, 65 call 
+    test_char_greater_equal cmp byte 
+    [eswitch], 0 jne LA mov edi, 90 call 
+    test_char_less_equal
+    
+LA: cmp byte [eswitch], 0 je LA mov edi, 
+    95 call test_char_equal cmp byte 
+    [eswitch], 0 je LA mov edi, 97 call 
+    test_char_greater_equal cmp byte 
+    [eswitch], 0 jne LA mov edi, 122 call 
+    test_char_less_equal
+    
+LA:
+    
+LA: call scan_or_parse cmp byte 
+    [eswitch], 1 je LA
+    
+LA:
+    
+LA: ret
+    
+STRING: call PREFIX cmp byte [eswitch], 1 
+    je LA mov byte [tflag], 1 call 
+    clear_token mov byte [eswitch], 0 cmp 
+    byte [eswitch], 1 je LA mov edi, 34 
+    call test_char_equal
+    
+LA: call scan_or_parse cmp byte 
+    [eswitch], 1 je LA
+    
+LA: mov edi, 13 call test_char_equal cmp 
+    byte [eswitch], 0 je LA mov edi, 10 
+    call test_char_equal cmp byte 
+    [eswitch], 0 je LA mov edi, 34 call 
+    test_char_equal
+    
+LA: mov al, byte [eswitch] xor al, 1 mov 
+    byte [eswitch], al call scan_or_parse 
+    cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA mov edi, 34 call test_char_equal
+    
+LA: call scan_or_parse cmp byte 
+    [eswitch], 1 je LA mov byte [tflag], 
+    0 mov byte [eswitch], 0 cmp byte 
+    [eswitch], 1 je LA
+    
+LA:
+    
+LA: ret
+    
+RAW: call PREFIX cmp byte [eswitch], 1 je 
+    LA mov edi, 34 call test_char_equal
+    
+LA: call scan_or_parse cmp byte 
+    [eswitch], 1 je LA mov byte [tflag], 
+    1 call clear_token mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA
+    
+LA: mov edi, 13 call test_char_equal cmp 
+    byte [eswitch], 0 je LA mov edi, 10 
+    call test_char_equal cmp byte 
+    [eswitch], 0 je LA mov edi, 34 call 
+    test_char_equal
+    
+LA: mov al, byte [eswitch] xor al, 1 mov 
+    byte [eswitch], al call scan_or_parse 
+    cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA mov byte [tflag], 0 mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA mov edi, 34 call test_char_equal
+    
+LA: call scan_or_parse cmp byte 
+    [eswitch], 1 je LA
+    
+LA:
+    
+LA: ret
+    
+LISP_ID: call PREFIX cmp byte [eswitch], 
+    1 je LA mov byte [tflag], 1 call 
+    clear_token mov byte [eswitch], 0 cmp 
+    byte [eswitch], 1 je LA call ALPHA 
+    cmp byte [eswitch], 1 je LA
+    
+LA: call ALPHA cmp byte [eswitch], 1 je 
+    LA
+    
+LA: cmp byte [eswitch], 0 je LA call 
+    DIGIT cmp byte [eswitch], 1 je LA
+    
+LA:
+    
+LA: cmp byte [eswitch], 0 je LA mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA mov byte [tflag], 0 mov byte 
+    [eswitch], 0 cmp byte [eswitch], 1 je 
+    LA
+    
+LA:
+    
+LA: ret
+    

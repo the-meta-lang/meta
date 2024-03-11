@@ -39,7 +39,13 @@ gn4:
 
 	.print_label:
 			print "LD"
-			call print_int
+			push edi
+			mov esi, edi
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop edi
 
 			mov esi, edi
 			mov edi, vstack
@@ -67,7 +73,13 @@ gn3:
 
 	.print_label:
 			print "LC"
-			call print_int
+			push edi
+			mov esi, edi
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop edi
 
 			mov esi, edi
 			mov edi, vstack
@@ -99,7 +111,13 @@ gn2:
 
 	.print_label:
 			print "LB"
-			call print_int
+			push edi
+			mov esi, edi
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop edi
 
 			mov esi, edi
 			mov edi, vstack
@@ -135,7 +153,13 @@ gn1:
 
 	.print_label:
 			print "LA"
-			call print_int
+			push edi
+			mov esi, edi
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop edi
 
 			mov esi, edi
 			mov edi, vstack

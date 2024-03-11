@@ -21,6 +21,8 @@ PROGRAM =
 			->("mov ebp, esp")
 			->("call " *)
 			->("pop ebp")
+			->("mov edi, outbuff")
+			->("call print_mm32")
 			->("mov eax, 1")
 			->("mov ebx, 0")
 			->("int 0x80")

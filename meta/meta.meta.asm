@@ -15,6 +15,8 @@ _start:
     mov ebp, esp
     call PROGRAM
     pop ebp
+		mov edi, outbuff
+		call print_mm32
     mov eax, 1
     mov ebx, 0
     int 0x80
@@ -142,6 +144,10 @@ LA16:
     call copy_last_match
     call newline
     print "pop ebp"
+    call newline
+    print "mov edi, outbuff"
+    call newline
+    print "call print_mm32"
     call newline
     print "mov eax, 1"
     call newline

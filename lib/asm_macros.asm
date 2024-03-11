@@ -5,6 +5,7 @@ section .data
 	eflag db 0
 	; Error switch, indicates a parsing error that is not recoverable
 	eswitch db 0
+	outbuff_offset dd 0
 
 
 section .bss
@@ -18,7 +19,7 @@ section .bss
 
 		; TODO: This is a temporary solution, we should use a dynamic buffer
 		outbuff resb 5242880 ; 5MB for the output buffer
-		outbuff_offset resb 4
+		
 
 		; Space for the backtracking output buffer (int[])
 		bk_outbuff_offset resb 512
@@ -77,24 +78,32 @@ section .text
 section .data
 		%%_str db %1, 0x00
 section .text
-		print_ref %%_str
+		push esi
+		push edi
+		mov esi, outbuff
+		add esi, [outbuff_offset]
+		mov edi, %%_str
+		call buffc
+		add dword [outbuff_offset], eax
+		pop edi
+		pop esi
 %endmacro
 
-%macro print_ref 1
-		save_machine_state
-		mov eax, 4          ; syscall: sys_write
-		mov ebx, 1          ; file descriptor: STDOUT
-		mov ecx, %1  ; string to write
-		mov edx, 0          ; length will be determined dynamically
-%%_calculate_length:
-		cmp byte [ecx + edx], 0  ; check for null terminator
-		je  %%_end_calculate_length
-		inc edx
-		jmp %%_calculate_length
-%%_end_calculate_length:
-		int 0x80            ; invoke syscall
-		restore_machine_state
-%endmacro
+; %macro print_ref 1
+; 		save_machine_state
+; 		mov eax, 4          ; syscall: sys_write
+; 		mov ebx, 1          ; file descriptor: STDOUT
+; 		mov ecx, %1  ; string to write
+; 		mov edx, 0          ; length will be determined dynamically
+; %%_calculate_length:
+; 		cmp byte [ecx + edx], 0  ; check for null terminator
+; 		je  %%_end_calculate_length
+; 		inc edx
+; 		jmp %%_calculate_length
+; %%_end_calculate_length:
+; 		int 0x80            ; invoke syscall
+; 		restore_machine_state
+; %endmacro
 
 ; Match everything that is not the given character
 %macro match_not 1
@@ -125,14 +134,7 @@ newline:
 ; Prints a newline character
 ; Without indenting the new line
 label:
-		save_machine_state ; Save the flags register
-		mov byte [lfbuffer], 0x0A
-		mov eax, 0x04
-		mov ebx, 0x01
-		mov ecx, lfbuffer
-		mov edx, 1
-		int 0x80
-		restore_machine_state ; Restore the flags register
+		print 0x0A
 		ret
 
 ; Macro for printing to stdout including a newline at the end
@@ -150,23 +152,23 @@ label:
 
 
 
-%macro print_input_string 0
-		save_machine_state ; Save the flags register
-		print "------------------------"
-		mov eax, 4          ; syscall: sys_write
-		mov ebx, 1          ; file descriptor: STDOUT
-		mov ecx, input_string  ; string to write
-		add ecx, [input_string_offset]
-		mov edx, 0          ; length will be determined dynamically
-%%_calculate_length:
-		cmp byte [ecx + edx], 0  ; check for null terminator
-		je  %%_end_calculate_length
-		inc edx
-		jmp %%_calculate_length
-%%_end_calculate_length:
-		int 0x80            ; invoke syscall
-		restore_machine_state ; Restore the flags register
-%endmacro
+; %macro print_input_string 0
+; 		save_machine_state ; Save the flags register
+; 		print "------------------------"
+; 		mov eax, 4          ; syscall: sys_write
+; 		mov ebx, 1          ; file descriptor: STDOUT
+; 		mov ecx, input_string  ; string to write
+; 		add ecx, [input_string_offset]
+; 		mov edx, 0          ; length will be determined dynamically
+; %%_calculate_length:
+; 		cmp byte [ecx + edx], 0  ; check for null terminator
+; 		je  %%_end_calculate_length
+; 		inc edx
+; 		jmp %%_calculate_length
+; %%_end_calculate_length:
+; 		int 0x80            ; invoke syscall
+; 		restore_machine_state ; Restore the flags register
+; %endmacro
 
 input_blanks:
 		; Find the first non-whitespace character in the input string
@@ -246,19 +248,11 @@ section .text
 
 
 copy_last_match:
-		save_machine_state ; Save the flags register
-		mov eax, 4          ; syscall: sys_write
-		mov ebx, 1          ; file descriptor: STDOUT
-		mov ecx, last_match  ; string to write
-		mov edx, 0          ; length will be determined dynamically
-.calculate_length:
-		cmp byte [ecx + edx], 0  ; check for null terminator
-		je  .end_calculate_length
-		inc edx
-		jmp .calculate_length
-.end_calculate_length:
-		int 0x80            ; invoke syscall
-		restore_machine_state ; Restore the flags register
+		mov esi, outbuff
+		add esi, [outbuff_offset]
+		mov edi, last_match
+		call buffc
+		add dword [outbuff_offset], eax
 		ret
 
 set_false:
@@ -309,3 +303,4 @@ _read_file_argument_end:
 %include "./lib/string-to-int.asm"
 %include "./lib/malloc.asm"
 %include "./lib/char-test.asm"
+%include "./lib/output-buffer.asm"
