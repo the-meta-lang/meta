@@ -6,6 +6,7 @@ section .data
 	; Error switch, indicates a parsing error that is not recoverable
 	eswitch db 0
 
+
 section .bss
 		input_string resb MAX_INPUT_LENGTH
 		input_string_offset resb 2
@@ -14,6 +15,17 @@ section .bss
 		FILE resb 256
 		str_vector_8192 resb 8192
 		last_match resb 512
+
+		; TODO: This is a temporary solution, we should use a dynamic buffer
+		outbuff resb 5242880 ; 5MB for the output buffer
+		outbuff_offset resb 4
+
+		; Space for the backtracking output buffer (int[])
+		bk_outbuff_offset resb 512
+		; Space for the backtracking input buffer (int[])
+		bk_inbuff_offset resb 512
+		; Space for the backtracking token buffer (string[])
+		bk_token resb 8192
 section .text
 global _start
 
