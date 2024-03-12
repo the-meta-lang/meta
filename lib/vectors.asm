@@ -20,7 +20,7 @@ vector_push:
 ; Pop from a vector
 ; Usage: vector_pop vector
 ; esi: vector (mm32)
-; @return edi
+; @return eax (imm32) - The number that was popped
 vector_pop:
 	mov eax, esi
 	; Get the length of the vector
@@ -36,7 +36,7 @@ vector_pop:
 	mov eax, esi
 	mov [eax], ebx
 
-	mov edi, ecx
+	mov eax, ecx
 	ret
 
 ; Push a string into a vector
@@ -102,18 +102,16 @@ vector_push_string_mm32:
 
 ; Pop a string from a vector
 ; Usage: call vector_pop_string
-; edi: vector (mm32)
-; @return edi (mm32)
+; esi: vector (mm32)
+; @return eax (*string) - The popped string
 vector_pop_string:
 	section .bss
 		.string resb 256
 	section .text
-		pushfd
-		push eax
 		push ebx
 		push edx
 		push ecx
-		mov eax, edi
+		mov eax, esi
 		; Get the length of the vector
 		mov ebx, [eax]
 		; Add the length to the pointer to set the value
@@ -133,7 +131,7 @@ vector_pop_string:
 			; Set the value
 			mov ebx, eax
 			sub ebx, ecx
-			mov edx, edi
+			mov edx, esi
 			add edx, 3
 			cmp ebx, edx
 			je .end ; Pre-terminate if we've reached the beginning of the array
@@ -153,18 +151,16 @@ vector_pop_string:
 			jmp .loop
 		.end:
 		; Set the length to the length of the string
-		mov eax, edi
+		mov eax, esi
 		sub dword [eax], ecx
 		add dword [eax], 1
 		; Return the string
-		mov edi, .string
-		add edi, 256
-		sub edi, ecx
-		add edi, 1
+		mov eax, .string
+		add eax, 256
+		sub eax, ecx
+		add eax, 1
 		; Restore altered registers
 		pop ecx
 		pop edx
 		pop ebx
-		pop eax
-		popfd
 		ret

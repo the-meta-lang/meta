@@ -1,8 +1,8 @@
 section .data
 	tflag db 0
-	; Error Flag, indicates a parsing error which may be recovered from
+	; Parse Flag, indicates a parsing error which may be recovered from
 	; by backtracking 
-	eflag db 0
+	pflag db 0
 	; Error switch, indicates a parsing error that is not recoverable
 	eswitch db 0
 	outbuff_offset dd 0
@@ -10,7 +10,7 @@ section .data
 
 section .bss
 		input_string resb MAX_INPUT_LENGTH
-		input_string_offset resb 2
+		input_string_offset resb 4
 		input_pointer resb 4
 		lfbuffer resb 1
 		FILE resb 256
@@ -80,9 +80,9 @@ section .data
 section .text
 		push esi
 		push edi
-		mov esi, outbuff
-		add esi, [outbuff_offset]
-		mov edi, %%_str
+		mov esi, %%_str
+		mov edi, outbuff
+		add edi, [outbuff_offset]
 		call buffc
 		add dword [outbuff_offset], eax
 		pop edi
@@ -248,9 +248,9 @@ section .text
 
 
 copy_last_match:
-		mov esi, outbuff
-		add esi, [outbuff_offset]
-		mov edi, last_match
+		mov esi, last_match
+		mov edi, outbuff
+		add edi, [outbuff_offset]
 		call buffc
 		add dword [outbuff_offset], eax
 		ret
@@ -304,3 +304,4 @@ _read_file_argument_end:
 %include "./lib/malloc.asm"
 %include "./lib/char-test.asm"
 %include "./lib/output-buffer.asm"
+%include "./lib/backtracking.asm"

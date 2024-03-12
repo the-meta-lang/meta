@@ -1,9 +1,9 @@
 
-; Copies the value of a pointer to a buffer specified in edi
-; to the buffer specified in esi
+; Copies the value of a pointer to a string specified in esi (source)
+; to a pointer to a string defined in edi (destination)
 ; Input
-;   edi - pointer to source buffer
-;   esi - pointer to destination buffer
+;   esi - pointer to source buffer
+;   edi - pointer to destination buffer
 ; Output
 ;   eax - length of the string
 buffc:
@@ -11,12 +11,12 @@ buffc:
 		mov ebp, esp
 		xor ecx, ecx ; Keep track of the length so we can return it
 	.loop:
-		mov al, byte [edi]
-		mov byte [esi], al
+		mov al, byte [esi]
+		mov byte [edi], al
 		cmp al, 0
 		je .done
-		inc edi
 		inc esi
+		inc edi
 		inc ecx
 		jmp .loop
 	.done:
@@ -25,11 +25,13 @@ buffc:
 		pop ebp
 		ret
 
-; Copies the value of a pointer to a buffer specified in edi
-; to the buffer specified in esi. Will first move to the end of the destination buffer.
+
+; Copies the value of a pointer to a string specified in esi (source)
+; to a pointer to a string defined in edi (destination)
+; Will first move to the end of the destination buffer.
 ; Input
-;   edi - pointer to source buffer
-;   esi - pointer to destination buffer
+;   esi - pointer to source buffer
+;   edi - pointer to destination buffer
 buffcend:
 		push ebp
 		mov ebp, esp

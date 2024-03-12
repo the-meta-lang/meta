@@ -21,6 +21,8 @@ PROGRAM =
 			->("mov ebp, esp")
 			->("call " *)
 			->("pop ebp")
+			->("mov edi, outbuff")
+			->("call print_mm32")
 			->("mov eax, 1")
 			->("mov ebx, 0")
 			->("int 0x80")
@@ -222,55 +224,24 @@ EX3 = ID
 	// ------------------------------ Backtracking --------------------------------
 	| "{"
 			// Store backtracking position
-			->("mov edi, bk_outbuff_offset")
-			->("mov esi, dword [outbuff_offset]")
-			->("call vector_push")
-			->("mov edi, bk_inbuff_offset")
-			->("mov esi, word [input_string_offset]")
-			->("call vector_push")
-			->("mov edi, bk_token")
-			->("mov esi, last_match")
-			->("call vector_push_string_mm32")
+			->("call backtrack_store")
 		EX1 $("/"
-			->("cmp byte [pflag], 1")
-			->("je " *1)
-			// Check if we encountered an error.
-			// If we didn't we don't need to backtrack or enter the next branch.
-			->("cmp byte [eswitch], 0")
-			->("je .no_backtrack")
-			BACKTRACK_RESTORE
-		.LABEL(".no_backtrack:")
+				// If we didn't encounter an error we can simply exit the loop
+				// and clear the backtracking information.
+				// TODO: Maybe change to `pflag`
+				->("cmp byte [eswitch], 0")
+				->("je " *1)
+				// We encountered an error
+				// Let's restore the backtracking position
+				->("call backtrack_restore")
 			EX1) "}"
 			->("cmp byte [eswitch], 0")
 			->("je " *1)
 			// We exited with an error, let's backtrack
-			BACKTRACK_RESTORE
+			->("call backtrack_restore")
 		.LABEL(*1 ":")
-			->("mov esi, bk_inbuff_offset")
-			->("call vector_pop")
-			->("mov esi, bk_outbuff_offset")
-			->("call vector_pop")
-			->("mov esi, bk_token")
-			->("call vector_pop_string")
+			->("call backtrack_clear")
 	| COMMENT;
-
-BACKTRACK_RESTORE =
-	// Restore backtracking, we encountered an error.
-	->("mov byte [eswitch], 0")
-	// Pop the input position from the stack
-	->("mov esi, bk_inbuff_offset")
-	->("call vector_pop")
-	->("mov [input_string_offset], ax")
-	// Pop the output position from the stack
-	->("mov esi, bk_outbuff_offset")
-	->("call vector_pop")
-	->("mov [outbuff_offset], esi")
-	// Pop the token off the stack and copy it back into last_match
-	->("mov esi, bk_token")
-	->("call vector_pop_string")
-	->("mov edi, eax")
-	->("mov esi, last_match")
-	->("call buffc");
 
 EX2 = (EX3 
 	->("cmp byte [eswitch], 1")
@@ -282,7 +253,7 @@ EX1 = EX2 $ ("|"
 	->("cmp byte [eswitch], 0")
 	->("je " *1) EX2) .LABEL(*1 ":");
 
-DEFINITION = ID .LABEL(* ":") "=" EX1 ";" ->("ret");
+DEFINITION = ID .LABEL(* ":") "=" EX1 (";" | .ERROR("Missing semicolon on char: " #input_string_offset)) ->("ret");
 
 // --------------------------------- Tokens ------------------------------------
 
@@ -390,5 +361,3 @@ RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
 // An identifier name for the integrated lisp-like language
 // Supports any sequence of characters, digits, question marks, dashes and exclamation marks, may not start with a digit or a special character.
 LISP_ID = PREFIX .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
-
-.END

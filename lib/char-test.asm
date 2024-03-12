@@ -116,12 +116,12 @@ scan_or_parse:
 		mov byte [edx], al
 		; null terminate the token
 		mov byte [edx+1], 0x00
-		add word [input_string_offset], 1
+		add dword [input_string_offset], 1
 		pop edx
 		mov byte [eswitch], 0
 		ret
 	.done:
-		add word [input_string_offset], 1
+		add dword [input_string_offset], 1
 		ret
 	.done_error:
 		ret
