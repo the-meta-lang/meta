@@ -7,15 +7,19 @@ section .data
 	eswitch db 0
 	outbuff_offset dd 0
 
+	cursor dd 0
+
 
 section .bss
 		input_string resb MAX_INPUT_LENGTH
-		input_string_offset resb 4
 		input_pointer resb 4
 		lfbuffer resb 1
 		FILE resb 256
 		str_vector_8192 resb 8192
 		last_match resb 512
+
+		err_inbuff_offset resb 512
+		err_fn_names resb 8192
 
 		; TODO: This is a temporary solution, we should use a dynamic buffer
 		outbuff resb 5242880 ; 5MB for the output buffer
@@ -109,7 +113,7 @@ section .text
 %macro match_not 1
 		save_machine_state
 		mov esi, input_string
-		add esi, [input_string_offset]
+		add esi, [cursor]
 		mov ecx, 0
 %%_match_not_loop:
 		cmp byte [esi], %1
@@ -120,7 +124,7 @@ section .text
 		inc ecx
 		jmp %%_match_not_loop
 %%_end_match_not_loop:
-		add [input_string_offset], ecx
+		add [cursor], ecx
 		restore_machine_state
 %endmacro
 
@@ -158,7 +162,7 @@ label:
 ; 		mov eax, 4          ; syscall: sys_write
 ; 		mov ebx, 1          ; file descriptor: STDOUT
 ; 		mov ecx, input_string  ; string to write
-; 		add ecx, [input_string_offset]
+; 		add ecx, [cursor]
 ; 		mov edx, 0          ; length will be determined dynamically
 ; %%_calculate_length:
 ; 		cmp byte [ecx + edx], 0  ; check for null terminator
@@ -173,7 +177,7 @@ label:
 input_blanks:
 		; Find the first non-whitespace character in the input string
 		mov esi, input_string
-		add esi, [input_string_offset]
+		add esi, [cursor]
 ib_find_non_whitespace:
 		cmp byte [esi], ' '     ; Compare the current character with a space
 		je  ib_skip_whitespace     ; Jump if it's a newline
@@ -191,7 +195,7 @@ ib_end_of_string:
 	; Copy the remaining part of the string (without leading whitespace) to the beginning
 	mov eax, input_string ; Get the address of the start of the string
 	sub esi, eax ; Subtract the offset of the end of the string from the beginning
-	mov [input_string_offset], esi
+	mov [cursor], esi
 	ret
 
 
@@ -205,7 +209,7 @@ section .data
 section .text
 		call input_blanks
 		mov edi, input_string
-		add edi, [input_string_offset]
+		add edi, [cursor]
 		mov esi, %%_str
 		mov ebx, %%_str 
 
@@ -235,7 +239,7 @@ section .text
 		; mov ecx, %%_str_length
 		; rep movsb ; Copy the string into last_match
 		mov eax, %%_str_length
-		add [input_string_offset], eax
+		add [cursor], eax
 		mov byte [eswitch], 0 ; Set zero flag to 0 to indicate equality
 		jmp %%_end
 
@@ -305,3 +309,4 @@ _read_file_argument_end:
 %include "./lib/char-test.asm"
 %include "./lib/output-buffer.asm"
 %include "./lib/backtracking.asm"
+%include "./lib/error-reporting.asm"

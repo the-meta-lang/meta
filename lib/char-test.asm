@@ -6,7 +6,7 @@
 test_char_greater_equal:
 		push edx
 		mov edx, input_string
-		add edx, [input_string_offset]
+		add edx, [cursor]
 
 		xor eax, eax
 		mov al, byte [edx]
@@ -32,7 +32,7 @@ test_char_greater_equal:
 test_char_less_equal:
 		push edx
 		mov edx, input_string
-		add edx, [input_string_offset]
+		add edx, [cursor]
 
 		xor eax, eax
 		mov al, byte [edx]
@@ -58,7 +58,7 @@ test_char_less_equal:
 test_char_equal:
 		push edx
 		mov edx, input_string
-		add edx, [input_string_offset]
+		add edx, [cursor]
 
 		xor eax, eax
 		mov al, byte [edx]
@@ -101,7 +101,7 @@ scan_or_parse:
 		; if the token flag is set, add the character to the token
 		push edx
 		mov edx, input_string
-		add edx, [input_string_offset]
+		add edx, [cursor]
 
 		xor eax, eax
 		mov al, byte [edx]
@@ -116,12 +116,12 @@ scan_or_parse:
 		mov byte [edx], al
 		; null terminate the token
 		mov byte [edx+1], 0x00
-		add dword [input_string_offset], 1
+		add dword [cursor], 1
 		pop edx
 		mov byte [eswitch], 0
 		ret
 	.done:
-		add dword [input_string_offset], 1
+		add dword [cursor], 1
 		ret
 	.done_error:
 		ret

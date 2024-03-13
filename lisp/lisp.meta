@@ -1,0 +1,186 @@
+.SYNTAX LISP
+
+LISP = PREAMBLE $(ROOT_BODY) POSTAMBLE;
+
+ROOT_BODY = "[" (DEFUNC | DEFINE | ASMMACRO | WHILE | IF_ELSE | IF | FUNC_CALL) "]";
+
+// -------------------------------- Preamble -----------------------------------
+
+PREAMBLE =
+	.LABEL("section .text")
+		->("global _start")
+	.LABEL("_start:")
+		->("push ebp")
+		->("mov ebp, esp");
+
+POSTAMBLE =
+		->("mov esp, ebp")
+		->("pop ebp")
+	.LABEL("exit:")
+		->("mov eax, 1")
+		->("mov ebx, esi")
+		->("int 0x80");
+
+// ---------------------------------- body -------------------------------------
+
+BODY = "[" (DEFINE | WHILE | IF_ELSE | IF | FUNC_CALL) "]";
+
+// ---------------------------------- while ------------------------------------
+
+WHILE = "while" "["
+	.LABEL(*2 ":")
+		FUNC_CALL
+	->("cmp eax, 1") 
+	->("jne " *1) "]"
+		$(BODY)
+	->("jmp " *2)
+	.LABEL(*1 ":");
+
+// ----------------------------------- if --------------------------------------
+
+IF = "if" "[" FUNC_CALL
+	->("cmp eax, 1")
+	->("jne " *1) "]" BODY
+	.LABEL(*1 ":");
+
+// --------------------------------- if/else -----------------------------------
+
+IF_ELSE = "if/else" "[" FUNC_CALL
+	->("cmp eax, 1")
+	->("jne " *1) "]"
+	BODY
+	->("jmp " *2)
+	.LABEL(*1 ":")
+	BODY
+	.LABEL(*2 ":");
+
+// ----------------------------- Assembler Macro -------------------------------
+
+ASMMACRO = "asmmacro" "[" ID 
+	->("jmp " *1)
+	.LABEL(* ":")
+		->("push ebp")
+		->("mov ebp, esp") $(ID) "]"
+	$(RAW ->(*))
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("ret")
+	.LABEL(*1 ":");
+
+// --------------------------------- define ------------------------------------
+
+DEFINE = "define" ID % %
+	.LABEL("; -- Define " * " --") (
+	(NUMBER
+	.LABEL("section .data")
+		->(% " dd " *)
+	.LABEL("section .text")
+		->("mov eax, dword [" % "]"))
+	| (STRING 
+	.LABEL("section .data")
+		->(% " db " * ", 0x00")
+	.LABEL("section .text")
+		->("mov eax, " %))
+	| (ID
+		.LABEL("section .data")
+			->(% " dd 0")
+		.LABEL("section .text")
+			->("mov eax, " *)
+			->("mov dword [" % "], eax"))
+	| ("&" ID
+	.LABEL("section .data")
+		->(% " dd 0")
+	.LABEL("section .text")
+		->("mov eax, [" * "]")
+		->("mov dword [" % "], eax"))
+	| (LISP
+	.LABEL("section .data")
+		->(% " dd 0")
+	.LABEL("section .text")
+		->("mov dword [" % "], eax"))
+);
+
+// --------------------------------- defunc ------------------------------------
+
+DEFUNC = "defunc" "[" ID
+	->("jmp " *1)
+	.LABEL(* ":")
+		->("push ebp")
+		->("mov ebp, esp")
+	$(ID ->("mov dword [ebp+16], esi")) "]" $(BODY)
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("ret")
+	.LABEL(*1 ":");
+
+// ------------------------------ Function Call --------------------------------
+
+FUNC_CALL = ID % LISP_CALL_ARGS
+	->("call " %);
+
+// ------------------------- Function Call Arguments ---------------------------
+
+LISP_CALL_ARGS = $(((NUMBER ->("mov esi, " *))
+	| (STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov esi, " *3))
+	| (ID 
+		->("mov esi, " *))
+	| ("&" ID
+		->("mov esi, [" * "]"))
+	| "[" FUNC_CALL "]"
+		->("pop esi"))
+	$(((NUMBER ->("mov edi, " *))
+		| (STRING 
+			.LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				->("mov edi, " *3))
+		| (ID 
+			->("mov edi, " *))
+		| ("&" ID
+			->("mov edi, [" * "]"))
+		| "[" FUNC_CALL "]"
+			->("pop edi"))
+		$(((NUMBER ->("mov edx, " *))
+		| (STRING 
+			.LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				->("mov edx, " *3))
+		| (ID 
+			->("mov edx, " *))
+		| ("&" ID
+			->("mov edx, [" * "]"))
+		| "[" FUNC_CALL "]"
+			->("pop edx")))));
+
+.TOKENS
+
+// Remove any leading whitespace
+PREFIX = $.ANY(32!9!13!10);
+
+// Match numbers (sequence of digits)
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+
+// Match any digit
+DIGIT  = .ANY(48:57);
+
+// Match any sequence of characters and digits, may not start with a digit.
+ID     = PREFIX .RESERVED("import") .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+// Matches any uppercase or lowercase character as well as underscore
+ALPHA  = .ANY(65:90!95!97:122) ;
+
+// Matches anything but double quotes that is enclosed by double quotes.
+// e.g. "hello world" but not "awd "inner" "
+STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+
+// Same as STRING but does not capture the double quotes.
+RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
+
+// An identifier name for the integrated lisp-like language
+// Supports any sequence of characters, digits, question marks, dashes and exclamation marks, may not start with a digit or a special character.
+LISP_ID = PREFIX .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;

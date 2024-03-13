@@ -153,29 +153,42 @@ OUT1 = "*1" ->("call gn1")
 	| "*3" ->("call gn3")
 	| "*4" ->("call gn4")
 	| "*" (ID
-			->("mov edi, " *)
-			->("call print_mm32")
+			->("mov esi, " *)
+			->("mov edi, outbuff")
+			->("add edi, [outbuff_offset]")
+			->("call buffc")
+			->("add dword [outbuff_offset], eax")
 		| .EMPTY ->("call copy_last_match")
 	)
 	| "#" ID
-		->("mov edi, dword [" * "]")
-		->("call print_int")
+		->("mov esi, dword [" * "]")
+		->("mov edi, outbuff")
+		->("add edi, dword [outbuff_offset]")
+		->("call inttostr")
+		->("add dword [outbuff_offset], eax")
 	| "%" ->("mov edi, str_vector_8192")
 				->("call vector_pop_string")
-				->("call print_mm32")
+				->("mov esi, eax")
+				->("mov edi, outbuff")
+				->("add edi, [outbuff_offset]")
+				->("call buffc")
+				->("add dword [outbuff_offset], eax")
 	| STRING ->("print " *);
 
 OUT_IMMEDIATE = RAW ->(*);
 
 OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
 		| ".LABEL" ->("call label") "(" $(OUT1) ")" ->("call newline") 
-		| ".RS" "(" $ OUT1 ")")
+		| ".RS" "(" $(OUT1) ")")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
 EX3 = ID 
+		// Store call information for error handling
+			->("error_store '" * "'")
 			->("call vstack_clear")
 			->("call " *)
 			->("call vstack_restore")
+			->("call error_clear")
 	| STRING ->("test_input_string " *)
 	| ".RET"						->("ret")
 	| ".NOT" (STRING | NUMBER) ->("match_not " *)
@@ -243,17 +256,35 @@ EX3 = ID
 			->("call backtrack_clear")
 	| COMMENT;
 
-EX2 = (EX3 
-	->("cmp byte [eswitch], 1")
-	->("je " *1) | OUTPUT) $ (EX3 
-	->("cmp byte [eswitch], 1")
-	->("je terminate_program") | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3
+		->("cmp byte [eswitch], 1")
+		->("je " *1) | OUTPUT)
+	$(EX3 
+		->("cmp byte [eswitch], 1")
+		// We can register an error handler using the "@()" syntax.
+		// NOTE: Terminating here doesn't work with backtracking
+		// TODO: When using backtracking, this should be `je *1`
+		(("@"
+			// We're gonna kill the program, so why not just write into the buffer directly...
+			->("jne " *2)
+			->("mov dword [outbuff_offset], 0")
+			"(" $(OUT1) ")"
+			->("mov edi, outbuff")
+			->("call print_mm32")
+			->("mov eax, 1")
+			->("mov ebx, 1")
+			->("int 0x80")
+			.LABEL(*2 ":"))
+			| .EMPTY ->("je terminate_program"))
+		| OUTPUT)
+	.LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" 
 	->("cmp byte [eswitch], 0")
 	->("je " *1) EX2) .LABEL(*1 ":");
 
-DEFINITION = ID .LABEL(* ":") "=" EX1 (";" | .ERROR("Missing semicolon on char: " #input_string_offset)) ->("ret");
+DEFINITION = ID .LABEL(* ":") "=" EX1 ";"
+	@("Missing semicolon: " #cursor) ->("ret");
 
 // --------------------------------- Tokens ------------------------------------
 

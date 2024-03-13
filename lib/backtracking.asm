@@ -4,7 +4,7 @@ backtrack_store:
 		mov edi, bk_outbuff_offset
 		call vector_push
 		; Push the input buffer offset onto the stack
-		mov esi, dword [input_string_offset]
+		mov esi, dword [cursor]
 		mov edi, bk_inbuff_offset
 		call vector_push
 		; Save the token for later.
@@ -19,7 +19,7 @@ backtrack_restore:
 		; Pop the input position from the stack
 		mov esi, bk_inbuff_offset
 		call vector_pop
-		mov dword [input_string_offset], eax
+		mov dword [cursor], eax
 		; Pop the output position from the stack
 		mov esi, bk_outbuff_offset
 		call vector_pop

@@ -8,9 +8,6 @@ PROGRAM =
 	$((".TOKENS"
 		.LABEL("; -- Tokens --")
 			$(TOKEN_DEFINITION | COMMENT))
-		| (".CODE"
-		.LABEL("; -- Code --")
-			$(LISP | COMMENT))
 		| (".SYNTAX" ID
 		.LABEL("_start:")
 			->("mov esi, 0")
@@ -27,117 +24,6 @@ PROGRAM =
 			->("mov ebx, 0")
 			->("int 0x80")
   	$(DEFINITION | IMPORT_STATEMENT | COMMENT)));
-
-// ---------------------------------- Lisp -------------------------------------
-
-LISP = "[" 
-	(LISP_DEFINE
-	| ("defunc" "[" LISP_ID
-		.LABEL(* ":")
-			->("push ebp")
-			->("mov ebp, esp") 
-		$(LISP_ID) "]" LISP
-			->("pop eax")
-			->("mov esp, ebp")
-			->("pop ebp")
-			->("ret"))
-	| ("set" LISP_ID % LISP_ARG
-			->("pop eax")
-			->("mov dword [" % "], eax")
-			->("push eax"))
-	| ("+" LISP_ARG LISP_ARG
-			->("pop eax")
-			->("pop ebx")
-			->("add eax, ebx")
-			->("push eax"))
-	// Raw assembly instructions
-	| ("asm" RAW
-			->(*))
-	| LISP_FN_CALL)
-"]";
-
-LISP_DEFINE = "define" LISP_ID % %
-		->("; -- Define " * " --") (
-	(NUMBER
-	.LABEL("section .data")
-		->(% " dd " *)
-	.LABEL("section .text")
-		->("mov eax, " %))
-	| (STRING 
-	.LABEL("section .data")
-		->(% " db " * ", 0x00")
-	.LABEL("section .text")
-		->("mov eax, " %))
-	| (LISP_ID
-		.LABEL("section .data")
-			->(% " dd 0")
-		.LABEL("section .text")
-			->("mov eax, " *)
-			->("mov dword [" % "], eax"))
-	| ("&" LISP_ID
-	.LABEL("section .data")
-		->(% " dd 0")
-	.LABEL("section .text")
-		->("mov eax, [" * "]")
-		->("mov dword [" % "], eax"))
-	| (LISP
-	.LABEL("section .data")
-		->(% " dd 0")
-	.LABEL("section .text")
-		->("mov dword [" % "], eax"))
-);
-
-LISP_FN_CALL = LISP_ID % LISP_CALL_ARGS
-	->("call " %);
-
-LISP_CALL_ARGS = $(((NUMBER ->("mov esi, " *))
-	| (STRING 
-		.LABEL("section .data")
-			->(*3 " db " * ", 0x00")
-		.LABEL("section .text")
-			->("mov esi, " *3))
-	| (LISP_ID 
-		->("mov esi, " *))
-	| ("&" LISP_ID
-		->("mov esi, [" * "]"))
-	| LISP
-		->("pop esi"))
-	$(((NUMBER ->("mov edi, " *))
-		| (STRING 
-			.LABEL("section .data")
-				->(*3 " db " * ", 0x00")
-			.LABEL("section .text")
-				->("mov edi, " *3))
-		| (LISP_ID 
-			->("mov edi, " *))
-		| ("&" LISP_ID
-			->("mov edi, [" * "]"))
-		| LISP
-			->("pop edi"))
-		$(((NUMBER ->("mov edx, " *))
-		| (STRING 
-			.LABEL("section .data")
-				->(*3 " db " * ", 0x00")
-			.LABEL("section .text")
-				->("mov edx, " *3))
-		| (LISP_ID 
-			->("mov edx, " *))
-		| ("&" LISP_ID
-			->("mov edx, [" * "]"))
-		| LISP
-			->("pop edx")))));
-
-LISP_ARG = NUMBER ->("push " *)
-	| STRING 
-		.LABEL("section .data")
-			->(*3 " db " * ", 0x00")
-		.LABEL("section .text")
-			->("push " *3)
-	| LISP_ID 
-		->("push " *)
-	| "&" LISP_ID
-		->("push [" * "]")
-	| LISP;
 
 // -------------------------------- Includes -----------------------------------
 
@@ -166,7 +52,7 @@ OUT1 = "*1" ->("call gn1")
 		->("add edi, dword [outbuff_offset]")
 		->("call inttostr")
 		->("add dword [outbuff_offset], eax")
-	| "%" ->("mov edi, str_vector_8192")
+	| "%" ->("mov esi, str_vector_8192")
 				->("call vector_pop_string")
 				->("mov esi, eax")
 				->("mov edi, outbuff")
@@ -180,21 +66,15 @@ OUT_IMMEDIATE = RAW ->(*);
 OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
 		| ".LABEL" ->("call label") "(" $(OUT1) ")" ->("call newline") 
 		| ".RS" "(" $(OUT1) ")")
-		| ".DIRECT" "(" $ OUT_IMMEDIATE ")"
-		| ".ERROR"
-			// We're gonna kill the program, so why not just write into the buffer directly...
-			->("mov dword [outbuff_offset], 0")
-			"(" $(OUT1) ")"
-			->("mov edi, outbuff")
-			->("call print_mm32")
-			->("mov eax, 1")
-			->("mov ebx, 1")
-			->("int 0x80");
+		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
 EX3 = ID 
+		// Store call information for error handling
+			->("error_store '" * "'")
 			->("call vstack_clear")
 			->("call " *)
 			->("call vstack_restore")
+			->("call error_clear")
 	| STRING ->("test_input_string " *)
 	| ".RET"						->("ret")
 	| ".NOT" (STRING | NUMBER) ->("match_not " *)
@@ -230,7 +110,6 @@ EX3 = ID
 			->("cmp byte [eswitch], 0")
 			->("je " *1)
 			->("mov byte [eswitch], 0")
-	| LISP
 
 	// ----------------------- Tree generation semantics --------------------------
 	// Capture the last match as a tree node without childnodes
@@ -262,20 +141,36 @@ EX3 = ID
 			->("call backtrack_clear")
 	| COMMENT;
 
-EX2 = (EX3 
-	->("cmp byte [eswitch], 1")
-	->("je " *1) | OUTPUT) $ (EX3 
-	->("cmp byte [eswitch], 1")
-	// NOTE: Terminating here doesn't work with backtracking
-	// TODO: When using backtracking, this should be `je *1`
-	->("je terminate_program") | OUTPUT)
+EX2 = (EX3
+		->("cmp byte [eswitch], 1")
+		->("je " *1) | OUTPUT)
+	$(EX3 
+		->("cmp byte [eswitch], 1")
+		// We can register an error handler using the "@()" syntax.
+		// NOTE: Terminating here doesn't work with backtracking
+		// TODO: When using backtracking, this should be `je *1`
+		(("@"
+			// We're gonna kill the program, so why not just write into the buffer directly...
+			->("jne " *2)
+			->("mov dword [outbuff_offset], 0")
+			"(" $(OUT1) ")"
+			->("mov edi, outbuff")
+			->("call print_mm32")
+			->("call stacktrace")
+			->("mov eax, 1")
+			->("mov ebx, 1")
+			->("int 0x80")
+			.LABEL(*2 ":"))
+			| .EMPTY ->("je terminate_program"))
+		| OUTPUT)
 	.LABEL(*1 ":");
 
 EX1 = EX2 $ ("|" 
 	->("cmp byte [eswitch], 0")
 	->("je " *1) EX2) .LABEL(*1 ":");
 
-DEFINITION = ID .LABEL(* ":") "=" EX1 (";" | .ERROR("Missing semicolon on char: " #input_string_offset)) ->("ret");
+DEFINITION = ID .LABEL(* ":") "=" EX1 ";"
+	@("Missing semicolon: " #cursor) ->("ret");
 
 // --------------------------------- Tokens ------------------------------------
 
@@ -379,7 +274,3 @@ STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
 
 // Same as STRING but does not capture the double quotes.
 RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
-
-// An identifier name for the integrated lisp-like language
-// Supports any sequence of characters, digits, question marks, dashes and exclamation marks, may not start with a digit or a special character.
-LISP_ID = PREFIX .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;

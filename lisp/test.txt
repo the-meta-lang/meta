@@ -1,0 +1,20 @@
+[defunc [main a b]
+	[define x 6]
+	[add "Hello" "World"]]
+
+[defunc [add a b]
+	[while [lt a b]
+		[add a b]]]
+
+[defunc [iftest]
+	[if/else [lt a b]
+		[print 1]
+		[print 2]]]
+
+[asmmacro [add a b] 
+	"mov eax, 4"
+	"mov ebx, 2"]
+
+[define x 5]
+[define y 6]
+[add x y]
