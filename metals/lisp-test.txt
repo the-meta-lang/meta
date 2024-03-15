@@ -1,0 +1,8 @@
+// [defunc [strlen string]
+// 	[define length 0]
+// 	[while [!= &1[+ string length] 0]
+// 		[set! length [+ length 1]]]
+// 	[return length]]
+
+[defunc [add a b]
+	[+ 1 [+ 2 [+ &[+ 2 3] 4]]]]

@@ -1,0 +1,247 @@
+.SYNTAX LISP
+
+LISP =
+.DIRECT("section .data")
+.DIRECT("fn_arg_count dd 0")
+.DIRECT("fn_arg_num dd 0")
+.DIRECT("section .bss")
+.DIRECT("symbol_table resb 262144")
+.DIRECT("section .text")
+$(ROOT_BODY);
+
+ROOT_BODY = COMMENT | "[" (DEFUNC | DEFINE | SET | WHILE | IF_ELSE | IF | ASM | MOV | FUNC_CALL) "]";
+
+// ---------------------------------- body -------------------------------------
+
+BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | MOV | RETURN | FUNC_CALL) "]";
+
+// --------------------------------- arithmetic --------------------------------
+
+ARITHMETIC = ("+" ARITHMETIC_ARGS 
+	| "-" ARITHMETIC_ARGS
+		->("%stack sub")
+	| "*" ARITHMETIC_ARGS
+		->("%stack imul")
+	| "/" ARITHMETIC_ARGS
+		->("%stack idiv")
+	| "%" ARITHMETIC_ARGS
+		->("%stack mod")
+	| "==" ARITHMETIC_ARGS
+		->("%stack cmp eq")
+	| "!=" ARITHMETIC_ARGS
+		->("%stack cmp neq")
+	| "<" ARITHMETIC_ARGS
+		->("%stack cmp lt")
+	| ">" ARITHMETIC_ARGS
+		->("%stack cmp gt"));
+
+// ----------------------------- Arithmetic Args -------------------------------
+
+// Implement all different types of arithmetic argument combinations
+// like:
+//	 number, number
+//	 number, id
+//	 id, number
+//	 id, id
+// ...
+
+ARITHMETIC_ARGS = (NUMBER % (NUMBER
+			->("%add " % ", " *)
+		| ID
+			->("%add " % ", @" *)
+		| "[" (ARITHMETIC | FUNC_CALL) "]"
+			->("%add " % ", $")
+		| DEREFERENCE
+			->("%add " % ", $")
+		| STRING
+			->("%add " % ", " *)))
+	| ("[" (ARITHMETIC | FUNC_CALL) "]" (NUMBER
+			->("%add $, " *)
+		| ID
+			->("%add $, @" *)
+		| "[" (ARITHMETIC | FUNC_CALL) "]"
+			->("%add $, $")
+		| DEREFERENCE
+			->("%add $, $")
+		| STRING
+			->("%add $, " *)))
+	| (ID % (NUMBER
+			->("%add @" % ", " *)
+		| ID
+			->("%add @" % ", @" *)
+		| "[" (ARITHMETIC | FUNC_CALL) "]"
+			->("%add @" % ", $")
+		| DEREFERENCE
+			->("%add @" % ", $")
+		| STRING
+			->("%add @" % ", " *)))
+	| (DEREFERENCE (NUMBER
+			->("%add $, " *)
+		| ID
+			->("%add $, @" *)
+		| "[" (ARITHMETIC | FUNC_CALL) "]"
+			->("%add $, $")
+		| DEREFERENCE
+			->("%add $, $")
+		| STRING
+			->("%add $, " *)));
+
+// --------------------------------- return ------------------------------------
+
+RETURN = "return" ((NUMBER ->("%ret " *))
+	| (STRING 
+			->("%ret " *))
+	| ID
+			->("%ret @" *)
+	| DEREFERENCE
+		->("%ret $")
+	| "[" (FUNC_CALL | ARITHMETIC) "]"
+		->("%ret $"));
+
+// ---------------------------------- while ------------------------------------
+
+WHILE = "while" "["
+	.LABEL("while (")
+	(FUNC_CALL | ARITHMETIC)
+	.LABEL(") {") "]"
+	$(BODY)
+	.LABEL("}");
+
+// ----------------------------------- if --------------------------------------
+
+IF = "if" "[" 
+	.LABEL("if {")
+	.LABEL(".cond {")
+	(FUNC_CALL | ARITHMETIC)
+	.LABEL("}") "]"
+	.LABEL(".body {")
+	$BODY
+	.LABEL("}")
+	.LABEL("}");
+
+// --------------------------------- if/else -----------------------------------
+
+IF_ELSE = "if/else" "[" (FUNC_CALL | ARITHMETIC)
+	->("cmp eax, 1")
+	->("jne " *1) "]"
+	"[" $BODY "]"
+	->("jmp " *2)
+	.LABEL(*1 ":")
+	"[" $BODY "]"
+	.LABEL(*2 ":");
+
+// ----------------------------------- asm -------------------------------------
+
+ASM = "asm" RAW ->(*);
+
+MOV = "mov" ID % (
+	(ID | DEREFERENCE | "[" (FUNC_CALL | ARITHMETIC) "]")
+		->("mov " % ", eax")
+	| NUMBER
+		->("mov " % ", " *));
+
+// --------------------------------- define ------------------------------------
+
+DEFINE = "define" ID % (
+	(NUMBER
+		->("%var i32 @" % ", " *))
+	| (STRING
+		->("%var i32 @" % ", " *))
+	| (ID
+		->("%var i32 @" % ", @" *))
+	| (DEREFERENCE
+		->("%var i32 @" % ", $"))
+	| ("[" (FUNC_CALL | ARITHMETIC) "]"
+		->("%var i32 @" % ", $"))
+);
+
+// ----------------------------------- set -------------------------------------
+
+SET = "set!" ID % (
+	(NUMBER 
+		->("%set @" % ", " *))
+	| (STRING 
+		->("%set @" % ", " *))
+	| (ID 
+		->("%set @" % ", @" *))
+	| (DEREFERENCE
+		->("%set @" % ", $"))
+	| ("[" (FUNC_CALL | ARITHMETIC) "]"
+		->("%set @" % ", $"))
+);
+
+// ------------------------------- Dereference ---------------------------------
+
+DEREFERENCE = "&[" (FUNC_CALL | ARITHMETIC) 
+	->("%deref/dword $") "]"
+| "&1[" (FUNC_CALL | ARITHMETIC)
+	->("%deref/byte $") "]"
+| "&2[" (FUNC_CALL | ARITHMETIC)
+	->("%deref/word $") "]"
+| "&" (ID
+	->("%deref/dword @" *)
+	| DEREFERENCE 
+		->("%deref/dword $"));
+
+// --------------------------------- defunc ------------------------------------
+
+DEFUNC = "defunc" "[" ID
+	.RS("fn " * "(")
+	// Outputs the arguments as comma delimited list
+	// e.g. `i32 @a, i32 @b, i32 @c`
+	$((ID
+		.RS("i32 @" * ""))
+		($(ID
+		.RS(", " "i32 @" *)) | .EMPTY))
+	->(") {")
+	"]"
+		$(BODY)
+	->("%ret")
+	.LABEL("}");
+
+// ------------------------------ Function Call --------------------------------
+
+FUNC_CALL = ID % CALL_ARGS
+	->("call @" %);
+
+// ------------------------- Function Call Arguments ---------------------------
+
+CALL_ARGS = $(CALL_ARG);
+
+CALL_ARG = (NUMBER ->("%callarg " *))
+	| (STRING 
+			->("%callarg " *))
+	| ID
+			->("%callarg @" *)
+	| DEREFERENCE
+		->("%callarg $")
+	| "[" (FUNC_CALL | ARITHMETIC) "]"
+		->("%callarg $");
+
+// -------------------------------- Comments -----------------------------------
+
+COMMENT = "//" .NOT 10;
+
+.TOKENS
+
+// Remove any leading whitespace
+PREFIX = $.ANY(32!9!13!10);
+
+// Match numbers (sequence of digits)
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+
+// Match any digit
+DIGIT  = .ANY(48:57);
+
+// Match any sequence of characters and digits, may not start with a digit.
+ID     = PREFIX .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+// Matches any uppercase or lowercase character as well as underscore
+ALPHA  = .ANY(65:90!95!97:122) ;
+
+// Matches anything but double quotes that is enclosed by double quotes.
+// e.g. "hello world" but not "awd "inner" "
+STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+
+// Same as STRING but does not capture the double quotes.
+RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);

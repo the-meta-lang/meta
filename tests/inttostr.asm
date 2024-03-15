@@ -1,5 +1,5 @@
 section .data
-		number dd 12345678
+		number dd -10
 
 section .bss
 		dest resb 10
@@ -20,6 +20,17 @@ inttostr:
 		mov eax, esi
 		xor ecx, ecx ; Clear the counter
 		xor esi, esi ; Clear the length
+		test eax, eax
+		js .negative
+		jmp .divide_loop
+	.negative:
+		; We need to print a negative sign
+		mov byte [edi], 0x2D
+		inc edi
+		inc ecx
+		inc esi
+		; Then we need to print the number as negative
+		neg eax
 	.divide_loop:
 		cmp eax, 0
 		je .copy_loop

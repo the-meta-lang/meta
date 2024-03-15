@@ -1,0 +1,246 @@
+.SYNTAX METALS
+
+METALS =
+.DIRECT("section .data")
+.DIRECT("fn_arg_count dd 0")
+.DIRECT("fn_arg_num dd 0")
+.DIRECT("section .bss")
+.DIRECT("symbol_table resb 262144")
+.DIRECT("section .text")
+.LABEL("section .text")
+->("global _start")
+.LABEL("_start:")
+$(FUNCTION_DECLARATION | WHILE | STATEMENT)
+.LABEL("exit:")
+->("push ebp")
+->("mov ebp, esp")
+// Exit the program
+->("mov eax, 1")
+// Get the exit code from the first passed argument
+->("mov ebx, dword [ebp+8]")
+->("int 0x80");
+
+// -------------------------------- Functions ----------------------------------
+
+FUNCTION_DECLARATION = "fn"
+	// Skip the function so we don't accidentally enter it.
+	->("jmp " *1) ID
+	.LABEL(* ":")
+	"(" (FUNCTION_PARAM $("," FUNCTION_PARAM) | .EMPTY) ")"
+	.DIRECT("add dword [fn_arg_num], 2") "{"
+	->("push ebp")
+	->("mov ebp, esp")
+	FUNCTION_BODY
+	->("mov esp, ebp")
+	->("pop ebp")
+	->("ret")
+	.LABEL(*1 ":")
+"}";
+
+FUNCTION_PARAM = TYPE NAME
+	.DIRECT("inc dword [fn_arg_count] ; found new argument!")
+	.DIRECT("inc dword [fn_arg_num]")
+	.DIRECT("mov edx, dword [fn_arg_num]")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_set");
+
+FUNCTION_BODY = $(WHILE | STATEMENT);
+
+STATEMENT = ("%var" TYPE NAME 
+		// write the index into the symbol table
+		.DIRECT("inc dword [fn_arg_num]")
+		.DIRECT("mov edx, dword [fn_arg_num]")
+		.DIRECT("mov edi, symbol_table")
+		.DIRECT("mov esi, last_match")
+		.DIRECT("call hash_set")
+		"," VALUE MOV_INTO ->("eax"))
+	| ("%push" VALUE
+			->("push eax"))
+	| ("%add" ARITHMETIC_OPERATION_ARGS
+			->("add eax, ebx"))
+	| ("%cmp" CMP_OPERATOR)
+	| ("%deref/byte" VALUE
+			->("mov eax, byte [eax]"))
+	| ("%deref/word" VALUE
+			->("mov eax, word [eax]"))
+	| ("%deref/dword" VALUE
+			->("mov eax, dword [eax]"))
+	| ("%set" NAME % "," VALUE
+		SET_INTO ->("eax"))
+	| ("%ret" (VALUE | .EMPTY)
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("ret"))
+	| (ID % FUNCTION_CALL_ARGS
+		->("call " %));
+
+FUNCTION_CALL_ARGS = (FUNCTION_CALL_ARG $("," FUNCTION_CALL_ARG) | .EMPTY);
+
+FUNCTION_CALL_ARG = NUMBER
+		->("mov esi, " *)
+	| STRING
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov esi, " *3)
+	| SYMBOL_TABLE_ID
+		->("mov esi, eax")
+	| RESULT_SPECIFIER
+		->("mov esi, eax");
+
+ARITHMETIC_OPERATION_ARGS = (NUMBER % "," (
+		NUMBER
+			->("mov ebx, " *)
+		// TODO: Change to generics SYMBOL_TABLE_ID<"ebx">	
+		| SYMBOL_TABLE_ID
+		| RESULT_SPECIFIER
+			->("mov ebx, eax"))
+			->("mov eax, " %))
+	| (RESULT_SPECIFIER "," (
+			NUMBER
+			->("mov ebx, " *)
+		| SYMBOL_TABLE_ID
+		| RESULT_SPECIFIER
+			->("mov ebx, eax")))
+	| (SYMBOL_TABLE_ID "," (
+			NUMBER
+			->("mov ebx, " *)
+		| SYMBOL_TABLE_ID
+		| RESULT_SPECIFIER
+			->("mov ebx, eax")));
+
+SET_INTO = 
+	.RS("mov [ebp")
+	// set the value of the variable
+	// we can use the symbol table to get the index of the variable
+	// then calculate the offset by doing `8 + (arg_count - index) * 4`
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, str_vector_8192")
+	.DIRECT("call vector_pop_string")
+	.DIRECT("mov esi, eax")
+	.DIRECT("call hash_get") // index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax")
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	.RS("], ");
+
+MOV_INTO = .RS("mov dword [ebp")
+	// use the symbol table to get the index of the variable
+	// then calculate the offset by doing `8 + (arg_count - index) * 4`
+	.DIRECT("mov eax, dword [fn_arg_num]") // index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax")
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	.RS("], ");
+
+// --------------------------------- Types ------------------------------------
+
+TYPE = "i32";
+
+CMP_OPERATOR =
+	("neq"
+		->("pop ebx")
+		->("pop eax")
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setne al"))
+	| "eq"
+	| "lt"
+	| "gt";
+
+VALUE = NUMBER
+		->("mov eax, " *)
+	| STRING
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov eax, " *3)
+	| SYMBOL_TABLE_ID
+	| RESULT_SPECIFIER;
+
+// TODO: Replace with generics
+
+VALUE_EBX = NUMBER
+		->("mov ebx, " *)
+	| STRING
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov ebx, " *3)
+	| SYMBOL_TABLE_ID
+	| RESULT_SPECIFIER;
+
+RESULT_SPECIFIER = "$";
+
+SYMBOL_TABLE_ID = NAME
+	// We need to get the index of the argument from the symbol table
+	// We can do this by doing `8 + (arg_count - index) * 4`
+	// This will account for the 8 bytes of the function call (esp and ip)
+	.RS("mov eax, dword [ebp")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax") // print the number
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	->("] ; get " *);
+
+// ---------------------------------- While ------------------------------------
+
+WHILE = "while" "(" .LABEL(*1 ":") $(STATEMENT) 
+	->("cmp al, 1")
+	// Jump to the end of the while loop if the condition is false
+	->("jne " *2) ")" "{"
+	$(STATEMENT)
+	->("jmp " *1)
+	.LABEL(*2 ":")
+"}";
+
+// -------------------------------- Comments -----------------------------------
+
+COMMENT = "//" .NOT 10;
+
+.TOKENS
+
+// Remove any leading whitespace
+PREFIX = $.ANY(32!9!13!10);
+
+// Match numbers (sequence of digits)
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+
+// Match any digit
+DIGIT  = .ANY(48:57);
+
+// Match any sequence of characters and digits, may not start with a digit.
+ID     = PREFIX .RESERVED("while") .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+NAME = PREFIX .ANY(64) .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+// Matches any uppercase or lowercase character as well as underscore
+ALPHA  = .ANY(65:90!95!97:122) ;
+
+// Matches anything but double quotes that is enclosed by double quotes.
+// e.g. "hello world" but not "awd "inner" "
+STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+
+// Same as STRING but does not capture the double quotes.
+RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);

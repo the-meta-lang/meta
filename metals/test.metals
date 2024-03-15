@@ -1,0 +1,26 @@
+fn strlen(i32 @string) {
+	%var i32 @length, 0
+    
+	while (
+		%add @string, @length
+		%deref/byte $
+		%push $
+		%push 0
+		%cmp neq
+	) {
+		%add @length, 1
+		%set @length, $
+	}
+	%ret @length
+}
+
+fn add(i32 @a, i32 @b) {
+	%add 2, 3
+	%deref/dword $
+	%add $, 4
+	%add 2, $
+	%add 1, $
+	%ret
+}
+
+add 2, 3

@@ -97,3 +97,27 @@ Defines an assembler macro with a name and a list of arguments. The body consist
 ```
 
 And that's it...
+
+
+## Calling
+
+```
+[main 1 2 3]
+```
+
+```
+Stack
+
+x - 1  (+16)
+y - 2	 (+12)
+z - 3  (+8)
+ip
+fp <- esp
+```
+
+arg_count = 3
+arg_num = 3
+
+If we now want to get `z` we can do `mov eax, [ebp+8]` but how do we calculate that?
+
+`(arg_count - arg_num) * 4`
