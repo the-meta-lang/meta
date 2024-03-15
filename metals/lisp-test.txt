@@ -5,4 +5,4 @@
 // 	[return length]]
 
 [defunc [add a b]
-	[+ 1 [+ 2 [+ &[+ 2 3] 4]]]]
+	[+ a b]]

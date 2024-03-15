@@ -25,6 +25,12 @@ METALS:
     section .data
     fn_arg_count dd 0
     fn_arg_num dd 0
+    cmp byte [eswitch], 1
+    je terminate_program
+    in_body db 0
+    cmp byte [eswitch], 1
+    je terminate_program
+    returns_from_body db 0
     section .bss
     symbol_table resb 262144
     section .text
@@ -181,6 +187,8 @@ LA13:
     call error_clear
     cmp byte [eswitch], 1
     je terminate_program
+    mov dword [fn_arg_num], 0
+    mov dword [fn_arg_count], 0
     print "mov esp, ebp"
     call newline
     print "pop ebp"

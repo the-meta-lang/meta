@@ -4,6 +4,10 @@ METALS =
 .DIRECT("section .data")
 .DIRECT("fn_arg_count dd 0")
 .DIRECT("fn_arg_num dd 0")
+// Keep track of whether we are in the root body of a function
+.DIRECT("in_body db 0")
+// Check whether we already returned at a root level, then we don't have to output the default return
+.DIRECT("returns_from_body db 0")
 .DIRECT("section .bss")
 .DIRECT("symbol_table resb 262144")
 .DIRECT("section .text")
@@ -31,6 +35,8 @@ FUNCTION_DECLARATION = "fn"
 	->("push ebp")
 	->("mov ebp, esp")
 	FUNCTION_BODY
+	.DIRECT("mov dword [fn_arg_num], 0")
+	.DIRECT("mov dword [fn_arg_count], 0")
 	->("mov esp, ebp")
 	->("pop ebp")
 	->("ret")

@@ -1,6 +1,12 @@
 .SYNTAX PROGRAM
 
 PROGRAM = 
+.DIRECT("section .data")
+.DIRECT("fn_arg_count dd 0")
+.DIRECT("fn_arg_num dd 0")
+.DIRECT("section .bss")
+.DIRECT("symbol_table resb 262144")
+.DIRECT("section .text")
 .LABEL("%define MAX_INPUT_LENGTH 65536")
 .LABEL("%include './lib/asm_macros.asm'")
 .LABEL("section .text")
@@ -38,16 +44,16 @@ OUT1 = "*1" ->("call gn1")
 	| "*2" ->("call gn2")
 	| "*3" ->("call gn3")
 	| "*4" ->("call gn4")
-	| "*" (ID
-			->("mov esi, " *)
+	| "*" (
+			GET_REFERENCE
 			->("mov edi, outbuff")
 			->("add edi, [outbuff_offset]")
 			->("call buffc")
 			->("add dword [outbuff_offset], eax")
 		| .EMPTY ->("call copy_last_match")
 	)
-	| "#" ID
-		->("mov esi, dword [" * "]")
+	| "#"
+		GET_REFERENCE
 		->("mov edi, outbuff")
 		->("add edi, dword [outbuff_offset]")
 		->("call inttostr")
@@ -61,6 +67,25 @@ OUT1 = "*1" ->("call gn1")
 				->("add dword [outbuff_offset], eax")
 	| STRING ->("print " *);
 
+GET_REFERENCE = ID
+	// We need to get the index of the argument from the symbol table
+	// We can do this by doing `8 + (arg_count - index) * 4`
+	// This will account for the 8 bytes of the function call (esp and ip)
+	.RS("mov esi, dword [ebp")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax") // print the number
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	->("] ; get " *);
+
 OUT_IMMEDIATE = RAW ->(*);
 
 OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
@@ -68,11 +93,12 @@ OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
 		| ".RS" "(" $(OUT1) ")")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
-EX3 = ID 
+EX3 = ID %
 		// Store call information for error handling
 			->("error_store '" * "'")
 			->("call vstack_clear")
-			->("call " *)
+			(("<" GENERIC_ARGS ">") | .EMPTY)
+			->("call " %)
 			->("call vstack_restore")
 			->("call error_clear")
 	| STRING ->("test_input_string " *)
@@ -169,8 +195,35 @@ EX1 = EX2 $ ("|"
 	->("cmp byte [eswitch], 0")
 	->("je " *1) EX2) .LABEL(*1 ":");
 
-DEFINITION = ID .LABEL(* ":") "=" EX1 ";"
-	@("Missing semicolon: " #cursor) ->("ret");
+// Generics can be defined like this:
+// DEFINITION<arg1, arg2>
+// and used like this:
+// : *arg1 *arg2 or #arg1 depending on the data type (string | int)
+DEFINITION = ID 
+	.LABEL(* ":")
+		->("push ebp")
+		->("mov ebp, esp")
+	("<" GENERIC $("," GENERIC) ">" | .EMPTY) "=" EX1 ";"
+		// @("Missing semicolon: " #cursor)
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("ret");
+
+GENERIC = ID
+	.DIRECT("inc dword [fn_arg_count] ; found new argument!")
+	.DIRECT("inc dword [fn_arg_num]")
+	.DIRECT("mov edx, dword [fn_arg_num]")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_set");
+
+GENERIC_ARGS = GENERIC_ARG $("," GENERIC_ARG) | .EMPTY;
+
+// TODO: Support nested generic movements
+GENERIC_ARG = NUMBER 
+		->("push " *)
+	| STRING 
+		->("push " *);
 
 // --------------------------------- Tokens ------------------------------------
 
