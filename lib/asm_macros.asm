@@ -129,10 +129,7 @@ section .text
 %endmacro
 
 newline:
-		save_machine_state ; Save the flags register
-		call label
-		print "    "
-		restore_machine_state ; Restore the flags register
+		print 0x0A
 		ret
 
 ; Prints a newline character

@@ -65,31 +65,45 @@ OUT1 = "*1" ->("call gn1")
 				->("add edi, [outbuff_offset]")
 				->("call buffc")
 				->("add dword [outbuff_offset], eax")
+	| ".NL"
+		->("print 0x0A")
+	| ".TB"
+		->("print '    '")
 	| STRING ->("print " *);
 
 GET_REFERENCE = ID
 	// We need to get the index of the argument from the symbol table
 	// We can do this by doing `8 + (arg_count - index) * 4`
 	// This will account for the 8 bytes of the function call (esp and ip)
-	.RS("mov esi, dword [ebp")
-	.DIRECT("mov edi, symbol_table")
-	.DIRECT("mov esi, last_match")
-	.DIRECT("call hash_get") // Index is now in eax
-	.DIRECT("mov ebx, dword [fn_arg_count]")
-	.DIRECT("sub ebx, eax") // (arg_count - index)
-	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
-	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
-	.DIRECT("mov esi, eax") // print the number
-	.DIRECT("mov edi, outbuff")
-	.DIRECT("add edi, dword [outbuff_offset]")
-	.DIRECT("call inttostrsigned")
-	.DIRECT("add dword [outbuff_offset], eax")
-	->("] ; get " *);
+	// .RS("mov esi, dword [ebp")
+	// .DIRECT("mov edi, symbol_table")
+	// .DIRECT("mov esi, last_match")
+	// .DIRECT("call hash_get") // Index is now in eax
+	// .DIRECT("mov ebx, dword [fn_arg_count]")
+	// .DIRECT("sub ebx, eax") // (arg_count - index)
+	// .DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	// .DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	// .DIRECT("mov esi, eax") // print the number
+	// .DIRECT("mov edi, outbuff")
+	// .DIRECT("add edi, dword [outbuff_offset]")
+	// .DIRECT("call inttostrsigned")
+	// .DIRECT("add dword [outbuff_offset], eax")
+	// ->("] ; get " *)
+	->("pop esi")
+	->("push esi");
 
 OUT_IMMEDIATE = RAW ->(*);
 
-OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline")
-		| ".LABEL" ->("call label") "(" $(OUT1) ")" ->("call newline") 
+OUTPUT = ("->" "(" $(OUT1) ")"
+			->("print 0x0A")
+			->("print '    '")
+		// UF stands for Unformatted and will not automatically include a newline or a tab
+		| ".UF" "(" $(OUT1) ")"
+		| ".LABEL" 
+			->("call label") 
+			"(" $(OUT1) ")"
+			->("print 0x0A")
+			->("print '    '")
 		| ".RS" "(" $(OUT1) ")")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
@@ -97,7 +111,7 @@ EX3 = ID %
 		// Store call information for error handling
 			->("error_store '" * "'")
 			->("call vstack_clear")
-			(("<" GENERIC_ARGS ">") | .EMPTY)
+			(("<" (GENERIC_ARG $("," GENERIC_ARG) | .EMPTY) ">") | .EMPTY)
 			->("call " %)
 			->("call vstack_restore")
 			->("call error_clear")
@@ -203,8 +217,10 @@ DEFINITION = ID
 	.LABEL(* ":")
 		->("push ebp")
 		->("mov ebp, esp")
+		->("push esi")
 	("<" GENERIC $("," GENERIC) ">" | .EMPTY) "=" EX1 ";"
 		// @("Missing semicolon: " #cursor)
+		->("pop esi")
 		->("mov esp, ebp")
 		->("pop ebp")
 		->("ret");
@@ -217,13 +233,17 @@ GENERIC = ID
 	.DIRECT("mov esi, last_match")
 	.DIRECT("call hash_set");
 
-GENERIC_ARGS = GENERIC_ARG $("," GENERIC_ARG) | .EMPTY;
-
 // TODO: Support nested generic movements
 GENERIC_ARG = NUMBER 
-		->("push " *)
+		->("mov esi, " *)
 	| STRING 
-		->("push " *);
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov esi, " *3)
+	| ID
+		->("pop esi")
+		->("push esi");
 
 // --------------------------------- Tokens ------------------------------------
 

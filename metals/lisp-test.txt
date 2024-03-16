@@ -5,4 +5,15 @@
 // 	[return length]]
 
 [defunc [add a b]
-	[+ a b]]
+	[add 1 [add 3 4] [add 2 3]]]
+
+// [defunc [add a b]
+// 	[+ [+ 3 4] [+ 2 3]]]
+
+// [defunc [reverse array]
+// 	[define arraylength &array]
+// 	//[define tmparray [malloc arraylength]]
+// 	[define i arraylength]
+// 	[while [!= i 0]
+// 		[define value [pop array]
+// 		[push tmparray value]]]]

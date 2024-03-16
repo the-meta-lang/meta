@@ -4,7 +4,10 @@ LISP =
 .DIRECT("section .data")
 .DIRECT("fn_arg_count dd 0")
 .DIRECT("fn_arg_num dd 0")
+.DIRECT("call_arg_count dd 0")
+.DIRECT("indent dd 0")
 .DIRECT("section .bss")
+.DIRECT("call_arg_count_vector resb 512")
 .DIRECT("symbol_table resb 262144")
 .DIRECT("section .text")
 $(ROOT_BODY);
@@ -17,23 +20,15 @@ BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | M
 
 // --------------------------------- arithmetic --------------------------------
 
-ARITHMETIC = ("+" ARITHMETIC_ARGS 
-	| "-" ARITHMETIC_ARGS
-		->("%stack sub")
-	| "*" ARITHMETIC_ARGS
-		->("%stack imul")
-	| "/" ARITHMETIC_ARGS
-		->("%stack idiv")
-	| "%" ARITHMETIC_ARGS
-		->("%stack mod")
-	| "==" ARITHMETIC_ARGS
-		->("%stack cmp eq")
-	| "!=" ARITHMETIC_ARGS
-		->("%stack cmp neq")
-	| "<" ARITHMETIC_ARGS
-		->("%stack cmp lt")
-	| ">" ARITHMETIC_ARGS
-		->("%stack cmp gt"));
+ARITHMETIC = ("+" ARITHMETIC_ARGS<"%add">
+	| "-" ARITHMETIC_ARGS<"%sub">
+	| "*" ARITHMETIC_ARGS<"%imul">
+	| "/" ARITHMETIC_ARGS<"%idiv">
+	| "%" ARITHMETIC_ARGS<"%mod">
+	| "==" ARITHMETIC_ARGS<"%eq">
+	| "!=" ARITHMETIC_ARGS<"%neq">
+	| "<" ARITHMETIC_ARGS<"%lt">
+	| ">" ARITHMETIC_ARGS<"%gt">);
 
 // ----------------------------- Arithmetic Args -------------------------------
 
@@ -45,182 +40,233 @@ ARITHMETIC = ("+" ARITHMETIC_ARGS
 //	 id, id
 // ...
 
-ARITHMETIC_ARGS = (NUMBER % (NUMBER
-			->("%add " % ", " *)
+ARITHMETIC_ARGS<op> = (NUMBER % (NUMBER
+			TAB .UF(*op " " % ", " * .NL)
 		| ID
-			->("%add " % ", @" *)
+			TAB .UF(*op " " % ", @" * .NL)
 		| "[" (ARITHMETIC | FUNC_CALL) "]"
-			->("%add " % ", $")
+			TAB .UF(*op " " % ", $" .NL)
 		| DEREFERENCE
-			->("%add " % ", $")
+			TAB .UF(*op " " % ", $" .NL)
 		| STRING
-			->("%add " % ", " *)))
+			TAB .UF(*op " " % ", " * .NL)))
 	| ("[" (ARITHMETIC | FUNC_CALL) "]" (NUMBER
-			->("%add $, " *)
+			TAB .UF(*op " $, " * .NL)
 		| ID
-			->("%add $, @" *)
+			TAB .UF(*op " $, @" * .NL)
 		| "[" (ARITHMETIC | FUNC_CALL) "]"
-			->("%add $, $")
+			TAB .UF(*op " $, $" .NL)
 		| DEREFERENCE
-			->("%add $, $")
+			TAB .UF(*op " $, $" .NL)
 		| STRING
-			->("%add $, " *)))
+			TAB .UF(*op " $, " * .NL)))
 	| (ID % (NUMBER
-			->("%add @" % ", " *)
+			TAB .UF(*op " @" % ", " * .NL)
 		| ID
-			->("%add @" % ", @" *)
+			TAB .UF(*op " @" % ", @" * .NL)
 		| "[" (ARITHMETIC | FUNC_CALL) "]"
-			->("%add @" % ", $")
+			TAB .UF(*op " @" % ", $" .NL)
 		| DEREFERENCE
-			->("%add @" % ", $")
+			TAB .UF(*op " @" % ", $" .NL)
 		| STRING
-			->("%add @" % ", " *)))
+			TAB .UF(*op " @" % ", " * .NL)))
 	| (DEREFERENCE (NUMBER
-			->("%add $, " *)
+			TAB .UF(*op " $, " * .NL)
 		| ID
-			->("%add $, @" *)
+			TAB .UF(*op " $, @" * .NL)
 		| "[" (ARITHMETIC | FUNC_CALL) "]"
-			->("%add $, $")
+			TAB .UF(*op " $, $" .NL)
 		| DEREFERENCE
-			->("%add $, $")
+			TAB .UF(*op " $, $" .NL)
 		| STRING
-			->("%add $, " *)));
+			TAB .UF(*op " $, " * .NL)));
 
 // --------------------------------- return ------------------------------------
 
-RETURN = "return" ((NUMBER ->("%ret " *))
+RETURN = "return" ((NUMBER TAB .UF("%ret " * .NL))
 	| (STRING 
-			->("%ret " *))
+			TAB .UF("%ret " * .NL))
 	| ID
-			->("%ret @" *)
+			TAB .UF("%ret @" * .NL)
 	| DEREFERENCE
-		->("%ret $")
+		TAB .UF("%ret $" .NL)
 	| "[" (FUNC_CALL | ARITHMETIC) "]"
-		->("%ret $"));
+		TAB .UF("%ret $" .NL));
 
 // ---------------------------------- while ------------------------------------
 
 WHILE = "while" "["
-	.LABEL("while (")
+	TAB .UF("while (" .NL)
+	.DIRECT("inc dword [indent]")
 	(FUNC_CALL | ARITHMETIC)
-	.LABEL(") {") "]"
-	$(BODY)
-	.LABEL("}");
+	.DIRECT("dec dword [indent]")
+	TAB .UF(") {" .NL) "]"
+	.DIRECT("inc dword [indent]")
+	$BODY
+	.DIRECT("dec dword [indent]")
+	TAB .UF("}" .NL);
 
 // ----------------------------------- if --------------------------------------
 
 IF = "if" "[" 
-	.LABEL("if {")
-	.LABEL(".cond {")
+	TAB .UF("if (" .NL)
+	.DIRECT("inc dword [indent]")
 	(FUNC_CALL | ARITHMETIC)
-	.LABEL("}") "]"
-	.LABEL(".body {")
+	.DIRECT("dec dword [indent]")
+	TAB .UF(") {" .NL) "]"
+	.DIRECT("inc dword [indent]")
 	$BODY
-	.LABEL("}")
-	.LABEL("}");
+	.DIRECT("dec dword [indent]")
+	TAB .UF("}" .NL);
 
 // --------------------------------- if/else -----------------------------------
 
 IF_ELSE = "if/else" "[" (FUNC_CALL | ARITHMETIC)
-	->("cmp eax, 1")
-	->("jne " *1) "]"
+	TAB .UF("cmp eax, 1" .NL)
+	TAB .UF("jne " *1 .NL) "]"
 	"[" $BODY "]"
-	->("jmp " *2)
-	.LABEL(*1 ":")
+	TAB .UF("jmp " *2 .NL)
+	.UF(*1 ":" .NL)
 	"[" $BODY "]"
-	.LABEL(*2 ":");
+	.UF(*2 ":" .NL);
 
 // ----------------------------------- asm -------------------------------------
 
-ASM = "asm" RAW ->(*);
+ASM = "asm" RAW TAB .UF(* .NL);
 
 MOV = "mov" ID % (
 	(ID | DEREFERENCE | "[" (FUNC_CALL | ARITHMETIC) "]")
-		->("mov " % ", eax")
+		TAB .UF("mov " % ", eax" .NL)
 	| NUMBER
-		->("mov " % ", " *));
+		TAB .UF("mov " % ", " * .NL));
 
 // --------------------------------- define ------------------------------------
 
 DEFINE = "define" ID % (
 	(NUMBER
-		->("%var i32 @" % ", " *))
+		TAB .UF("%var i32 @" % ", " * .NL))
 	| (STRING
-		->("%var i32 @" % ", " *))
+		TAB .UF("%var i32 @" % ", " * .NL))
 	| (ID
-		->("%var i32 @" % ", @" *))
+		TAB .UF("%var i32 @" % ", @" * .NL))
 	| (DEREFERENCE
-		->("%var i32 @" % ", $"))
+		TAB .UF("%var i32 @" % ", $" .NL))
 	| ("[" (FUNC_CALL | ARITHMETIC) "]"
-		->("%var i32 @" % ", $"))
+		TAB .UF("%var i32 @" % ", $" .NL))
 );
 
 // ----------------------------------- set -------------------------------------
 
 SET = "set!" ID % (
 	(NUMBER 
-		->("%set @" % ", " *))
+		TAB .UF("%set @" % ", " * .NL))
 	| (STRING 
-		->("%set @" % ", " *))
+		TAB .UF("%set @" % ", " * .NL))
 	| (ID 
-		->("%set @" % ", @" *))
+		TAB .UF("%set @" % ", @" * .NL))
 	| (DEREFERENCE
-		->("%set @" % ", $"))
+		TAB .UF("%set @" % ", $" .NL))
 	| ("[" (FUNC_CALL | ARITHMETIC) "]"
-		->("%set @" % ", $"))
+		TAB .UF("%set @" % ", $" .NL))
 );
 
 // ------------------------------- Dereference ---------------------------------
 
 DEREFERENCE = "&[" (FUNC_CALL | ARITHMETIC) 
-	->("%deref/dword $") "]"
+	TAB .UF("%deref/dword $" .NL) "]"
 | "&1[" (FUNC_CALL | ARITHMETIC)
-	->("%deref/byte $") "]"
+	TAB .UF("%deref/byte $" .NL) "]"
 | "&2[" (FUNC_CALL | ARITHMETIC)
-	->("%deref/word $") "]"
+	TAB .UF("%deref/word $" .NL) "]"
 | "&" (ID
-	->("%deref/dword @" *)
+	TAB .UF("%deref/dword @" * .NL)
 	| DEREFERENCE 
-		->("%deref/dword $"));
+		TAB .UF("%deref/dword $" .NL));
 
 // --------------------------------- defunc ------------------------------------
 
 DEFUNC = "defunc" "[" ID
-	.RS("fn " * "(")
+	.DIRECT("inc dword [indent]")
+	.UF("fn " * "(")
 	// Outputs the arguments as comma delimited list
 	// e.g. `i32 @a, i32 @b, i32 @c`
 	$((ID
-		.RS("i32 @" * ""))
+		.UF("i32 @" * ""))
 		($(ID
-		.RS(", " "i32 @" *)) | .EMPTY))
-	->(") {")
+		.UF(", i32 @" *)) | .EMPTY))
+	.UF(") {" .NL)
 	"]"
 		$(BODY)
-	->("%ret")
-	.LABEL("}");
+	TAB .UF("%ret" .NL)
+	.UF("}" .NL .NL)
+	.DIRECT("dec dword [indent]");
 
 // ------------------------------ Function Call --------------------------------
 
-FUNC_CALL = ID % CALL_ARGS
-	->("call @" %);
+FUNC_CALL = ID % .DIRECT("inc dword [call_arg_count]") $(CALL_ARG)
+.DIRECT("mov esi, dword [call_arg_count]")
+.DIRECT("mov edi, call_arg_count_vector")
+.DIRECT("call vector_push")
+.DIRECT("mov dword [call_arg_count], 0")
+.DIRECT("mov esi, call_arg_count_vector")
+.DIRECT("call vector_pop")
+.DIRECT("push eax")
+.DIRECT("mov edi, str_vector_8192")
+.DIRECT("mov esi, eax")
+.DIRECT("call vector_reverse_n_string")
+TAB
+.DIRECT("pop eax")
+.DIRECT(".loop:")
+.DIRECT("push eax")
+.UF(% " ")
+.DIRECT("pop eax")
+.DIRECT("dec eax")
+.DIRECT("cmp eax, 0")
+.DIRECT("je .loop_end")
+.DIRECT("jmp .loop")
+.DIRECT(".loop_end:")
+.UF(.NL)
+;
 
-// ------------------------- Function Call Arguments ---------------------------
+CALL_ARG = NUMBER % .DIRECT("inc dword [call_arg_count]")
+	| "["
+	.DIRECT("section .data")
+	.DIRECT("dollar_sign db '$', 0x00")
+	.DIRECT("section .text")
+	.DIRECT("mov edi, str_vector_8192")
+	.DIRECT("mov esi, dollar_sign")
+	.DIRECT("call vector_push_string_mm32")
+	.DIRECT("mov esi, dword [call_arg_count]")
+	.DIRECT("mov edi, call_arg_count_vector")
+	.DIRECT("call vector_push")
+	.DIRECT("mov dword [call_arg_count], 0")
+	(FUNC_CALL)
+	.DIRECT("mov esi, call_arg_count_vector")
+	.DIRECT("call vector_pop")
+	.DIRECT("mov dword [call_arg_count], eax")
+	.DIRECT("add dword [call_arg_count], 1")
+	"]";
 
-CALL_ARGS = $(CALL_ARG);
-
-CALL_ARG = (NUMBER ->("%callarg " *))
-	| (STRING 
-			->("%callarg " *))
-	| ID
-			->("%callarg @" *)
-	| DEREFERENCE
-		->("%callarg $")
-	| "[" (FUNC_CALL | ARITHMETIC) "]"
-		->("%callarg $");
+	// add 2, 3
+	// add 1, $
+	// [+ 1 [+ 2 3]]
 
 // -------------------------------- Comments -----------------------------------
 
 COMMENT = "//" .NOT 10;
+
+// --------------------------------- Output ------------------------------------
+
+TAB = 
+.DIRECT("xor ecx, ecx")
+.DIRECT("mov eax, dword [indent]")
+.DIRECT(".loop:")
+.DIRECT("cmp eax, ecx")
+.DIRECT("je .loop_end")
+.DIRECT("inc ecx")
+.UF(.TB)
+.DIRECT("jmp .loop")
+.DIRECT(".loop_end:");
 
 .TOKENS
 

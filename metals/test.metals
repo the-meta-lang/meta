@@ -4,9 +4,7 @@ fn strlen(i32 @string) {
 	while (
 		%add @string, @length
 		%deref/byte $
-		%push $
-		%push 0
-		%cmp neq
+		%neq $, 0
 	) {
 		%add @length, 1
 		%set @length, $
@@ -19,4 +17,4 @@ fn add(i32 @a, i32 @b) {
     %ret
 }
 
-add 2, 3
+add 2, 3, 4, 5, 6

@@ -24,6 +24,7 @@ _start:
 PROGRAM:
     push ebp
     mov ebp, esp
+    push esi
     section .data
     fn_arg_count dd 0
     fn_arg_num dd 0
@@ -32,15 +33,19 @@ PROGRAM:
     section .text
     call label
     print "%define MAX_INPUT_LENGTH 65536"
-    call newline
+    print 0x0A
+    print '    '
     call label
     print "%include './lib/asm_macros.asm'"
-    call newline
+    print 0x0A
+    print '    '
     call label
     print "section .text"
-    call newline
+    print 0x0A
+    print '    '
     print "global _start"
-    call newline
+    print 0x0A
+    print '    '
     
 LA1:
     test_input_string ".TOKENS"
@@ -48,7 +53,8 @@ LA1:
     je LA2
     call label
     print "; -- Tokens --"
-    call newline
+    print 0x0A
+    print '    '
     
 LA3:
     error_store 'TOKEN_DEFINITION'
@@ -100,34 +106,48 @@ LA8:
     je terminate_program
     call label
     print "_start:"
-    call newline
+    print 0x0A
+    print '    '
     print "mov esi, 0"
-    call newline
+    print 0x0A
+    print '    '
     print "call premalloc"
-    call newline
+    print 0x0A
+    print '    '
     print "call _read_file_argument"
-    call newline
+    print 0x0A
+    print '    '
     print "call _read_file"
-    call newline
+    print 0x0A
+    print '    '
     print "push ebp"
-    call newline
+    print 0x0A
+    print '    '
     print "mov ebp, esp"
-    call newline
+    print 0x0A
+    print '    '
     print "call "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     print "pop ebp"
-    call newline
+    print 0x0A
+    print '    '
     print "mov edi, outbuff"
-    call newline
+    print 0x0A
+    print '    '
     print "call print_mm32"
-    call newline
+    print 0x0A
+    print '    '
     print "mov eax, 1"
-    call newline
+    print 0x0A
+    print '    '
     print "mov ebx, 0"
-    call newline
+    print 0x0A
+    print '    '
     print "int 0x80"
-    call newline
+    print 0x0A
+    print '    '
     
 LA11:
     error_store 'DEFINITION'
@@ -187,6 +207,7 @@ LA9:
 LA18:
     
 LA19:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -194,6 +215,7 @@ LA19:
 IMPORT_STATEMENT:
     push ebp
     mov ebp, esp
+    push esi
     test_input_string "import"
     cmp byte [eswitch], 1
     je LA20
@@ -214,6 +236,7 @@ IMPORT_STATEMENT:
 LA20:
     
 LA21:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -221,11 +244,13 @@ LA21:
 OUT1:
     push ebp
     mov ebp, esp
+    push esi
     test_input_string "*1"
     cmp byte [eswitch], 1
     je LA22
     print "call gn1"
-    call newline
+    print 0x0A
+    print '    '
     
 LA22:
     cmp byte [eswitch], 0
@@ -234,7 +259,8 @@ LA22:
     cmp byte [eswitch], 1
     je LA24
     print "call gn2"
-    call newline
+    print 0x0A
+    print '    '
     
 LA24:
     cmp byte [eswitch], 0
@@ -243,7 +269,8 @@ LA24:
     cmp byte [eswitch], 1
     je LA25
     print "call gn3"
-    call newline
+    print 0x0A
+    print '    '
     
 LA25:
     cmp byte [eswitch], 0
@@ -252,7 +279,8 @@ LA25:
     cmp byte [eswitch], 1
     je LA26
     print "call gn4"
-    call newline
+    print 0x0A
+    print '    '
     
 LA26:
     cmp byte [eswitch], 0
@@ -268,13 +296,17 @@ LA26:
     cmp byte [eswitch], 1
     je LA28
     print "mov edi, outbuff"
-    call newline
+    print 0x0A
+    print '    '
     print "add edi, [outbuff_offset]"
-    call newline
+    print 0x0A
+    print '    '
     print "call buffc"
-    call newline
+    print 0x0A
+    print '    '
     print "add dword [outbuff_offset], eax"
-    call newline
+    print 0x0A
+    print '    '
     
 LA28:
     cmp byte [eswitch], 0
@@ -283,7 +315,8 @@ LA28:
     cmp byte [eswitch], 1
     je LA30
     print "call copy_last_match"
-    call newline
+    print 0x0A
+    print '    '
     
 LA30:
     
@@ -305,13 +338,17 @@ LA27:
     cmp byte [eswitch], 1
     je terminate_program
     print "mov edi, outbuff"
-    call newline
+    print 0x0A
+    print '    '
     print "add edi, dword [outbuff_offset]"
-    call newline
+    print 0x0A
+    print '    '
     print "call inttostr"
-    call newline
+    print 0x0A
+    print '    '
     print "add dword [outbuff_offset], eax"
-    call newline
+    print 0x0A
+    print '    '
     
 LA31:
     cmp byte [eswitch], 0
@@ -320,21 +357,48 @@ LA31:
     cmp byte [eswitch], 1
     je LA32
     print "mov esi, str_vector_8192"
-    call newline
+    print 0x0A
+    print '    '
     print "call vector_pop_string"
-    call newline
+    print 0x0A
+    print '    '
     print "mov esi, eax"
-    call newline
+    print 0x0A
+    print '    '
     print "mov edi, outbuff"
-    call newline
+    print 0x0A
+    print '    '
     print "add edi, [outbuff_offset]"
-    call newline
+    print 0x0A
+    print '    '
     print "call buffc"
-    call newline
+    print 0x0A
+    print '    '
     print "add dword [outbuff_offset], eax"
-    call newline
+    print 0x0A
+    print '    '
     
 LA32:
+    cmp byte [eswitch], 0
+    je LA23
+    test_input_string ".NL"
+    cmp byte [eswitch], 1
+    je LA33
+    print "print 0x0A"
+    print 0x0A
+    print '    '
+    
+LA33:
+    cmp byte [eswitch], 0
+    je LA23
+    test_input_string ".TB"
+    cmp byte [eswitch], 1
+    je LA34
+    print "print '    '"
+    print 0x0A
+    print '    '
+    
+LA34:
     cmp byte [eswitch], 0
     je LA23
     error_store 'STRING'
@@ -343,14 +407,16 @@ LA32:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA33
+    je LA35
     print "print "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     
-LA33:
+LA35:
     
 LA23:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -358,49 +424,59 @@ LA23:
 GET_REFERENCE:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'ID'
     call vstack_clear
     call ID
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA34
+    je LA36
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
     je terminate_program
-    print "mov esi, dword [ebp"
-    mov edi, symbol_table
-    mov esi, last_match
-    call hash_get
     cmp byte [eswitch], 1
     je terminate_program
-    mov ebx, dword [fn_arg_count]
-    sub ebx, eax
     cmp byte [eswitch], 1
     je terminate_program
-    imul eax, ebx, 4
     cmp byte [eswitch], 1
     je terminate_program
-    add eax, 8
     cmp byte [eswitch], 1
     je terminate_program
-    mov esi, eax
     cmp byte [eswitch], 1
     je terminate_program
-    mov edi, outbuff
-    add edi, dword [outbuff_offset]
-    call inttostrsigned
-    add dword [outbuff_offset], eax
-    print "] ; get "
-    call copy_last_match
-    call newline
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "pop esi"
+    print 0x0A
+    print '    '
+    print "push esi"
+    print 0x0A
+    print '    '
     
-LA34:
+LA36:
     
-LA35:
+LA37:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -408,19 +484,22 @@ LA35:
 OUT_IMMEDIATE:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'RAW'
     call vstack_clear
     call RAW
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA36
+    je LA38
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     
-LA36:
+LA38:
     
-LA37:
+LA39:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -428,95 +507,67 @@ LA37:
 OUTPUT:
     push ebp
     mov ebp, esp
+    push esi
     test_input_string "->"
     cmp byte [eswitch], 1
-    je LA38
+    je LA40
     test_input_string "("
     cmp byte [eswitch], 1
     je terminate_program
-    
-LA39:
-    error_store 'OUT1'
-    call vstack_clear
-    call OUT1
-    call vstack_restore
-    call error_clear
-    cmp byte [eswitch], 1
-    je LA40
-    
-LA40:
     
 LA41:
-    cmp byte [eswitch], 0
-    je LA39
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je terminate_program
-    test_input_string ")"
-    cmp byte [eswitch], 1
-    je terminate_program
-    print "call newline"
-    call newline
-    
-LA38:
-    cmp byte [eswitch], 0
-    je LA42
-    test_input_string ".LABEL"
-    cmp byte [eswitch], 1
-    je LA43
-    print "call label"
-    call newline
-    test_input_string "("
-    cmp byte [eswitch], 1
-    je terminate_program
-    
-LA44:
     error_store 'OUT1'
     call vstack_clear
     call OUT1
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA45
+    je LA42
     
-LA45:
-    
-LA46:
-    cmp byte [eswitch], 0
-    je LA44
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je terminate_program
-    test_input_string ")"
-    cmp byte [eswitch], 1
-    je terminate_program
-    print "call newline"
-    call newline
+LA42:
     
 LA43:
     cmp byte [eswitch], 0
-    je LA42
-    test_input_string ".RS"
+    je LA41
+    mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA47
+    je terminate_program
+    test_input_string ")"
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "print 0x0A"
+    print 0x0A
+    print '    '
+    print "print '    '"
+    print 0x0A
+    print '    '
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA40:
+    cmp byte [eswitch], 0
+    je LA44
+    test_input_string ".UF"
+    cmp byte [eswitch], 1
+    je LA45
     test_input_string "("
     cmp byte [eswitch], 1
     je terminate_program
     
-LA48:
+LA46:
     error_store 'OUT1'
     call vstack_clear
     call OUT1
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA49
+    je LA47
     
-LA49:
+LA47:
     
-LA50:
+LA48:
     cmp byte [eswitch], 0
-    je LA48
+    je LA46
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
@@ -524,16 +575,50 @@ LA50:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA47:
+LA45:
+    cmp byte [eswitch], 0
+    je LA44
+    test_input_string ".LABEL"
+    cmp byte [eswitch], 1
+    je LA49
+    print "call label"
+    print 0x0A
+    print '    '
+    test_input_string "("
+    cmp byte [eswitch], 1
+    je terminate_program
     
-LA42:
+LA50:
+    error_store 'OUT1'
+    call vstack_clear
+    call OUT1
+    call vstack_restore
+    call error_clear
     cmp byte [eswitch], 1
     je LA51
     
 LA51:
+    
+LA52:
     cmp byte [eswitch], 0
-    je LA52
-    test_input_string ".DIRECT"
+    je LA50
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je terminate_program
+    test_input_string ")"
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "print 0x0A"
+    print 0x0A
+    print '    '
+    print "print '    '"
+    print 0x0A
+    print '    '
+    
+LA49:
+    cmp byte [eswitch], 0
+    je LA44
+    test_input_string ".RS"
     cmp byte [eswitch], 1
     je LA53
     test_input_string "("
@@ -541,11 +626,17 @@ LA51:
     je terminate_program
     
 LA54:
-    error_store 'OUT_IMMEDIATE'
+    error_store 'OUT1'
     call vstack_clear
-    call OUT_IMMEDIATE
+    call OUT1
     call vstack_restore
     call error_clear
+    cmp byte [eswitch], 1
+    je LA55
+    
+LA55:
+    
+LA56:
     cmp byte [eswitch], 0
     je LA54
     mov byte [eswitch], 0
@@ -557,7 +648,39 @@ LA54:
     
 LA53:
     
-LA52:
+LA44:
+    cmp byte [eswitch], 1
+    je LA57
+    
+LA57:
+    cmp byte [eswitch], 0
+    je LA58
+    test_input_string ".DIRECT"
+    cmp byte [eswitch], 1
+    je LA59
+    test_input_string "("
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA60:
+    error_store 'OUT_IMMEDIATE'
+    call vstack_clear
+    call OUT_IMMEDIATE
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 0
+    je LA60
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je terminate_program
+    test_input_string ")"
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA59:
+    
+LA58:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -565,13 +688,14 @@ LA52:
 EX3:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'ID'
     call vstack_clear
     call ID
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA55
+    je LA61
     mov edi, str_vector_8192
     mov esi, last_match
     call vector_push_string_mm32
@@ -582,39 +706,75 @@ EX3:
     print "error_store '"
     call copy_last_match
     print "'"
-    call newline
+    print 0x0A
+    print '    '
     print "call vstack_clear"
-    call newline
+    print 0x0A
+    print '    '
     test_input_string "<"
     cmp byte [eswitch], 1
-    je LA56
-    error_store 'GENERIC_ARGS'
+    je LA62
+    error_store 'GENERIC_ARG'
     call vstack_clear
-    call GENERIC_ARGS
+    call GENERIC_ARG
     call vstack_restore
     call error_clear
+    cmp byte [eswitch], 1
+    je LA63
+    
+LA64:
+    test_input_string ","
+    cmp byte [eswitch], 1
+    je LA65
+    error_store 'GENERIC_ARG'
+    call vstack_clear
+    call GENERIC_ARG
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA65:
+    
+LA66:
+    cmp byte [eswitch], 0
+    je LA64
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA63:
+    cmp byte [eswitch], 0
+    je LA67
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA68
+    
+LA68:
+    
+LA67:
     cmp byte [eswitch], 1
     je terminate_program
     test_input_string ">"
     cmp byte [eswitch], 1
     je terminate_program
     
-LA56:
+LA62:
     
-LA57:
+LA69:
     cmp byte [eswitch], 1
-    je LA58
+    je LA70
     
-LA58:
+LA70:
     cmp byte [eswitch], 0
-    je LA59
+    je LA71
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA60
+    je LA72
     
-LA60:
+LA72:
     
-LA59:
+LA71:
     cmp byte [eswitch], 1
     je terminate_program
     print "call "
@@ -625,88 +785,97 @@ LA59:
     add edi, [outbuff_offset]
     call buffc
     add dword [outbuff_offset], eax
-    call newline
+    print 0x0A
+    print '    '
     print "call vstack_restore"
-    call newline
+    print 0x0A
+    print '    '
     print "call error_clear"
-    call newline
+    print 0x0A
+    print '    '
     
-LA55:
+LA61:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     error_store 'STRING'
     call vstack_clear
     call STRING
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA62
+    je LA74
     print "test_input_string "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     
-LA62:
+LA74:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string ".RET"
     cmp byte [eswitch], 1
-    je LA63
+    je LA75
     print "ret"
-    call newline
+    print 0x0A
+    print '    '
     
-LA63:
+LA75:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string ".NOT"
     cmp byte [eswitch], 1
-    je LA64
+    je LA76
     error_store 'STRING'
     call vstack_clear
     call STRING
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA65
+    je LA77
     
-LA65:
+LA77:
     cmp byte [eswitch], 0
-    je LA66
+    je LA78
     error_store 'NUMBER'
     call vstack_clear
     call NUMBER
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA67
+    je LA79
     
-LA67:
+LA79:
     
-LA66:
+LA78:
     cmp byte [eswitch], 1
     je terminate_program
     print "match_not "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     
-LA64:
+LA76:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string "%"
     cmp byte [eswitch], 1
-    je LA68
+    je LA80
     print "mov edi, str_vector_8192"
-    call newline
+    print 0x0A
+    print '    '
     print "mov esi, last_match"
-    call newline
+    print 0x0A
+    print '    '
     print "call vector_push_string_mm32"
-    call newline
+    print 0x0A
+    print '    '
     
-LA68:
+LA80:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string "("
     cmp byte [eswitch], 1
-    je LA69
+    je LA81
     error_store 'EX1'
     call vstack_clear
     call EX1
@@ -718,21 +887,22 @@ LA68:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA69:
+LA81:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string ".EMPTY"
     cmp byte [eswitch], 1
-    je LA70
+    je LA82
     print "mov byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     
-LA70:
+LA82:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string "$<"
     cmp byte [eswitch], 1
-    je LA71
+    je LA83
     error_store 'NUMBER'
     call vstack_clear
     call NUMBER
@@ -742,15 +912,17 @@ LA70:
     je terminate_program
     call label
     print "section .data"
-    call newline
+    print 0x0A
+    print '    '
     print "MIN_ITER_"
     call gn3
     print " dd "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     test_input_string ":"
     cmp byte [eswitch], 1
-    je LA72
+    je LA84
     error_store 'NUMBER'
     call vstack_clear
     call NUMBER
@@ -762,22 +934,24 @@ LA70:
     call gn3
     print " dd "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     
-LA72:
+LA84:
     cmp byte [eswitch], 0
-    je LA73
+    je LA85
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA74
+    je LA86
     print "MAX_ITER_"
     call gn3
     print " dd 0xFFFFFFFF"
-    call newline
+    print 0x0A
+    print '    '
     
-LA74:
+LA86:
     
-LA73:
+LA85:
     cmp byte [eswitch], 1
     je terminate_program
     test_input_string ">"
@@ -785,15 +959,19 @@ LA73:
     je terminate_program
     call label
     print "section .text"
-    call newline
+    print 0x0A
+    print '    '
     print "xor ecx, ecx"
-    call newline
+    print 0x0A
+    print '    '
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     print "push ecx"
-    call newline
+    print 0x0A
+    print '    '
     error_store 'EX3'
     call vstack_clear
     call EX3
@@ -802,45 +980,56 @@ LA73:
     cmp byte [eswitch], 1
     je terminate_program
     print "pop ecx"
-    call newline
+    print 0x0A
+    print '    '
     print "cmp ecx, dword [MAX_ITER_"
     call gn3
     print "]"
-    call newline
+    print 0x0A
+    print '    '
     print "jg "
     call gn2
-    call newline
+    print 0x0A
+    print '    '
     print "cmp ecx, dword [MIN_ITER_"
     call gn3
     print "]"
-    call newline
+    print 0x0A
+    print '    '
     print "jl "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     print "inc ecx"
-    call newline
+    print 0x0A
+    print '    '
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     call label
     call gn2
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     print "mov byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     
-LA71:
+LA83:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string "$"
     cmp byte [eswitch], 1
-    je LA75
+    je LA87
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     error_store 'EX3'
     call vstack_clear
     call EX3
@@ -849,12 +1038,15 @@ LA71:
     cmp byte [eswitch], 1
     je terminate_program
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     print "mov byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
@@ -862,12 +1054,12 @@ LA71:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA75:
+LA87:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string "::"
     cmp byte [eswitch], 1
-    je LA76
+    je LA88
     error_store 'ID'
     call vstack_clear
     call ID
@@ -878,18 +1070,19 @@ LA75:
     print "; Capture "
     call copy_last_match
     print " as single node"
-    call newline
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
     je terminate_program
     
-LA76:
+LA88:
     cmp byte [eswitch], 0
-    je LA77
+    je LA89
     test_input_string ":"
     cmp byte [eswitch], 1
-    je LA78
+    je LA90
     error_store 'ID'
     call vstack_clear
     call ID
@@ -911,24 +1104,25 @@ LA76:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA78:
+LA90:
     
-LA77:
+LA89:
     cmp byte [eswitch], 1
-    je LA79
+    je LA91
     cmp byte [eswitch], 1
     je terminate_program
     
-LA79:
+LA91:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     test_input_string "{"
     cmp byte [eswitch], 1
-    je LA80
+    je LA92
     cmp byte [eswitch], 1
     je terminate_program
     print "call backtrack_store"
-    call newline
+    print 0x0A
+    print '    '
     error_store 'EX1'
     call vstack_clear
     call EX1
@@ -937,10 +1131,10 @@ LA79:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA81:
+LA93:
     test_input_string "/"
     cmp byte [eswitch], 1
-    je LA82
+    je LA94
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
@@ -948,16 +1142,19 @@ LA81:
     cmp byte [eswitch], 1
     je terminate_program
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
     je terminate_program
     print "call backtrack_restore"
-    call newline
+    print 0x0A
+    print '    '
     error_store 'EX1'
     call vstack_clear
     call EX1
@@ -966,11 +1163,11 @@ LA81:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA82:
+LA94:
     
-LA83:
+LA95:
     cmp byte [eswitch], 0
-    je LA81
+    je LA93
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
@@ -978,35 +1175,41 @@ LA83:
     cmp byte [eswitch], 1
     je terminate_program
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     print "call backtrack_restore"
-    call newline
+    print 0x0A
+    print '    '
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     print "call backtrack_clear"
-    call newline
+    print 0x0A
+    print '    '
     
-LA80:
+LA92:
     cmp byte [eswitch], 0
-    je LA61
+    je LA73
     error_store 'COMMENT'
     call vstack_clear
     call COMMENT
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA84
+    je LA96
     
-LA84:
+LA96:
     
-LA61:
+LA73:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1014,46 +1217,50 @@ LA61:
 EX2:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'EX3'
     call vstack_clear
     call EX3
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA85
+    je LA97
     print "cmp byte [eswitch], 1"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     
-LA85:
+LA97:
     cmp byte [eswitch], 0
-    je LA86
+    je LA98
     error_store 'OUTPUT'
     call vstack_clear
     call OUTPUT
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA87
+    je LA99
     
-LA87:
+LA99:
     
-LA86:
+LA98:
     cmp byte [eswitch], 1
-    je LA88
+    je LA100
     
-LA89:
+LA101:
     error_store 'EX3'
     call vstack_clear
     call EX3
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA90
+    je LA102
     print "cmp byte [eswitch], 1"
-    call newline
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
@@ -1062,32 +1269,34 @@ LA89:
     je terminate_program
     test_input_string "@"
     cmp byte [eswitch], 1
-    je LA91
+    je LA103
     cmp byte [eswitch], 1
     je terminate_program
     print "jne "
     call gn2
-    call newline
+    print 0x0A
+    print '    '
     print "mov dword [outbuff_offset], 0"
-    call newline
+    print 0x0A
+    print '    '
     test_input_string "("
     cmp byte [eswitch], 1
     je terminate_program
     
-LA92:
+LA104:
     error_store 'OUT1'
     call vstack_clear
     call OUT1
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA93
+    je LA105
     
-LA93:
+LA105:
     
-LA94:
+LA106:
     cmp byte [eswitch], 0
-    je LA92
+    je LA104
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
@@ -1095,70 +1304,80 @@ LA94:
     cmp byte [eswitch], 1
     je terminate_program
     print "mov edi, outbuff"
-    call newline
+    print 0x0A
+    print '    '
     print "call print_mm32"
-    call newline
+    print 0x0A
+    print '    '
     print "call stacktrace"
-    call newline
+    print 0x0A
+    print '    '
     print "mov eax, 1"
-    call newline
+    print 0x0A
+    print '    '
     print "mov ebx, 1"
-    call newline
+    print 0x0A
+    print '    '
     print "int 0x80"
-    call newline
+    print 0x0A
+    print '    '
     call label
     call gn2
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     
-LA91:
+LA103:
     
-LA95:
+LA107:
     cmp byte [eswitch], 1
-    je LA96
+    je LA108
     
-LA96:
+LA108:
     cmp byte [eswitch], 0
-    je LA97
+    je LA109
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA98
+    je LA110
     print "je terminate_program"
-    call newline
+    print 0x0A
+    print '    '
     
-LA98:
+LA110:
     
-LA97:
+LA109:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA90:
+LA102:
     cmp byte [eswitch], 0
-    je LA99
+    je LA111
     error_store 'OUTPUT'
     call vstack_clear
     call OUTPUT
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA100
+    je LA112
     
-LA100:
+LA112:
     
-LA99:
+LA111:
     cmp byte [eswitch], 0
-    je LA89
+    je LA101
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     
-LA88:
+LA100:
     
-LA101:
+LA113:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1166,23 +1385,26 @@ LA101:
 EX1:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'EX2'
     call vstack_clear
     call EX2
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA102
+    je LA114
     
-LA103:
+LA115:
     test_input_string "|"
     cmp byte [eswitch], 1
-    je LA104
+    je LA116
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     error_store 'EX2'
     call vstack_clear
     call EX2
@@ -1191,22 +1413,24 @@ LA103:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA104:
+LA116:
     
-LA105:
+LA117:
     cmp byte [eswitch], 0
-    je LA103
+    je LA115
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     
-LA102:
+LA114:
     
-LA106:
+LA118:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1214,24 +1438,31 @@ LA106:
 DEFINITION:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'ID'
     call vstack_clear
     call ID
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA107
+    je LA119
     call label
     call copy_last_match
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     print "push ebp"
-    call newline
+    print 0x0A
+    print '    '
     print "mov ebp, esp"
-    call newline
+    print 0x0A
+    print '    '
+    print "push esi"
+    print 0x0A
+    print '    '
     test_input_string "<"
     cmp byte [eswitch], 1
-    je LA108
+    je LA120
     error_store 'GENERIC'
     call vstack_clear
     call GENERIC
@@ -1240,10 +1471,10 @@ DEFINITION:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA109:
+LA121:
     test_input_string ","
     cmp byte [eswitch], 1
-    je LA110
+    je LA122
     error_store 'GENERIC'
     call vstack_clear
     call GENERIC
@@ -1252,11 +1483,11 @@ LA109:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA110:
+LA122:
     
-LA111:
+LA123:
     cmp byte [eswitch], 0
-    je LA109
+    je LA121
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
@@ -1264,16 +1495,16 @@ LA111:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA108:
+LA120:
     cmp byte [eswitch], 0
-    je LA112
+    je LA124
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA113
+    je LA125
     
-LA113:
+LA125:
     
-LA112:
+LA124:
     cmp byte [eswitch], 1
     je terminate_program
     test_input_string "="
@@ -1291,16 +1522,23 @@ LA112:
     je terminate_program
     cmp byte [eswitch], 1
     je terminate_program
+    print "pop esi"
+    print 0x0A
+    print '    '
     print "mov esp, ebp"
-    call newline
+    print 0x0A
+    print '    '
     print "pop ebp"
-    call newline
+    print 0x0A
+    print '    '
     print "ret"
-    call newline
+    print 0x0A
+    print '    '
     
-LA107:
+LA119:
     
-LA114:
+LA126:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1308,13 +1546,14 @@ LA114:
 GENERIC:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'ID'
     call vstack_clear
     call ID
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA115
+    je LA127
     inc dword [fn_arg_count] ; found new argument!
     inc dword [fn_arg_num]
     mov edx, dword [fn_arg_num]
@@ -1322,55 +1561,10 @@ GENERIC:
     mov esi, last_match
     call hash_set
     
-LA115:
+LA127:
     
-LA116:
-    mov esp, ebp
-    pop ebp
-    ret
-    
-GENERIC_ARGS:
-    push ebp
-    mov ebp, esp
-    error_store 'GENERIC_ARG'
-    call vstack_clear
-    call GENERIC_ARG
-    call vstack_restore
-    call error_clear
-    cmp byte [eswitch], 1
-    je LA117
-    
-LA118:
-    test_input_string ","
-    cmp byte [eswitch], 1
-    je LA119
-    error_store 'GENERIC_ARG'
-    call vstack_clear
-    call GENERIC_ARG
-    call vstack_restore
-    call error_clear
-    cmp byte [eswitch], 1
-    je terminate_program
-    
-LA119:
-    
-LA120:
-    cmp byte [eswitch], 0
-    je LA118
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je terminate_program
-    
-LA117:
-    cmp byte [eswitch], 0
-    je LA121
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA122
-    
-LA122:
-    
-LA121:
+LA128:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1378,34 +1572,69 @@ LA121:
 GENERIC_ARG:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'NUMBER'
     call vstack_clear
     call NUMBER
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA123
-    print "push "
+    je LA129
+    print "mov esi, "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     
-LA123:
+LA129:
     cmp byte [eswitch], 0
-    je LA124
+    je LA130
     error_store 'STRING'
     call vstack_clear
     call STRING
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA125
-    print "push "
+    je LA131
+    call label
+    print "section .data"
+    print 0x0A
+    print '    '
+    call gn3
+    print " db "
     call copy_last_match
-    call newline
+    print ", 0x00"
+    print 0x0A
+    print '    '
+    call label
+    print "section .text"
+    print 0x0A
+    print '    '
+    print "mov esi, "
+    call gn3
+    print 0x0A
+    print '    '
     
-LA125:
+LA131:
+    cmp byte [eswitch], 0
+    je LA130
+    error_store 'ID'
+    call vstack_clear
+    call ID
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA132
+    print "pop esi"
+    print 0x0A
+    print '    '
+    print "push esi"
+    print 0x0A
+    print '    '
     
-LA124:
+LA132:
+    
+LA130:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1413,17 +1642,19 @@ LA124:
 TOKEN_DEFINITION:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'ID'
     call vstack_clear
     call ID
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA126
+    je LA133
     call label
     call copy_last_match
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     test_input_string "="
     cmp byte [eswitch], 1
     je terminate_program
@@ -1438,11 +1669,13 @@ TOKEN_DEFINITION:
     cmp byte [eswitch], 1
     je terminate_program
     print "ret"
-    call newline
+    print 0x0A
+    print '    '
     
-LA126:
+LA133:
     
-LA127:
+LA134:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1450,23 +1683,26 @@ LA127:
 TX1:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'TX2'
     call vstack_clear
     call TX2
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA128
+    je LA135
     
-LA129:
+LA136:
     test_input_string "|"
     cmp byte [eswitch], 1
-    je LA130
+    je LA137
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     error_store 'TX2'
     call vstack_clear
     call TX2
@@ -1475,22 +1711,24 @@ LA129:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA130:
+LA137:
     
-LA131:
+LA138:
     cmp byte [eswitch], 0
-    je LA129
+    je LA136
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     
-LA128:
+LA135:
     
-LA132:
+LA139:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1498,51 +1736,58 @@ LA132:
 TX2:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'TX3'
     call vstack_clear
     call TX3
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA133
+    je LA140
     print "cmp byte [eswitch], 1"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     
-LA134:
+LA141:
     error_store 'TX3'
     call vstack_clear
     call TX3
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA135
+    je LA142
     print "cmp byte [eswitch], 1"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     
-LA135:
+LA142:
     
-LA136:
+LA143:
     cmp byte [eswitch], 0
-    je LA134
+    je LA141
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     
-LA133:
+LA140:
     
-LA137:
+LA144:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1550,37 +1795,42 @@ LA137:
 TX3:
     push ebp
     mov ebp, esp
+    push esi
     test_input_string ".TOKEN"
     cmp byte [eswitch], 1
-    je LA138
+    je LA145
     cmp byte [eswitch], 1
     je terminate_program
     print "mov byte [tflag], 1"
-    call newline
+    print 0x0A
+    print '    '
     print "call clear_token"
-    call newline
+    print 0x0A
+    print '    '
     
-LA138:
+LA145:
     cmp byte [eswitch], 0
-    je LA139
+    je LA146
     test_input_string ".DELTOK"
     cmp byte [eswitch], 1
-    je LA140
+    je LA147
     cmp byte [eswitch], 1
     je terminate_program
     print "mov byte [tflag], 0"
-    call newline
+    print 0x0A
+    print '    '
     
-LA140:
+LA147:
     cmp byte [eswitch], 0
-    je LA139
+    je LA146
     test_input_string "$"
     cmp byte [eswitch], 1
-    je LA141
+    je LA148
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     error_store 'TX3'
     call vstack_clear
     call TX3
@@ -1589,25 +1839,28 @@ LA140:
     cmp byte [eswitch], 1
     je terminate_program
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     
-LA141:
+LA148:
     
-LA139:
+LA146:
     cmp byte [eswitch], 1
-    je LA142
+    je LA149
     print "mov byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     
-LA142:
+LA149:
     cmp byte [eswitch], 0
-    je LA143
+    je LA150
     test_input_string ".ANYBUT("
     cmp byte [eswitch], 1
-    je LA144
+    je LA151
     error_store 'CX1'
     call vstack_clear
     call CX1
@@ -1621,20 +1874,24 @@ LA142:
     cmp byte [eswitch], 1
     je terminate_program
     print "mov al, byte [eswitch]"
-    call newline
+    print 0x0A
+    print '    '
     print "xor al, 1"
-    call newline
+    print 0x0A
+    print '    '
     print "mov byte [eswitch], al"
-    call newline
+    print 0x0A
+    print '    '
     print "call scan_or_parse"
-    call newline
+    print 0x0A
+    print '    '
     
-LA144:
+LA151:
     cmp byte [eswitch], 0
-    je LA143
+    je LA150
     test_input_string ".ANY("
     cmp byte [eswitch], 1
-    je LA145
+    je LA152
     error_store 'CX1'
     call vstack_clear
     call CX1
@@ -1646,42 +1903,47 @@ LA144:
     cmp byte [eswitch], 1
     je terminate_program
     print "call scan_or_parse"
-    call newline
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
     je terminate_program
     
-LA145:
+LA152:
     cmp byte [eswitch], 0
-    je LA143
+    je LA150
     test_input_string ".RESERVED("
     cmp byte [eswitch], 1
-    je LA146
+    je LA153
     
-LA147:
+LA154:
     error_store 'STRING'
     call vstack_clear
     call STRING
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA148
+    je LA155
     print "test_input_string "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     print "mov al, byte [eswitch]"
-    call newline
+    print 0x0A
+    print '    '
     print "xor al, 1"
-    call newline
+    print 0x0A
+    print '    '
     print "mov byte [eswitch], al"
-    call newline
+    print 0x0A
+    print '    '
     
-LA148:
+LA155:
     
-LA149:
+LA156:
     cmp byte [eswitch], 0
-    je LA147
+    je LA154
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
@@ -1689,26 +1951,27 @@ LA149:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA146:
+LA153:
     cmp byte [eswitch], 0
-    je LA143
+    je LA150
     error_store 'ID'
     call vstack_clear
     call ID
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA150
+    je LA157
     print "call "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     
-LA150:
+LA157:
     cmp byte [eswitch], 0
-    je LA143
+    je LA150
     test_input_string "("
     cmp byte [eswitch], 1
-    je LA151
+    je LA158
     error_store 'TX1'
     call vstack_clear
     call TX1
@@ -1720,9 +1983,10 @@ LA150:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA151:
+LA158:
     
-LA143:
+LA150:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1730,23 +1994,26 @@ LA143:
 CX1:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'CX2'
     call vstack_clear
     call CX2
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA152
+    je LA159
     
-LA153:
+LA160:
     test_input_string "!"
     cmp byte [eswitch], 1
-    je LA154
+    je LA161
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "je "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     error_store 'CX2'
     call vstack_clear
     call CX2
@@ -1755,22 +2022,24 @@ LA153:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA154:
+LA161:
     
-LA155:
+LA162:
     cmp byte [eswitch], 0
-    je LA153
+    je LA160
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     
-LA152:
+LA159:
     
-LA156:
+LA163:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1778,26 +2047,31 @@ LA156:
 CX2:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'CX3'
     call vstack_clear
     call CX3
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA157
+    je LA164
     test_input_string ":"
     cmp byte [eswitch], 1
-    je LA158
+    je LA165
     print "mov edi, "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     print "call test_char_greater_equal"
-    call newline
+    print 0x0A
+    print '    '
     print "cmp byte [eswitch], 0"
-    call newline
+    print 0x0A
+    print '    '
     print "jne "
     call gn1
-    call newline
+    print 0x0A
+    print '    '
     error_store 'CX3'
     call vstack_clear
     call CX3
@@ -1807,35 +2081,41 @@ CX2:
     je terminate_program
     print "mov edi, "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     print "call test_char_less_equal"
-    call newline
+    print 0x0A
+    print '    '
     call label
     call gn1
     print ":"
-    call newline
+    print 0x0A
+    print '    '
     
-LA158:
+LA165:
     cmp byte [eswitch], 0
-    je LA159
+    je LA166
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA160
+    je LA167
     print "mov edi, "
     call copy_last_match
-    call newline
+    print 0x0A
+    print '    '
     print "call test_char_equal"
-    call newline
+    print 0x0A
+    print '    '
     
-LA160:
+LA167:
     
-LA159:
+LA166:
     cmp byte [eswitch], 1
     je terminate_program
     
-LA157:
+LA164:
     
-LA161:
+LA168:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1843,28 +2123,30 @@ LA161:
 CX3:
     push ebp
     mov ebp, esp
+    push esi
     error_store 'NUMBER'
     call vstack_clear
     call NUMBER
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA162
+    je LA169
     
-LA162:
+LA169:
     cmp byte [eswitch], 0
-    je LA163
+    je LA170
     error_store 'STRING'
     call vstack_clear
     call STRING
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA164
+    je LA171
     
-LA164:
+LA171:
     
-LA163:
+LA170:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1872,16 +2154,18 @@ LA163:
 COMMENT:
     push ebp
     mov ebp, esp
+    push esi
     test_input_string "//"
     cmp byte [eswitch], 1
-    je LA165
+    je LA172
     match_not 10
     cmp byte [eswitch], 1
     je terminate_program
     
-LA165:
+LA172:
     
-LA166:
+LA173:
+    pop esi
     mov esp, ebp
     pop ebp
     ret
@@ -1890,77 +2174,27 @@ LA166:
     
 PREFIX:
     
-LA167:
+LA174:
     mov edi, 32
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA168
+    je LA175
     mov edi, 9
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA168
+    je LA175
     mov edi, 13
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA168
+    je LA175
     mov edi, 10
     call test_char_equal
     
-LA168:
-    call scan_or_parse
-    cmp byte [eswitch], 0
-    je LA167
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA169
-    
-LA169:
-    
-LA170:
-    ret
-    
-NUMBER:
-    call PREFIX
-    cmp byte [eswitch], 1
-    je LA171
-    mov byte [tflag], 1
-    call clear_token
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA171
-    call DIGIT
-    cmp byte [eswitch], 1
-    je LA171
-    
-LA172:
-    call DIGIT
-    cmp byte [eswitch], 0
-    je LA172
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA171
-    mov byte [tflag], 0
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA171
-    
-LA171:
-    
-LA173:
-    ret
-    
-DIGIT:
-    mov edi, 48
-    call test_char_greater_equal
-    cmp byte [eswitch], 0
-    jne LA174
-    mov edi, 57
-    call test_char_less_equal
-    
-LA174:
-    
 LA175:
     call scan_or_parse
+    cmp byte [eswitch], 0
+    je LA174
+    mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je LA176
     
@@ -1969,14 +2203,8 @@ LA176:
 LA177:
     ret
     
-ID:
+NUMBER:
     call PREFIX
-    cmp byte [eswitch], 1
-    je LA178
-    test_input_string "import"
-    mov al, byte [eswitch]
-    xor al, 1
-    mov byte [eswitch], al
     cmp byte [eswitch], 1
     je LA178
     mov byte [tflag], 1
@@ -1984,25 +2212,12 @@ ID:
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je LA178
-    call ALPHA
+    call DIGIT
     cmp byte [eswitch], 1
     je LA178
     
 LA179:
-    call ALPHA
-    cmp byte [eswitch], 1
-    je LA180
-    
-LA180:
-    cmp byte [eswitch], 0
-    je LA181
     call DIGIT
-    cmp byte [eswitch], 1
-    je LA182
-    
-LA182:
-    
-LA181:
     cmp byte [eswitch], 0
     je LA179
     mov byte [eswitch], 0
@@ -2015,152 +2230,221 @@ LA181:
     
 LA178:
     
+LA180:
+    ret
+    
+DIGIT:
+    mov edi, 48
+    call test_char_greater_equal
+    cmp byte [eswitch], 0
+    jne LA181
+    mov edi, 57
+    call test_char_less_equal
+    
+LA181:
+    
+LA182:
+    call scan_or_parse
+    cmp byte [eswitch], 1
+    je LA183
+    
 LA183:
+    
+LA184:
+    ret
+    
+ID:
+    call PREFIX
+    cmp byte [eswitch], 1
+    je LA185
+    test_input_string "import"
+    mov al, byte [eswitch]
+    xor al, 1
+    mov byte [eswitch], al
+    cmp byte [eswitch], 1
+    je LA185
+    mov byte [tflag], 1
+    call clear_token
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA185
+    call ALPHA
+    cmp byte [eswitch], 1
+    je LA185
+    
+LA186:
+    call ALPHA
+    cmp byte [eswitch], 1
+    je LA187
+    
+LA187:
+    cmp byte [eswitch], 0
+    je LA188
+    call DIGIT
+    cmp byte [eswitch], 1
+    je LA189
+    
+LA189:
+    
+LA188:
+    cmp byte [eswitch], 0
+    je LA186
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA185
+    mov byte [tflag], 0
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA185
+    
+LA185:
+    
+LA190:
     ret
     
 ALPHA:
     mov edi, 65
     call test_char_greater_equal
     cmp byte [eswitch], 0
-    jne LA184
+    jne LA191
     mov edi, 90
     call test_char_less_equal
     
-LA184:
+LA191:
     cmp byte [eswitch], 0
-    je LA185
+    je LA192
     mov edi, 95
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA185
+    je LA192
     mov edi, 97
     call test_char_greater_equal
     cmp byte [eswitch], 0
-    jne LA186
+    jne LA193
     mov edi, 122
     call test_char_less_equal
     
-LA186:
+LA193:
     
-LA185:
+LA192:
     call scan_or_parse
     cmp byte [eswitch], 1
-    je LA187
+    je LA194
     
-LA187:
+LA194:
     
-LA188:
+LA195:
     ret
     
 STRING:
     call PREFIX
     cmp byte [eswitch], 1
-    je LA189
+    je LA196
     mov byte [tflag], 1
     call clear_token
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA189
+    je LA196
     mov edi, 34
     call test_char_equal
     
-LA190:
+LA197:
     call scan_or_parse
     cmp byte [eswitch], 1
-    je LA189
+    je LA196
     
-LA191:
+LA198:
     mov edi, 13
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA192
+    je LA199
     mov edi, 10
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA192
+    je LA199
     mov edi, 34
     call test_char_equal
     
-LA192:
+LA199:
     mov al, byte [eswitch]
     xor al, 1
     mov byte [eswitch], al
     call scan_or_parse
     cmp byte [eswitch], 0
-    je LA191
+    je LA198
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA189
+    je LA196
     mov edi, 34
     call test_char_equal
     
-LA193:
+LA200:
     call scan_or_parse
     cmp byte [eswitch], 1
-    je LA189
+    je LA196
     mov byte [tflag], 0
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA189
+    je LA196
     
-LA189:
+LA196:
     
-LA194:
+LA201:
     ret
     
 RAW:
     call PREFIX
     cmp byte [eswitch], 1
-    je LA195
+    je LA202
     mov edi, 34
     call test_char_equal
     
-LA196:
+LA203:
     call scan_or_parse
     cmp byte [eswitch], 1
-    je LA195
+    je LA202
     mov byte [tflag], 1
     call clear_token
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA195
+    je LA202
     
-LA197:
+LA204:
     mov edi, 13
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA198
+    je LA205
     mov edi, 10
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA198
+    je LA205
     mov edi, 34
     call test_char_equal
     
-LA198:
+LA205:
     mov al, byte [eswitch]
     xor al, 1
     mov byte [eswitch], al
     call scan_or_parse
     cmp byte [eswitch], 0
-    je LA197
+    je LA204
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA195
+    je LA202
     mov byte [tflag], 0
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA195
+    je LA202
     mov edi, 34
     call test_char_equal
     
-LA199:
+LA206:
     call scan_or_parse
     cmp byte [eswitch], 1
-    je LA195
+    je LA202
     
-LA195:
+LA202:
     
-LA200:
+LA207:
     ret
     

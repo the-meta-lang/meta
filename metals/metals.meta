@@ -30,10 +30,10 @@ FUNCTION_DECLARATION = "fn"
 	// Skip the function so we don't accidentally enter it.
 	->("jmp " *1) ID
 	.LABEL(* ":")
-	"(" (FUNCTION_PARAM $("," FUNCTION_PARAM) | .EMPTY) ")"
-	.DIRECT("add dword [fn_arg_num], 2") "{"
 	->("push ebp")
 	->("mov ebp, esp")
+	"(" (FUNCTION_PARAM $("," FUNCTION_PARAM) | .EMPTY) ")"
+	.DIRECT("add dword [fn_arg_num], 2") "{"
 	FUNCTION_BODY
 	.DIRECT("mov dword [fn_arg_num], 0")
 	.DIRECT("mov dword [fn_arg_count], 0")
@@ -60,64 +60,99 @@ STATEMENT = ("%var" TYPE NAME
 		.DIRECT("mov edi, symbol_table")
 		.DIRECT("mov esi, last_match")
 		.DIRECT("call hash_set")
-		"," VALUE MOV_INTO ->("eax"))
-	| ("%push" VALUE
+		"," VALUE<"eax"> MOV_INTO ->("eax"))
+	| ("%push" VALUE<"eax">
 			->("push eax"))
 	| ("%add" ARITHMETIC_OPERATION_ARGS
 			->("add eax, ebx"))
-	| ("%cmp" CMP_OPERATOR)
-	| ("%deref/byte" VALUE
+	| ("%neq" ARITHMETIC_OPERATION_ARGS
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setne al"))
+	| ("%eq" ARITHMETIC_OPERATION_ARGS
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("sete al"))
+	| ("%lt" ARITHMETIC_OPERATION_ARGS
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setlt al"))
+	| ("%gt" ARITHMETIC_OPERATION_ARGS
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setgt al"))
+	| ("%deref/byte" VALUE<"eax">
 			->("mov eax, byte [eax]"))
-	| ("%deref/word" VALUE
+	| ("%deref/word" VALUE<"eax">
 			->("mov eax, word [eax]"))
-	| ("%deref/dword" VALUE
+	| ("%deref/dword" VALUE<"eax">
 			->("mov eax, dword [eax]"))
-	| ("%set" NAME % "," VALUE
+	| ("%set" NAME % "," VALUE<"eax">
 		SET_INTO ->("eax"))
-	| ("%ret" (VALUE | .EMPTY)
+	| ("%ret" (VALUE<"eax"> | .EMPTY)
 		->("mov esp, ebp")
 		->("pop ebp")
 		->("ret"))
 	| (ID % FUNCTION_CALL_ARGS
 		->("call " %));
 
-FUNCTION_CALL_ARGS = (FUNCTION_CALL_ARG $("," FUNCTION_CALL_ARG) | .EMPTY);
+// ----------------------------- Function Calls --------------------------------
 
-FUNCTION_CALL_ARG = NUMBER
-		->("mov esi, " *)
+FUNCTION_CALL_ARGS = (FUNCTION_CALL_ARG<"esi"> 
+	$("," FUNCTION_CALL_ARG<"edi"> 
+		$("," FUNCTION_CALL_ARG<"edx"> 
+			$("," FUNCTION_CALL_ARG<"ecx"> 
+				$("," FUNCTION_CALL_ARG_REST)))) | .EMPTY);
+
+FUNCTION_CALL_ARG<reg> = NUMBER
+		->("mov " *reg ", " *)
 	| STRING
 		.LABEL("section .data")
 			->(*3 " db " * ", 0x00")
 		.LABEL("section .text")
-			->("mov esi, " *3)
-	| SYMBOL_TABLE_ID
-		->("mov esi, eax")
+			->("mov " *reg ", " *3)
+	| SYMBOL_TABLE_ID<"eax">
+		->("mov " *reg ", eax")
 	| RESULT_SPECIFIER
-		->("mov esi, eax");
+		->("mov " *reg ", eax");
+
+FUNCTION_CALL_ARG_REST = NUMBER
+		->("push " *)
+	| STRING
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("push " *3)
+	| SYMBOL_TABLE_ID<"eax">
+		->("push, eax")
+	| RESULT_SPECIFIER
+		->("push, eax");
+
+// --------------------- Arithmetic Operation Arguments ------------------------
 
 ARITHMETIC_OPERATION_ARGS = (NUMBER % "," (
 		NUMBER
 			->("mov ebx, " *)
 		// TODO: Change to generics SYMBOL_TABLE_ID<"ebx">	
-		| SYMBOL_TABLE_ID
+		| SYMBOL_TABLE_ID<"ebx">
 		| RESULT_SPECIFIER
 			->("mov ebx, eax"))
 			->("mov eax, " %))
 	| (RESULT_SPECIFIER "," (
 			NUMBER
 			->("mov ebx, " *)
-		| SYMBOL_TABLE_ID
+		| SYMBOL_TABLE_ID<"ebx">
 		| RESULT_SPECIFIER
 			->("mov ebx, eax")))
-	| (SYMBOL_TABLE_ID "," (
+	| (SYMBOL_TABLE_ID<"eax"> "," (
 			NUMBER
 			->("mov ebx, " *)
-		| SYMBOL_TABLE_ID
+		| SYMBOL_TABLE_ID<"ebx">
 		| RESULT_SPECIFIER
 			->("mov ebx, eax")));
 
 SET_INTO = 
-	.RS("mov [ebp")
+	.RS("mov dword [ebp")
 	// set the value of the variable
 	// we can use the symbol table to get the index of the variable
 	// then calculate the offset by doing `8 + (arg_count - index) * 4`
@@ -156,46 +191,24 @@ MOV_INTO = .RS("mov dword [ebp")
 
 TYPE = "i32";
 
-CMP_OPERATOR =
-	("neq"
-		->("pop ebx")
-		->("pop eax")
-		->("cmp eax, ebx")
-		->("mov eax, 0")
-		->("setne al"))
-	| "eq"
-	| "lt"
-	| "gt";
-
-VALUE = NUMBER
+// TODO: Replace with generics
+VALUE<reg> = NUMBER
 		->("mov eax, " *)
 	| STRING
 		.LABEL("section .data")
 			->(*3 " db " * ", 0x00")
 		.LABEL("section .text")
 			->("mov eax, " *3)
-	| SYMBOL_TABLE_ID
-	| RESULT_SPECIFIER;
-
-// TODO: Replace with generics
-
-VALUE_EBX = NUMBER
-		->("mov ebx, " *)
-	| STRING
-		.LABEL("section .data")
-			->(*3 " db " * ", 0x00")
-		.LABEL("section .text")
-			->("mov ebx, " *3)
-	| SYMBOL_TABLE_ID
+	| SYMBOL_TABLE_ID<reg>
 	| RESULT_SPECIFIER;
 
 RESULT_SPECIFIER = "$";
 
-SYMBOL_TABLE_ID = NAME
+SYMBOL_TABLE_ID<reg> = NAME
 	// We need to get the index of the argument from the symbol table
 	// We can do this by doing `8 + (arg_count - index) * 4`
 	// This will account for the 8 bytes of the function call (esp and ip)
-	.RS("mov eax, dword [ebp")
+	.RS("mov " *reg ", dword [ebp")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
 	.DIRECT("call hash_get") // Index is now in eax
