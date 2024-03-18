@@ -1,20 +1,56 @@
-fn strlen(i32 @string) {
-	%var i32 @length, 0
-    
-	while (
-		%add @string, @length
-		%deref/byte $
-		%neq $, 0
-	) {
-		%add @length, 1
-		%set @length, $
-	}
-	%ret @length
-}
+// fn pushArray(*char[] @ptrArray, *char[] @value) {
+// 	%deref/dword @ptrArray
+// 	%var i32 @length, $
+// 	// TODO: Reserve more space if the array is full.
+// 	%var i32 @i, 0
+// 	// Move to the end of the array
+// 	%add @ptrArray, @length
+// 	// Skip the initial 4 bytes that contain the length
+// 	%add $, 4
+// 	%var i32 @end, $
+// 	// Iterate while byte value is not null
+// 	while (
+// 		%add @value, @i
+// 		%neq $, 0
+// 	) {
+// 		%add @end, @i
+// 		%push $
+// 		%add @value, @i
+// 		%deref/byte $
+// 		%setref &, $
+// 		%add @i, 1
+// 		%set @i, $
+// 	}
+// 
+// 	// Increase the length by @i
+// 	%add @length, @i
+// 	%setref @ptrArray, $
+// }
 
-fn add(i32 @a, i32 @b) {
-    %add @a, @b
-    %ret
-}
+// fn popArray(char[] @array) {
+// 
+// }
+// 
+// fn reverseArray(char[] @array) {
+// 	%deref/dword @array
+// 	%var i32 @length, $
+// 
+// 	while (
+// 
+// 	) {
+// 
+// 	}
+// }
 
-add 2, 3, 4, 5, 6
+fn strlen(i32 @string, i32 @string2) {
+    %var i32 @length, 0
+    while (
+    %add @string, @length
+    %deref/byte $
+    %neq $, 0
+    ) {
+    %add @length, 1
+    %set @length, $
+    }
+    %ret @length
+}

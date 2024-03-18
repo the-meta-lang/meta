@@ -30,6 +30,8 @@ LISP:
     fn_arg_num dd 0
     call_arg_count dd 0
     indent dd 0
+    and_sign db '&', 0x00
+    dollar_sign db '$', 0x00
     section .bss
     call_arg_count_vector resb 512
     symbol_table resb 262144
@@ -2758,35 +2760,37 @@ FUNC_CALL:
     call vector_push_string_mm32
     cmp byte [eswitch], 1
     je terminate_program
-    inc dword [call_arg_count]
-    
-LA221:
-    error_store 'CALL_ARG'
+    error_store 'CALL_ARG_FIRST'
     call vstack_clear
-    call CALL_ARG
+    call CALL_ARG_FIRST
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA222
+    je LA221
+    inc dword [call_arg_count]
     
 LA222:
+    error_store 'CALL_ARG_REST'
+    call vstack_clear
+    call CALL_ARG_REST
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA223
+    inc dword [call_arg_count]
     
 LA223:
+    
+LA224:
     cmp byte [eswitch], 0
-    je LA221
+    je LA222
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je terminate_program
-    mov esi, dword [call_arg_count]
-    mov edi, call_arg_count_vector
-    call vector_push
-    mov dword [call_arg_count], 0
-    mov esi, call_arg_count_vector
-    call vector_pop
-    push eax
-    mov edi, str_vector_8192
-    mov esi, eax
-    call vector_reverse_n_string
+    .loop:
+    cmp dword [call_arg_count], 0
+    je .loop_end
+    dec dword [call_arg_count]
     error_store 'TAB'
     call vstack_clear
     call TAB
@@ -2794,9 +2798,7 @@ LA223:
     call error_clear
     cmp byte [eswitch], 1
     je terminate_program
-    pop eax
-    .loop:
-    push eax
+    print "%arg "
     mov esi, str_vector_8192
     call vector_pop_string
     mov esi, eax
@@ -2804,24 +2806,168 @@ LA223:
     add edi, [outbuff_offset]
     call buffc
     add dword [outbuff_offset], eax
-    print " "
-    pop eax
-    dec eax
-    cmp eax, 0
-    je .loop_end
+    print 0x0A
     jmp .loop
     .loop_end:
+    
+LA221:
+    cmp byte [eswitch], 0
+    je LA225
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA226
+    
+LA226:
+    
+LA225:
+    cmp byte [eswitch], 1
+    je terminate_program
+    error_store 'TAB'
+    call vstack_clear
+    call TAB
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "%call "
+    mov esi, str_vector_8192
+    call vector_pop_string
+    mov esi, eax
+    mov edi, outbuff
+    add edi, [outbuff_offset]
+    call buffc
+    add dword [outbuff_offset], eax
+    print 0x0A
     print 0x0A
     
 LA220:
     
-LA224:
+LA227:
     pop esi
     mov esp, ebp
     pop ebp
     ret
     
-CALL_ARG:
+NESTED_FUNC_CALL:
+    push ebp
+    mov ebp, esp
+    push esi
+    error_store 'ID'
+    call vstack_clear
+    call ID
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA228
+    mov edi, str_vector_8192
+    mov esi, last_match
+    call vector_push_string_mm32
+    cmp byte [eswitch], 1
+    je terminate_program
+    error_store 'CALL_ARG_FIRST'
+    call vstack_clear
+    call CALL_ARG_FIRST
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA229
+    inc dword [call_arg_count]
+    
+LA230:
+    error_store 'CALL_ARG_REST'
+    call vstack_clear
+    call CALL_ARG_REST
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA231
+    inc dword [call_arg_count]
+    
+LA231:
+    
+LA232:
+    cmp byte [eswitch], 0
+    je LA230
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    cmp byte [eswitch], 1
+    je terminate_program
+    .loop:
+    cmp dword [call_arg_count], 0
+    je .loop_end
+    dec dword [call_arg_count]
+    error_store 'TAB'
+    call vstack_clear
+    call TAB
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "%arg "
+    mov esi, str_vector_8192
+    call vector_pop_string
+    mov esi, eax
+    mov edi, outbuff
+    add edi, [outbuff_offset]
+    call buffc
+    add dword [outbuff_offset], eax
+    print 0x0A
+    jmp .loop
+    .loop_end:
+    
+LA229:
+    cmp byte [eswitch], 0
+    je LA233
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA234
+    
+LA234:
+    
+LA233:
+    cmp byte [eswitch], 1
+    je terminate_program
+    error_store 'TAB'
+    call vstack_clear
+    call TAB
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "%call "
+    mov esi, str_vector_8192
+    call vector_pop_string
+    mov esi, eax
+    mov edi, outbuff
+    add edi, [outbuff_offset]
+    call buffc
+    add dword [outbuff_offset], eax
+    print 0x0A
+    error_store 'TAB'
+    call vstack_clear
+    call TAB
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "%push $"
+    print 0x0A
+    print 0x0A
+    
+LA228:
+    
+LA235:
+    pop esi
+    mov esp, ebp
+    pop ebp
+    ret
+    
+CALL_ARG_FIRST:
     push ebp
     mov ebp, esp
     push esi
@@ -2831,54 +2977,173 @@ CALL_ARG:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA225
+    je LA236
     mov edi, str_vector_8192
     mov esi, last_match
     call vector_push_string_mm32
     cmp byte [eswitch], 1
     je terminate_program
-    inc dword [call_arg_count]
     
-LA225:
+LA236:
     cmp byte [eswitch], 0
-    je LA226
+    je LA237
     test_input_string "["
     cmp byte [eswitch], 1
-    je LA227
-    section .data
-    dollar_sign db '$', 0x00
-    section .text
-    mov edi, str_vector_8192
-    mov esi, dollar_sign
-    call vector_push_string_mm32
-    mov esi, dword [call_arg_count]
+    je LA238
     mov edi, call_arg_count_vector
+    mov esi, dword [call_arg_count]
     call vector_push
     mov dword [call_arg_count], 0
-    error_store 'FUNC_CALL'
+    error_store 'NESTED_FUNC_CALL'
     call vstack_clear
-    call FUNC_CALL
+    call NESTED_FUNC_CALL
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
-    je LA228
-    
-LA228:
-    
-LA229:
-    cmp byte [eswitch], 1
-    je terminate_program
+    je LA239
     mov esi, call_arg_count_vector
     call vector_pop
     mov dword [call_arg_count], eax
-    add dword [call_arg_count], 1
+    mov edi, str_vector_8192
+    mov esi, and_sign
+    call vector_push_string_mm32
+    
+LA239:
+    cmp byte [eswitch], 0
+    je LA240
+    error_store 'ARITHMETIC'
+    call vstack_clear
+    call ARITHMETIC
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA241
+    mov esi, call_arg_count_vector
+    call vector_pop
+    mov dword [call_arg_count], eax
+    mov edi, str_vector_8192
+    mov esi, dollar_sign
+    call vector_push_string_mm32
+    
+LA241:
+    
+LA240:
+    cmp byte [eswitch], 1
+    je terminate_program
     test_input_string "]"
     cmp byte [eswitch], 1
     je terminate_program
     
-LA227:
+LA238:
+    cmp byte [eswitch], 0
+    je LA237
+    error_store 'ID'
+    call vstack_clear
+    call ID
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA242
+    mov edi, str_vector_8192
+    mov esi, last_match
+    call vector_push_string_mm32
+    cmp byte [eswitch], 1
+    je terminate_program
     
-LA226:
+LA242:
+    
+LA237:
+    pop esi
+    mov esp, ebp
+    pop ebp
+    ret
+    
+CALL_ARG_REST:
+    push ebp
+    mov ebp, esp
+    push esi
+    error_store 'NUMBER'
+    call vstack_clear
+    call NUMBER
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA243
+    mov edi, str_vector_8192
+    mov esi, last_match
+    call vector_push_string_mm32
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA243:
+    cmp byte [eswitch], 0
+    je LA244
+    test_input_string "["
+    cmp byte [eswitch], 1
+    je LA245
+    mov edi, call_arg_count_vector
+    mov esi, dword [call_arg_count]
+    call vector_push
+    mov dword [call_arg_count], 0
+    error_store 'NESTED_FUNC_CALL'
+    call vstack_clear
+    call NESTED_FUNC_CALL
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA246
+    mov esi, call_arg_count_vector
+    call vector_pop
+    mov dword [call_arg_count], eax
+    mov edi, str_vector_8192
+    mov esi, and_sign
+    call vector_push_string_mm32
+    
+LA246:
+    cmp byte [eswitch], 0
+    je LA247
+    error_store 'ARITHMETIC'
+    call vstack_clear
+    call ARITHMETIC
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA248
+    mov esi, call_arg_count_vector
+    call vector_pop
+    mov dword [call_arg_count], eax
+    mov edi, str_vector_8192
+    mov esi, dollar_sign
+    call vector_push_string_mm32
+    
+LA248:
+    
+LA247:
+    cmp byte [eswitch], 1
+    je terminate_program
+    test_input_string "]"
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA245:
+    cmp byte [eswitch], 0
+    je LA244
+    error_store 'ID'
+    call vstack_clear
+    call ID
+    call vstack_restore
+    call error_clear
+    cmp byte [eswitch], 1
+    je LA249
+    mov edi, str_vector_8192
+    mov esi, last_match
+    call vector_push_string_mm32
+    cmp byte [eswitch], 1
+    je terminate_program
+    
+LA249:
+    
+LA244:
     pop esi
     mov esp, ebp
     pop ebp
@@ -2890,14 +3155,14 @@ COMMENT:
     push esi
     test_input_string "//"
     cmp byte [eswitch], 1
-    je LA230
+    je LA250
     match_not 10
     cmp byte [eswitch], 1
     je terminate_program
     
-LA230:
+LA250:
     
-LA231:
+LA251:
     pop esi
     mov esp, ebp
     pop ebp
@@ -2917,9 +3182,9 @@ TAB:
     jmp .loop
     .loop_end:
     
-LA232:
+LA252:
     
-LA233:
+LA253:
     pop esi
     mov esp, ebp
     pop ebp
@@ -2929,271 +3194,271 @@ LA233:
     
 PREFIX:
     
-LA234:
+LA254:
     mov edi, 32
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA235
+    je LA255
     mov edi, 9
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA235
+    je LA255
     mov edi, 13
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA235
+    je LA255
     mov edi, 10
     call test_char_equal
-    
-LA235:
-    call scan_or_parse
-    cmp byte [eswitch], 0
-    je LA234
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA236
-    
-LA236:
-    
-LA237:
-    ret
-    
-NUMBER:
-    call PREFIX
-    cmp byte [eswitch], 1
-    je LA238
-    mov byte [tflag], 1
-    call clear_token
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA238
-    call DIGIT
-    cmp byte [eswitch], 1
-    je LA238
-    
-LA239:
-    call DIGIT
-    cmp byte [eswitch], 0
-    je LA239
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA238
-    mov byte [tflag], 0
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA238
-    
-LA238:
-    
-LA240:
-    ret
-    
-DIGIT:
-    mov edi, 48
-    call test_char_greater_equal
-    cmp byte [eswitch], 0
-    jne LA241
-    mov edi, 57
-    call test_char_less_equal
-    
-LA241:
-    
-LA242:
-    call scan_or_parse
-    cmp byte [eswitch], 1
-    je LA243
-    
-LA243:
-    
-LA244:
-    ret
-    
-ID:
-    call PREFIX
-    cmp byte [eswitch], 1
-    je LA245
-    mov byte [tflag], 1
-    call clear_token
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA245
-    call ALPHA
-    cmp byte [eswitch], 1
-    je LA245
-    
-LA246:
-    call ALPHA
-    cmp byte [eswitch], 1
-    je LA247
-    
-LA247:
-    cmp byte [eswitch], 0
-    je LA248
-    call DIGIT
-    cmp byte [eswitch], 1
-    je LA249
-    
-LA249:
-    
-LA248:
-    cmp byte [eswitch], 0
-    je LA246
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA245
-    mov byte [tflag], 0
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA245
-    
-LA245:
-    
-LA250:
-    ret
-    
-ALPHA:
-    mov edi, 65
-    call test_char_greater_equal
-    cmp byte [eswitch], 0
-    jne LA251
-    mov edi, 90
-    call test_char_less_equal
-    
-LA251:
-    cmp byte [eswitch], 0
-    je LA252
-    mov edi, 95
-    call test_char_equal
-    cmp byte [eswitch], 0
-    je LA252
-    mov edi, 97
-    call test_char_greater_equal
-    cmp byte [eswitch], 0
-    jne LA253
-    mov edi, 122
-    call test_char_less_equal
-    
-LA253:
-    
-LA252:
-    call scan_or_parse
-    cmp byte [eswitch], 1
-    je LA254
-    
-LA254:
     
 LA255:
-    ret
-    
-STRING:
-    call PREFIX
-    cmp byte [eswitch], 1
-    je LA256
-    mov byte [tflag], 1
-    call clear_token
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA256
-    mov edi, 34
-    call test_char_equal
-    
-LA257:
-    call scan_or_parse
-    cmp byte [eswitch], 1
-    je LA256
-    
-LA258:
-    mov edi, 13
-    call test_char_equal
-    cmp byte [eswitch], 0
-    je LA259
-    mov edi, 10
-    call test_char_equal
-    cmp byte [eswitch], 0
-    je LA259
-    mov edi, 34
-    call test_char_equal
-    
-LA259:
-    mov al, byte [eswitch]
-    xor al, 1
-    mov byte [eswitch], al
     call scan_or_parse
     cmp byte [eswitch], 0
-    je LA258
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA256
-    mov edi, 34
-    call test_char_equal
-    
-LA260:
-    call scan_or_parse
-    cmp byte [eswitch], 1
-    je LA256
-    mov byte [tflag], 0
+    je LA254
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je LA256
     
 LA256:
     
-LA261:
+LA257:
     ret
     
-RAW:
+NUMBER:
     call PREFIX
     cmp byte [eswitch], 1
-    je LA262
-    mov edi, 34
-    call test_char_equal
-    
-LA263:
-    call scan_or_parse
-    cmp byte [eswitch], 1
-    je LA262
+    je LA258
     mov byte [tflag], 1
     call clear_token
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA262
+    je LA258
+    call DIGIT
+    cmp byte [eswitch], 1
+    je LA258
+    
+LA259:
+    call DIGIT
+    cmp byte [eswitch], 0
+    je LA259
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA258
+    mov byte [tflag], 0
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA258
+    
+LA258:
+    
+LA260:
+    ret
+    
+DIGIT:
+    mov edi, 48
+    call test_char_greater_equal
+    cmp byte [eswitch], 0
+    jne LA261
+    mov edi, 57
+    call test_char_less_equal
+    
+LA261:
+    
+LA262:
+    call scan_or_parse
+    cmp byte [eswitch], 1
+    je LA263
+    
+LA263:
     
 LA264:
-    mov edi, 13
+    ret
+    
+ID:
+    call PREFIX
+    cmp byte [eswitch], 1
+    je LA265
+    mov byte [tflag], 1
+    call clear_token
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA265
+    call ALPHA
+    cmp byte [eswitch], 1
+    je LA265
+    
+LA266:
+    call ALPHA
+    cmp byte [eswitch], 1
+    je LA267
+    
+LA267:
+    cmp byte [eswitch], 0
+    je LA268
+    call DIGIT
+    cmp byte [eswitch], 1
+    je LA269
+    
+LA269:
+    
+LA268:
+    cmp byte [eswitch], 0
+    je LA266
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA265
+    mov byte [tflag], 0
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA265
+    
+LA265:
+    
+LA270:
+    ret
+    
+ALPHA:
+    mov edi, 65
+    call test_char_greater_equal
+    cmp byte [eswitch], 0
+    jne LA271
+    mov edi, 90
+    call test_char_less_equal
+    
+LA271:
+    cmp byte [eswitch], 0
+    je LA272
+    mov edi, 95
     call test_char_equal
     cmp byte [eswitch], 0
-    je LA265
-    mov edi, 10
-    call test_char_equal
+    je LA272
+    mov edi, 97
+    call test_char_greater_equal
     cmp byte [eswitch], 0
-    je LA265
+    jne LA273
+    mov edi, 122
+    call test_char_less_equal
+    
+LA273:
+    
+LA272:
+    call scan_or_parse
+    cmp byte [eswitch], 1
+    je LA274
+    
+LA274:
+    
+LA275:
+    ret
+    
+STRING:
+    call PREFIX
+    cmp byte [eswitch], 1
+    je LA276
+    mov byte [tflag], 1
+    call clear_token
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA276
     mov edi, 34
     call test_char_equal
     
-LA265:
+LA277:
+    call scan_or_parse
+    cmp byte [eswitch], 1
+    je LA276
+    
+LA278:
+    mov edi, 13
+    call test_char_equal
+    cmp byte [eswitch], 0
+    je LA279
+    mov edi, 10
+    call test_char_equal
+    cmp byte [eswitch], 0
+    je LA279
+    mov edi, 34
+    call test_char_equal
+    
+LA279:
     mov al, byte [eswitch]
     xor al, 1
     mov byte [eswitch], al
     call scan_or_parse
     cmp byte [eswitch], 0
-    je LA264
+    je LA278
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
-    je LA262
-    mov byte [tflag], 0
-    mov byte [eswitch], 0
-    cmp byte [eswitch], 1
-    je LA262
+    je LA276
     mov edi, 34
     call test_char_equal
     
-LA266:
+LA280:
     call scan_or_parse
     cmp byte [eswitch], 1
-    je LA262
+    je LA276
+    mov byte [tflag], 0
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA276
     
-LA262:
+LA276:
     
-LA267:
+LA281:
+    ret
+    
+RAW:
+    call PREFIX
+    cmp byte [eswitch], 1
+    je LA282
+    mov edi, 34
+    call test_char_equal
+    
+LA283:
+    call scan_or_parse
+    cmp byte [eswitch], 1
+    je LA282
+    mov byte [tflag], 1
+    call clear_token
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA282
+    
+LA284:
+    mov edi, 13
+    call test_char_equal
+    cmp byte [eswitch], 0
+    je LA285
+    mov edi, 10
+    call test_char_equal
+    cmp byte [eswitch], 0
+    je LA285
+    mov edi, 34
+    call test_char_equal
+    
+LA285:
+    mov al, byte [eswitch]
+    xor al, 1
+    mov byte [eswitch], al
+    call scan_or_parse
+    cmp byte [eswitch], 0
+    je LA284
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA282
+    mov byte [tflag], 0
+    mov byte [eswitch], 0
+    cmp byte [eswitch], 1
+    je LA282
+    mov edi, 34
+    call test_char_equal
+    
+LA286:
+    call scan_or_parse
+    cmp byte [eswitch], 1
+    je LA282
+    
+LA282:
+    
+LA287:
     ret
     

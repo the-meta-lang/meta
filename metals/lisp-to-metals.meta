@@ -6,6 +6,8 @@ LISP =
 .DIRECT("fn_arg_num dd 0")
 .DIRECT("call_arg_count dd 0")
 .DIRECT("indent dd 0")
+.DIRECT("and_sign db '&', 0x00")
+.DIRECT("dollar_sign db '$', 0x00")
 .DIRECT("section .bss")
 .DIRECT("call_arg_count_vector resb 512")
 .DIRECT("symbol_table resb 262144")
@@ -203,53 +205,78 @@ DEFUNC = "defunc" "[" ID
 
 // ------------------------------ Function Call --------------------------------
 
-FUNC_CALL = ID % .DIRECT("inc dword [call_arg_count]") $(CALL_ARG)
-.DIRECT("mov esi, dword [call_arg_count]")
-.DIRECT("mov edi, call_arg_count_vector")
-.DIRECT("call vector_push")
-.DIRECT("mov dword [call_arg_count], 0")
-.DIRECT("mov esi, call_arg_count_vector")
-.DIRECT("call vector_pop")
-.DIRECT("push eax")
-.DIRECT("mov edi, str_vector_8192")
-.DIRECT("mov esi, eax")
-.DIRECT("call vector_reverse_n_string")
-TAB
-.DIRECT("pop eax")
+FUNC_CALL = ID % (CALL_ARG_FIRST .DIRECT("inc dword [call_arg_count]") $(CALL_ARG_REST
+.DIRECT("inc dword [call_arg_count]")
+)
 .DIRECT(".loop:")
-.DIRECT("push eax")
-.UF(% " ")
-.DIRECT("pop eax")
-.DIRECT("dec eax")
-.DIRECT("cmp eax, 0")
+.DIRECT("cmp dword [call_arg_count], 0")
 .DIRECT("je .loop_end")
+.DIRECT("dec dword [call_arg_count]")
+TAB .UF("%arg " % .NL)
 .DIRECT("jmp .loop")
-.DIRECT(".loop_end:")
-.UF(.NL)
-;
+.DIRECT(".loop_end:") | .EMPTY)
+TAB .UF("%call " % .NL .NL);
 
-CALL_ARG = NUMBER % .DIRECT("inc dword [call_arg_count]")
-	| "["
-	.DIRECT("section .data")
-	.DIRECT("dollar_sign db '$', 0x00")
-	.DIRECT("section .text")
-	.DIRECT("mov edi, str_vector_8192")
-	.DIRECT("mov esi, dollar_sign")
-	.DIRECT("call vector_push_string_mm32")
+NESTED_FUNC_CALL = ID % (CALL_ARG_FIRST .DIRECT("inc dword [call_arg_count]") $(CALL_ARG_REST
+.DIRECT("inc dword [call_arg_count]")
+)
+// .DIRECT("mov edi, str_vector_8192")
+// .DIRECT("mov esi, dword [call_arg_count]")
+// .DIRECT("call vector_reverse_n_string")
+.DIRECT(".loop:")
+.DIRECT("cmp dword [call_arg_count], 0")
+.DIRECT("je .loop_end")
+.DIRECT("dec dword [call_arg_count]")
+TAB .UF("%arg " % .NL)
+.DIRECT("jmp .loop")
+.DIRECT(".loop_end:") | .EMPTY)
+TAB .UF("%call " % .NL)
+TAB .UF("%push $" .NL .NL);
+
+CALL_ARG_FIRST = NUMBER %
+	| "[" .DIRECT("mov edi, call_arg_count_vector")
 	.DIRECT("mov esi, dword [call_arg_count]")
-	.DIRECT("mov edi, call_arg_count_vector")
 	.DIRECT("call vector_push")
 	.DIRECT("mov dword [call_arg_count], 0")
-	(FUNC_CALL)
-	.DIRECT("mov esi, call_arg_count_vector")
-	.DIRECT("call vector_pop")
-	.DIRECT("mov dword [call_arg_count], eax")
-	.DIRECT("add dword [call_arg_count], 1")
-	"]";
+	(NESTED_FUNC_CALL
+		.DIRECT("mov esi, call_arg_count_vector")
+		.DIRECT("call vector_pop")
+		.DIRECT("mov dword [call_arg_count], eax")
+		.DIRECT("mov edi, str_vector_8192")
+		.DIRECT("mov esi, and_sign")
+		.DIRECT("call vector_push_string_mm32")
+	| ARITHMETIC
+		.DIRECT("mov esi, call_arg_count_vector")
+		.DIRECT("call vector_pop")
+		.DIRECT("mov dword [call_arg_count], eax")
+		.DIRECT("mov edi, str_vector_8192")
+		.DIRECT("mov esi, dollar_sign")
+		.DIRECT("call vector_push_string_mm32"))
+	"]"
+	| ID %;
 
-	// add 2, 3
-	// add 1, $
-	// [+ 1 [+ 2 3]]
+CALL_ARG_REST = NUMBER %
+	| "["
+	.DIRECT("mov edi, call_arg_count_vector")
+	.DIRECT("mov esi, dword [call_arg_count]")
+	.DIRECT("call vector_push")
+	.DIRECT("mov dword [call_arg_count], 0")
+	(NESTED_FUNC_CALL
+		.DIRECT("mov esi, call_arg_count_vector")
+		.DIRECT("call vector_pop")
+		.DIRECT("mov dword [call_arg_count], eax")
+		.DIRECT("mov edi, str_vector_8192")
+		.DIRECT("mov esi, and_sign")
+		.DIRECT("call vector_push_string_mm32")
+	| ARITHMETIC
+		.DIRECT("mov esi, call_arg_count_vector")
+		.DIRECT("call vector_pop")
+		.DIRECT("mov dword [call_arg_count], eax")
+		.DIRECT("mov edi, str_vector_8192")
+		.DIRECT("mov esi, dollar_sign")
+		.DIRECT("call vector_push_string_mm32"))
+	"]"
+	| ID %;
 
 // -------------------------------- Comments -----------------------------------
 

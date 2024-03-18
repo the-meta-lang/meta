@@ -14,7 +14,7 @@ METALS =
 .LABEL("section .text")
 ->("global _start")
 .LABEL("_start:")
-$(FUNCTION_DECLARATION | WHILE | STATEMENT)
+$(FUNCTION_DECLARATION | STRUCT | WHILE | STATEMENT | COMMENT)
 .LABEL("exit:")
 ->("push ebp")
 ->("mov ebp, esp")
@@ -24,6 +24,23 @@ $(FUNCTION_DECLARATION | WHILE | STATEMENT)
 ->("mov ebx, dword [ebp+8]")
 ->("int 0x80");
 
+// --------------------------------- Structs -----------------------------------
+
+STRUCT = "struct" ID .UF(.NL "struc " * .NL) "{" $(STRUCT_MEMBER) "}" .UF("endstruc" .NL .NL);
+
+STRUCT_MEMBER = ("i8" ID
+		.UF(.TB "." * ": resb 1" .NL))
+	| ("i16" ID
+		.UF(.TB "." * ": resw 1" .NL))
+	| ("i32" ID
+		.UF(.TB "." * ": resd 1" .NL))
+	| ("i64" ID
+		.UF(.TB "." * ": resq 1" .NL))
+	| ("char[" NUMBER % "]" ID
+		.UF(.TB "." * ": resb " % .NL))
+	| ("char" ID
+		.UF(.TB "." * ": resb 1" .NL));
+
 // -------------------------------- Functions ----------------------------------
 
 FUNCTION_DECLARATION = "fn"
@@ -32,8 +49,17 @@ FUNCTION_DECLARATION = "fn"
 	.LABEL(* ":")
 	->("push ebp")
 	->("mov ebp, esp")
-	"(" (FUNCTION_PARAM $("," FUNCTION_PARAM) | .EMPTY) ")"
-	.DIRECT("add dword [fn_arg_num], 2") "{"
+	"(" (FUNCTION_PARAM<"esi">
+			$("," FUNCTION_PARAM<"edi"> 
+				$("," FUNCTION_PARAM<"edx"> 
+					$("," FUNCTION_PARAM<"ecx">
+						$("," PUSHED_FUNCTION_PARAM)))) | .EMPTY) ")"
+	// Adjust the stack pointer to make room for the local variables
+	// Since the first 4 arguments get moved into local variable space
+	// we need to increment the arg_num by the amount of arguments we captured
+	.DIRECT("add dword [fn_arg_num], 2")
+	.DIRECT("mov eax, dword [fn_arg_count]")
+	.DIRECT("add dword [fn_arg_num], eax") "{"
 	FUNCTION_BODY
 	.DIRECT("mov dword [fn_arg_num], 0")
 	.DIRECT("mov dword [fn_arg_count], 0")
@@ -43,15 +69,38 @@ FUNCTION_DECLARATION = "fn"
 	.LABEL(*1 ":")
 "}";
 
-FUNCTION_PARAM = TYPE NAME
+// TODO: This whole thing is cursed
+FUNCTION_PARAM<reg> = TYPE NAME
+	// TODO And why does this have to be disabled?
+	// .DIRECT("inc dword [fn_arg_count]")
+	.DIRECT("inc dword [fn_arg_num]")
+	.DIRECT("mov edx, dword [fn_arg_num]")
+	// TODO: Why the heck is that 2? Why does that work? Should be 4...
+	.DIRECT("add edx, 2")
+	.DIRECT("add edx, dword [fn_arg_count]")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_set")
+	.RS("mov dword [ebp-")
+	.DIRECT("mov esi, dword [fn_arg_num]")
+	.DIRECT("imul esi, esi, 4")
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostr")
+	.DIRECT("add dword [outbuff_offset], eax")
+	->("], " *reg)
+	->("sub esp, 4");
+
+PUSHED_FUNCTION_PARAM = TYPE NAME
 	.DIRECT("inc dword [fn_arg_count] ; found new argument!")
 	.DIRECT("inc dword [fn_arg_num]")
 	.DIRECT("mov edx, dword [fn_arg_num]")
+	.DIRECT("sub edx, 4")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
 	.DIRECT("call hash_set");
 
-FUNCTION_BODY = $(WHILE | STATEMENT);
+FUNCTION_BODY = $(WHILE | STATEMENT | COMMENT);
 
 STATEMENT = ("%var" TYPE NAME 
 		// write the index into the symbol table
@@ -60,8 +109,11 @@ STATEMENT = ("%var" TYPE NAME
 		.DIRECT("mov edi, symbol_table")
 		.DIRECT("mov esi, last_match")
 		.DIRECT("call hash_set")
-		"," VALUE<"eax"> MOV_INTO ->("eax"))
+		"," VALUE<"eax"> MOV_INTO<"eax"> 
+		// NOTE: Adjust the stack pointer so we don't accidentally overwrite the variable by pushing.
+		->("sub esp, 4"))
 	| ("%push" VALUE<"eax">
+			->("sub esp, 4")
 			->("push eax"))
 	| ("%add" ARITHMETIC_OPERATION_ARGS
 			->("add eax, ebx"))
@@ -82,27 +134,31 @@ STATEMENT = ("%var" TYPE NAME
 		->("mov eax, 0")
 		->("setgt al"))
 	| ("%deref/byte" VALUE<"eax">
-			->("mov eax, byte [eax]"))
+			->("mov ebx, eax")
+			->("xor eax, eax")
+			->("mov al, byte [ebx]"))
 	| ("%deref/word" VALUE<"eax">
-			->("mov eax, word [eax]"))
+			->("mov ax, word [eax]"))
 	| ("%deref/dword" VALUE<"eax">
 			->("mov eax, dword [eax]"))
-	| ("%set" NAME % "," VALUE<"eax">
-		SET_INTO ->("eax"))
+	// Moves the value in arg2 into the memory location in arg1
+	| ("%setref" VALUE<"eax"> % "," VALUE<"ebx">
+		->("mov dword [eax], ebx"))
+	| ("%set" VALUE<"ebx"> % "," VALUE<"eax">
+		->("mov dword [ebx], eax"))
 	| ("%ret" (VALUE<"eax"> | .EMPTY)
 		->("mov esp, ebp")
 		->("pop ebp")
 		->("ret"))
-	| (ID % FUNCTION_CALL_ARGS
-		->("call " %));
+	| ("%call" ID
+		->("call " *))
+	| ("%arg" FUNCTION_CALL_ARG<"esi">
+			$("%arg" FUNCTION_CALL_ARG<"edi"> 
+				$("%arg" FUNCTION_CALL_ARG<"edx"> 
+					$("%arg" FUNCTION_CALL_ARG<"ecx">
+						$("%arg" FUNCTION_CALL_ARG_REST)))));
 
 // ----------------------------- Function Calls --------------------------------
-
-FUNCTION_CALL_ARGS = (FUNCTION_CALL_ARG<"esi"> 
-	$("," FUNCTION_CALL_ARG<"edi"> 
-		$("," FUNCTION_CALL_ARG<"edx"> 
-			$("," FUNCTION_CALL_ARG<"ecx"> 
-				$("," FUNCTION_CALL_ARG_REST)))) | .EMPTY);
 
 FUNCTION_CALL_ARG<reg> = NUMBER
 		->("mov " *reg ", " *)
@@ -114,26 +170,35 @@ FUNCTION_CALL_ARG<reg> = NUMBER
 	| SYMBOL_TABLE_ID<"eax">
 		->("mov " *reg ", eax")
 	| RESULT_SPECIFIER
-		->("mov " *reg ", eax");
+		->("mov " *reg ", eax")
+	| STACK_POINTER
+		->("pop " *reg);
 
 FUNCTION_CALL_ARG_REST = NUMBER
+		->("add esp, 4")
 		->("push " *)
 	| STRING
 		.LABEL("section .data")
 			->(*3 " db " * ", 0x00")
 		.LABEL("section .text")
+			->("add esp, 4")
 			->("push " *3)
 	| SYMBOL_TABLE_ID<"eax">
+		->("add esp, 4")
 		->("push, eax")
 	| RESULT_SPECIFIER
-		->("push, eax");
+		->("add esp, 4")
+		->("push, eax")
+	| STACK_POINTER
+		->("pop, eax")
+		->("add esp, 4")
+		->("push eax");
 
 // --------------------- Arithmetic Operation Arguments ------------------------
 
 ARITHMETIC_OPERATION_ARGS = (NUMBER % "," (
 		NUMBER
 			->("mov ebx, " *)
-		// TODO: Change to generics SYMBOL_TABLE_ID<"ebx">	
 		| SYMBOL_TABLE_ID<"ebx">
 		| RESULT_SPECIFIER
 			->("mov ebx, eax"))
@@ -144,12 +209,17 @@ ARITHMETIC_OPERATION_ARGS = (NUMBER % "," (
 		| SYMBOL_TABLE_ID<"ebx">
 		| RESULT_SPECIFIER
 			->("mov ebx, eax")))
-	| (SYMBOL_TABLE_ID<"eax"> "," (
+	// NOTE: This is shit...
+	// TODO: Calculations should only take place in eax and ebx...
+	// This is only so we don't overwrite previous results...
+	// Fuck that
+	| (SYMBOL_TABLE_ID<"ecx"> "," (
 			NUMBER
 			->("mov ebx, " *)
 		| SYMBOL_TABLE_ID<"ebx">
 		| RESULT_SPECIFIER
-			->("mov ebx, eax")));
+			->("mov ebx, eax"))
+		->("mov eax, ecx"));
 
 SET_INTO = 
 	.RS("mov dword [ebp")
@@ -172,7 +242,7 @@ SET_INTO =
 	.DIRECT("add dword [outbuff_offset], eax")
 	.RS("], ");
 
-MOV_INTO = .RS("mov dword [ebp")
+MOV_INTO<reg> = .RS("mov dword [ebp")
 	// use the symbol table to get the index of the variable
 	// then calculate the offset by doing `8 + (arg_count - index) * 4`
 	.DIRECT("mov eax, dword [fn_arg_num]") // index is now in eax
@@ -185,22 +255,26 @@ MOV_INTO = .RS("mov dword [ebp")
 	.DIRECT("add edi, dword [outbuff_offset]")
 	.DIRECT("call inttostrsigned")
 	.DIRECT("add dword [outbuff_offset], eax")
-	.RS("], ");
+	->("], " *reg);
 
 // --------------------------------- Types ------------------------------------
 
-TYPE = "i32";
+TYPE = ("*" | .EMPTY) ("i8" | "i16" | "i32" | "i64" | "f32" | "f64" | ("char[" (NUMBER | .EMPTY) "]") | "char" | "bool" | "void" | ID);
 
-// TODO: Replace with generics
 VALUE<reg> = NUMBER
-		->("mov eax, " *)
+		->("mov " *reg ", " *)
 	| STRING
 		.LABEL("section .data")
 			->(*3 " db " * ", 0x00")
 		.LABEL("section .text")
-			->("mov eax, " *3)
+			->("mov " *reg ", " *3)
 	| SYMBOL_TABLE_ID<reg>
-	| RESULT_SPECIFIER;
+	| RESULT_SPECIFIER
+		->("mov " *reg ", eax")
+	| STACK_POINTER
+		->("pop " *reg);
+
+STACK_POINTER = "&";
 
 RESULT_SPECIFIER = "$";
 
