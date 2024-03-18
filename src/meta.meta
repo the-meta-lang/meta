@@ -1,154 +1,349 @@
-.DATA
-
-line = 0;
-
 .SYNTAX PROGRAM
 
 PROGRAM = 
+.DIRECT("section .data")
+.DIRECT("fn_arg_count dd 0")
+.DIRECT("fn_arg_num dd 0")
+.DIRECT("section .bss")
+.DIRECT("symbol_table resb 262144")
+.DIRECT("section .text")
 .LABEL("%define MAX_INPUT_LENGTH 65536")
 .LABEL("%include './lib/asm_macros.asm'")
-	$(
-		(".DATA" 
-		.LABEL("section .data") 
-			$(DATA_DEFINITION | COMMENT))
-	 | (".CODE" 
-		.LABEL("section .text")
-	 		$(CODE_DEFINITION | COMMENT))
-	 | (".SYNTAX" .ID
-		.LABEL("section .text")
-			->("global _start")
+.LABEL("section .text")
+	->("global _start")
+	$((".TOKENS"
+		.LABEL("; -- Tokens --")
+			$(TOKEN_DEFINITION | COMMENT))
+		| (".SYNTAX" ID
 		.LABEL("_start:")
+			->("mov esi, 0")
+			->("call premalloc")
 			->("call _read_file_argument")
 			->("call _read_file")
+			->("push ebp")
+			->("mov ebp, esp")
 			->("call " *)
+			->("pop ebp")
+			->("mov edi, outbuff")
+			->("call print_mm32")
 			->("mov eax, 1")
 			->("mov ebx, 0")
 			->("int 0x80")
-  	$(DEFINITION | INCLUDE_STATEMENT | COMMENT) ".END"));
+  	$(DEFINITION | IMPORT_STATEMENT | COMMENT)));
 
-INCLUDE_STATEMENT = ".INCLUDE" .STRING_RAW ";" .DIRECT("mov esi, last_match") .DIRECT("call import_meta_file_mm32") .DIRECT("call set_true");
+// -------------------------------- Includes -----------------------------------
 
-DATA_DEFINITION = .ID .RS(*) "=" DATA_TYPE ";";
+IMPORT_STATEMENT = "import" RAW ";" 
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call import_meta_file_mm32")
+	.DIRECT("mov byte [eswitch], 0");
 
-DATA_TYPE = ("{" .NUMBER ->(" times " * " dd 0x00") "}") | (.STRING ->(" db " * ", 0x00")) | (.NUMBER ->(" dd " *));
+// --------------------------------- Output ------------------------------------
 
 OUT1 = "*1" ->("call gn1")
 	| "*2" ->("call gn2")
 	| "*3" ->("call gn3")
 	| "*4" ->("call gn4")
-	| "*" ->("call copy_last_match")
-	| "%" ->("mov edi, str_vector_8192")
+	| "*" (
+			GET_REFERENCE
+			->("mov edi, outbuff")
+			->("add edi, [outbuff_offset]")
+			->("call buffc")
+			->("add dword [outbuff_offset], eax")
+		| .EMPTY ->("call copy_last_match")
+	)
+	| "#"
+		GET_REFERENCE
+		->("mov edi, outbuff")
+		->("add edi, dword [outbuff_offset]")
+		->("call inttostr")
+		->("add dword [outbuff_offset], eax")
+	| "%" ->("mov esi, str_vector_8192")
 				->("call vector_pop_string")
-				->("call print_mm32")
-	| BRACKET_EXPR_WRAPPER
-		->("print_int edi")
-	| .STRING ->("print " *);
+				->("mov esi, eax")
+				->("mov edi, outbuff")
+				->("add edi, [outbuff_offset]")
+				->("call buffc")
+				->("add dword [outbuff_offset], eax")
+	| ".NL"
+		->("print 0x0A")
+	| ".TB"
+		->("print '    '")
+	| STRING ->("print " *);
 
-OUT_IMMEDIATE = .STRING_RAW ->(*);
+GET_REFERENCE = ID
+	// We need to get the index of the argument from the symbol table
+	// We can do this by doing `8 + (arg_count - index) * 4`
+	// This will account for the 8 bytes of the function call (esp and ip)
+	// .RS("mov esi, dword [ebp")
+	// .DIRECT("mov edi, symbol_table")
+	// .DIRECT("mov esi, last_match")
+	// .DIRECT("call hash_get") // Index is now in eax
+	// .DIRECT("mov ebx, dword [fn_arg_count]")
+	// .DIRECT("sub ebx, eax") // (arg_count - index)
+	// .DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	// .DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	// .DIRECT("mov esi, eax") // print the number
+	// .DIRECT("mov edi, outbuff")
+	// .DIRECT("add edi, dword [outbuff_offset]")
+	// .DIRECT("call inttostrsigned")
+	// .DIRECT("add dword [outbuff_offset], eax")
+	// ->("] ; get " *)
+	->("pop esi")
+	->("push esi");
 
-OUTPUT = ("->" "(" $(OUT1) ")" ->("call newline") [set line [+ line 1]]
-		| ".LABEL" ->("call label") "(" $(OUT1) ")" ->("call newline") 
-		| ".RS" "(" $ OUT1 ")")
+OUT_IMMEDIATE = RAW ->(*);
+
+OUTPUT = ("->" "(" $(OUT1) ")"
+			->("print 0x0A")
+			->("print '    '")
+		// UF stands for Unformatted and will not automatically include a newline or a tab
+		| ".UF" "(" $(OUT1) ")"
+		| ".LABEL" 
+			->("call label") 
+			"(" $(OUT1) ")"
+			->("print 0x0A")
+			->("print '    '")
+		| ".RS" "(" $(OUT1) ")")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
-EX3 = .ID ->("call vstack_clear") ->("call " *) ->("call vstack_restore")
-	| .STRING           ->("test_input_string " *)
-	| ".ID"             ->("call test_for_id")
+EX3 = ID %
+		// Store call information for error handling
+			->("error_store '" * "'")
+			->("call vstack_clear")
+			(("<" (GENERIC_ARG $("," GENERIC_ARG) | .EMPTY) ">") | .EMPTY)
+			->("call " %)
+			->("call vstack_restore")
+			->("call error_clear")
+	| STRING ->("test_input_string " *)
 	| ".RET"						->("ret")
-	| ".NOT" (.STRING | .NUMBER) ->("match_not " *)
-	| ".NUMBER"         ->("call test_for_number")
-	| ".STRING_RAW"			->("call test_for_string_raw")
-	| ".STRING"         ->("call test_for_string")
-	| "%>"
+	| ".NOT" (STRING | NUMBER) ->("match_not " *)
+	| "%"
 		->("mov edi, str_vector_8192")
 		->("mov esi, last_match")
 		->("call vector_push_string_mm32")
 	| "(" EX1 ")"
-	| BRACKET_EXPR_WRAPPER
-	| ".EMPTY" ->("call set_true")
-	| "$" .LABEL(*1 ":") EX3 ->("je " *1) ->("call set_true")
+	| ".EMPTY" ->("mov byte [eswitch], 0")
+	| "$<" NUMBER 
+			.LABEL("section .data")
+				->("MIN_ITER_" *3 " dd " *)
+			(":" NUMBER
+				->("MAX_ITER_" *3 " dd " *)
+			| .EMPTY 
+				->("MAX_ITER_" *3 " dd 0xFFFFFFFF")) ">"
+			.LABEL("section .text")
+				->("xor ecx, ecx")
+			.LABEL(*1 ":")
+			->("push ecx") 
+				EX3
+			->("pop ecx")
+			->("cmp ecx, dword [MAX_ITER_" *3 "]")
+			->("jg " *2)
+			->("cmp ecx, dword [MIN_ITER_" *3 "]")
+			->("jl " *1)
+			->("inc ecx")
+			->("cmp byte [eswitch], 0")
+			->("je " *1)
+			.LABEL(*2 ":")
+			->("mov byte [eswitch], 0")
+	| "$" .LABEL(*1 ":") EX3
+			->("cmp byte [eswitch], 0")
+			->("je " *1)
+			->("mov byte [eswitch], 0")
+
+	// ----------------------- Tree generation semantics --------------------------
+	// Capture the last match as a tree node without childnodes
+	// e.g. `ID ::address` captures a node called `address` with the string value of `$(ID)`
+	| ("::" ID ->("; Capture " * " as single node")
+		// Capture a tree node with `NUMBER` childnodes which are the captures in reverse order.
+		// e.g. :ADD<2> captures the `ADD` node with 2 childnodes inferred from the last 2 matches.
+		| ":" ID "<" NUMBER ">")
+
+	// ------------------------------ Backtracking --------------------------------
+	| "{"
+			// Store backtracking position
+			->("call backtrack_store")
+		EX1 $("/"
+				// If we didn't encounter an error we can simply exit the loop
+				// and clear the backtracking information.
+				// TODO: Maybe change to `pflag`
+				->("cmp byte [eswitch], 0")
+				->("je " *1)
+				// We encountered an error
+				// Let's restore the backtracking position
+				->("call backtrack_restore")
+			EX1) "}"
+			->("cmp byte [eswitch], 0")
+			->("je " *1)
+			// We exited with an error, let's backtrack
+			->("call backtrack_restore")
+		.LABEL(*1 ":")
+			->("call backtrack_clear")
 	| COMMENT;
 
-EX2 = (EX3 ->("jne " *1) | OUTPUT) $ (EX3 ->("mov esi, " [<> line]) ->("jne terminate_program ; " [<> line]) [set line [+ line 1]]  | OUTPUT) .LABEL(*1 ":");
+EX2 = (EX3
+		->("cmp byte [eswitch], 1")
+		->("je " *1) | OUTPUT)
+	$(EX3 
+		->("cmp byte [eswitch], 1")
+		// We can register an error handler using the "@()" syntax.
+		// NOTE: Terminating here doesn't work with backtracking
+		// TODO: When using backtracking, this should be `je *1`
+		(("@"
+			// We're gonna kill the program, so why not just write into the buffer directly...
+			->("jne " *2)
+			->("mov dword [outbuff_offset], 0")
+			"(" $(OUT1) ")"
+			->("mov edi, outbuff")
+			->("call print_mm32")
+			->("call stacktrace")
+			->("mov eax, 1")
+			->("mov ebx, 1")
+			->("int 0x80")
+			.LABEL(*2 ":"))
+			| .EMPTY ->("je terminate_program"))
+		| OUTPUT)
+	.LABEL(*1 ":");
 
-EX1 = EX2 $ ("|" ->("je " *1) EX2) .LABEL(*1 ":");
+EX1 = EX2 $ ("|" 
+	->("cmp byte [eswitch], 0")
+	->("je " *1) EX2) .LABEL(*1 ":");
 
-BRACKET_EXPR_WRAPPER = "[" (("<<" BRACKET_ARG
-		->("pop eax")
-		->("cmp eax, 0"))
-	// Set the flags according to the result of the last operation
-	| (->("pushfd") ->("push eax") BRACKET_EXPR ->("pop edi") ->("pop eax") ->("popfd"))) "]";
+// Generics can be defined like this:
+// DEFINITION<arg1, arg2>
+// and used like this:
+// : *arg1 *arg2 or #arg1 depending on the data type (string | int)
+DEFINITION = ID 
+	.LABEL(* ":")
+		->("push ebp")
+		->("mov ebp, esp")
+		->("push esi")
+	("<" GENERIC $("," GENERIC) ">" | .EMPTY) "=" EX1 ";"
+		// @("Missing semicolon: " #cursor)
+		->("pop esi")
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("ret");
 
-BRACKET_EXPR = ("+" BRACKET_ARG BRACKET_ARG 
-		->("pop eax") 
-		->("pop ebx")
-		->("add eax, ebx")
-		->("push eax")) 
-	| ("-" BRACKET_ARG BRACKET_ARG 
-		->("pop ebx") 
-		->("pop eax")
-		->("sub eax, ebx")
-		->("push eax"))
-	| ("*" BRACKET_ARG BRACKET_ARG 
-		->("pop eax") 
-		->("pop ebx")
-		->("mul ebx")
-		->("push eax")) 
-	| ("/" BRACKET_ARG BRACKET_ARG 
-		->("pop ebx") 
-		->("pop eax")
-		->("idiv eax, ebx")
-		->("push eax"))
-	| ("set" .ID %> BRACKET_ARG
-		->("pop eax")
-		->("mov [" % "], eax")
-		->("push eax"))
-	| ("if" BRACKET_ARG 
-			->("pop eax") 
-			->("cmp eax, 0") 
-			->("jne " *1)
-				BRACKET_ARG
-			->("jmp " *2)
+GENERIC = ID
+	.DIRECT("inc dword [fn_arg_count] ; found new argument!")
+	.DIRECT("inc dword [fn_arg_num]")
+	.DIRECT("mov edx, dword [fn_arg_num]")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_set");
+
+// TODO: Support nested generic movements
+GENERIC_ARG = NUMBER 
+		->("mov esi, " *)
+	| STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("mov esi, " *3)
+	| ID
+		->("pop esi")
+		->("push esi");
+
+// --------------------------------- Tokens ------------------------------------
+
+TOKEN_DEFINITION = ID
+	.LABEL(* ":") "=" TX1 ";" ->("ret");
+
+TX1 = TX2 $("|" 
+				->("cmp byte [eswitch], 0")
+				->("je " *1) TX2) 
+      .LABEL(*1 ":") ;
+
+TX2 = TX3
+	->("cmp byte [eswitch], 1")
+	->("je " *1)
+			// Return from rule if error switch = 1
+      $(TX3 
+				->("cmp byte [eswitch], 1")
+				->("je " *1))
+      .LABEL(*1 ":");
+
+// Capture the next incoming tokens until .DELTOK
+TX3 = (".TOKEN"
+					// Capture the incoming token
+					->("mov byte [tflag], 1")
+					->("call clear_token")
+				| ".DELTOK"
+					// Stop capturing the token
+					->("mov byte [tflag], 0")
+				| "$" .LABEL(*1 ":") TX3 
+					->("cmp byte [eswitch], 0")
+					->("je " *1)) 
+        ->("mov byte [eswitch], 0")
+			| ".ANYBUT(" CX1 ")"
+				// Negate the error switch
+				->("mov al, byte [eswitch]")
+				->("xor al, 1")
+				->("mov byte [eswitch], al")
+				->("call scan_or_parse")
+			| ".ANY(" CX1 ")"
+				->("call scan_or_parse")
+			// Reserve a string that may not be used in a token.
+			// Helpful when identifiers could be named the same as a keyword e.g. "if"
+			| ".RESERVED(" $(STRING 
+					->("test_input_string " *)
+					->("mov al, byte [eswitch]")
+					->("xor al, 1")
+					->("mov byte [eswitch], al")) ")"
+			| ID
+				->("call " *)
+			| "(" TX1 ")";
+
+// OR
+CX1 = CX2 $("!"
+				->("cmp byte [eswitch], 0")
+				->("je " *1) CX2)
+			.LABEL(*1 ":");
+
+// Match a range of characters
+// FROM : TO
+CX2 = CX3 (":" 
+				->("mov edi, " *)
+				->("call test_char_greater_equal")
+				->("cmp byte [eswitch], 0")
+				->("jne " *1) 
+      CX3
+				->("mov edi, " *)
+        ->("call test_char_less_equal")
 			.LABEL(*1 ":")
-				BRACKET_ARG)
-			.LABEL(*2 ":")
-	| ("hash-set" .ID %> BRACKET_ARG BRACKET_ARG
-		->("mov edi, " %)
-		->("pop edx")
-		->("pop esi")
-		->("call hash_set")
-		->("push edx"))
-	| ("hash-get" .ID %> BRACKET_ARG
-		->("mov edi, " %)
-		->("pop esi")
-		->("call hash_get")
-		->("push eax"))
-	| ("to-int" BRACKET_ARG
-		->("pop esi")
-		->("call string_to_int")
-		->("push eax"))
-	| ("<>" BRACKET_ARG)
-	| (.ID %> $(BRACKET_ARG) ->("call " %))
-	| (.NUMBER ->("push " *));
+			| .EMPTY 
+				->("mov edi, " *)
+				->("call test_char_equal"));
 
-BRACKET_ARG = ("[" BRACKET_EXPR "]")
-	| (.NUMBER ->("push " *))
-	| (.ID ->("push dword [" * "]"))
-	| ("*" .ID ->("push " *))
-	| (.STRING .LABEL("section .data") ->(*3 " db " * ", 0x00") .LABEL("section .text") ->("push " *3));
+CX3 = NUMBER | STRING;
 
-// Code Definitions
-
-CODE_DEFINITION = .ID .LABEL(* ":") "=" "[" 
-	->("push ebp")
-	->("mov ebp, esp") BRACKET_EXPR
-	// BRACKET_EXPR will leave the result on the stack
-	->("pop edi")
-	->("pop ebp")
-	->("ret") "]";
-
-DEFINITION = .ID .LABEL(* ":") "=" EX1 ";" ->("ret");
+// -------------------------------- Comments -----------------------------------
 
 COMMENT = "//" .NOT 10;
 
-.END
+// ---------------------------- Token Definitions ------------------------------
+
+.TOKENS
+
+// Remove any leading whitespace
+PREFIX = $.ANY(32!9!13!10);
+
+// Match numbers (sequence of digits)
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+
+// Match any digit
+DIGIT  = .ANY(48:57);
+
+// Match any sequence of characters and digits, may not start with a digit.
+ID     = PREFIX .RESERVED("import") .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+// Matches any uppercase or lowercase character as well as underscore
+ALPHA  = .ANY(65:90!95!97:122) ;
+
+// Matches anything but double quotes that is enclosed by double quotes.
+// e.g. "hello world" but not "awd "inner" "
+STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+
+// Same as STRING but does not capture the double quotes.
+RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
