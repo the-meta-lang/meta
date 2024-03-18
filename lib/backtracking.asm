@@ -1,5 +1,6 @@
 backtrack_store:
 		; We need to store backtracking information so we can restore it later on
+		mov byte [backtrack_switch], 1 ; We're backtracking boisss
 		mov esi, dword [outbuff_offset]
 		mov edi, bk_outbuff_offset
 		call vector_push
@@ -34,6 +35,7 @@ backtrack_restore:
 
 
 backtrack_clear:
+		mov byte [backtrack_switch], 0 ; Alright, we're done here.
 		; Clear all backtracking information, we're done here!
 		; Pop the input position from the stack
 		mov esi, bk_inbuff_offset

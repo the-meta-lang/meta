@@ -26,6 +26,7 @@ PROGRAM:
     mov ebp, esp
     push esi
     section .data
+    loop_counter dd 0
     fn_arg_count dd 0
     fn_arg_num dd 0
     section .bss
@@ -1258,9 +1259,6 @@ LA101:
     call error_clear
     cmp byte [eswitch], 1
     je LA102
-    print "cmp byte [eswitch], 1"
-    print 0x0A
-    print '    '
     cmp byte [eswitch], 1
     je terminate_program
     cmp byte [eswitch], 1
@@ -1272,8 +1270,13 @@ LA101:
     je LA103
     cmp byte [eswitch], 1
     je terminate_program
+    print "cmp byte [eswitch], 1"
+    print 0x0A
+    print '    '
+    cmp byte [eswitch], 1
+    je terminate_program
     print "jne "
-    call gn2
+    call gn3
     print 0x0A
     print '    '
     print "mov dword [outbuff_offset], 0"
@@ -1322,7 +1325,7 @@ LA106:
     print 0x0A
     print '    '
     call label
-    call gn2
+    call gn3
     print ":"
     print 0x0A
     print '    '
@@ -1339,9 +1342,38 @@ LA108:
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je LA110
+    print "cmp byte [eswitch], 1"
+    print 0x0A
+    print '    '
+    cmp byte [eswitch], 1
+    je terminate_program
+    print "jne LOOP_"
+    mov esi, dword [loop_counter]
+    mov edi, outbuff
+    add edi, dword [outbuff_offset]
+    call inttostr
+    add dword [outbuff_offset], eax
+    print 0x0A
+    print "cmp byte [backtrack_switch], 1"
+    print 0x0A
+    print '    '
+    print "je "
+    call gn1
+    print 0x0A
+    print '    '
     print "je terminate_program"
     print 0x0A
     print '    '
+    print '    '
+    print "LOOP_"
+    mov esi, dword [loop_counter]
+    mov edi, outbuff
+    add edi, dword [outbuff_offset]
+    call inttostr
+    add dword [outbuff_offset], eax
+    inc dword [loop_counter]
+    print ":"
+    print 0x0A
     
 LA110:
     

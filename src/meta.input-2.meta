@@ -1,0 +1,32 @@
+.SYNTAX PROGRAM
+
+PROGRAM = {
+	 (NUMBER ">" ->("greater") NUMBER)
+	/ (NUMBER ">=" ->("greater equal") NUMBER)
+	/ (NUMBER ">=>" ->("awdawd equal") NUMBER)
+};
+
+
+.TOKENS
+
+// Remove any leading whitespace
+PREFIX = $.ANY(32!9!13!10);
+
+// Match numbers (sequence of digits)
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+
+// Match any digit
+DIGIT  = .ANY(48:57);
+
+// Match any sequence of characters and digits, may not start with a digit.
+ID     = PREFIX .RESERVED("import") .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+// Matches any uppercase or lowercase character as well as underscore
+ALPHA  = .ANY(65:90!95!97:122) ;
+
+// Matches anything but double quotes that is enclosed by double quotes.
+// e.g. "hello world" but not "awd "inner" "
+STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+
+// Same as STRING but does not capture the double quotes.
+RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);

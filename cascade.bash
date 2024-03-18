@@ -18,16 +18,17 @@ while inotifywait -e close_write ${argv[*]} >/dev/null 2>&1; do
 		# Iterate over all files and compile them.
 		# The last element (n - 1) is always the compiler and the current is the input.
 		clear;
+		files=("${argv[@]}")
 		for (( i=1; i<$len; i++ )); do
-			compiler=${argv[$i - 1]}
-			metafile=${argv[$i]}
+			compiler=${files[$i - 1]}
+			metafile=${files[$i]}
 			
 			if (( $i == $len - 1 )); then
 				# clear;
-				OUTPUT=$($compiler ${argv[$i]})
+				OUTPUT=$($compiler $metafile)
 				if [ $? -gt 0 ]; then
 					echo "$OUTPUT"
-					echo "Run failed"
+					echo "Last run failed"
 					break 1
 				else
 					echo "$OUTPUT"
@@ -38,20 +39,17 @@ while inotifywait -e close_write ${argv[*]} >/dev/null 2>&1; do
 
 				if [ $? -gt 0 ]; then
 					echo "$compiler_output"
-					echo "$(date) Run failed - reverting changes"
+					echo "$(date) Run $i failed"
 					break 1
 				fi
 
 				echo "$compiler_output" > "$metafile.asm"
 
 				compile $metafile;
-				argv[$i]="$metafile.bin"
+				files[$i]="$metafile.bin"
 
-				if [ $? == 0 ]; then
-					echo "$compiler_output"
-					echo "$(date) Compilation successful"
-				else
-					echo "Compilation failed"
+				if [ $? -gt 0 ]; then
+					echo "$(date) NASM Compilation failed"
 					break 1
 				fi
 			fi

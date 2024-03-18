@@ -6,6 +6,7 @@ section .data
 	; Error switch, indicates a parsing error that is not recoverable
 	eswitch db 0
 	outbuff_offset dd 0
+	backtrack_switch db 0
 
 	cursor dd 0
 

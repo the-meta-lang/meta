@@ -26,6 +26,7 @@ PROGRAM:
     mov ebp, esp
     push esi
     section .data
+    loop_counter dd 0
     fn_arg_count dd 0
     fn_arg_num dd 0
     section .bss
@@ -83,8 +84,12 @@ LA5:
     je LA3
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_0
+cmp byte [backtrack_switch], 1
+    je LA2
     je terminate_program
-    
+        LOOP_0:
+
 LA2:
     
 LA7:
@@ -103,8 +108,12 @@ LA8:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_1
+cmp byte [backtrack_switch], 1
+    je LA10
     je terminate_program
-    call label
+        LOOP_1:
+call label
     print "_start:"
     print 0x0A
     print '    '
@@ -187,8 +196,12 @@ LA13:
     je LA11
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_2
+cmp byte [backtrack_switch], 1
+    je LA10
     je terminate_program
-    
+        LOOP_2:
+
 LA10:
     
 LA16:
@@ -202,8 +215,12 @@ LA9:
     je LA1
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_3
+cmp byte [backtrack_switch], 1
+    je LA18
     je terminate_program
-    
+        LOOP_3:
+
 LA18:
     
 LA19:
@@ -225,11 +242,19 @@ IMPORT_STATEMENT:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_4
+cmp byte [backtrack_switch], 1
+    je LA20
     je terminate_program
-    test_input_string ";"
+        LOOP_4:
+test_input_string ";"
     cmp byte [eswitch], 1
+    jne LOOP_5
+cmp byte [backtrack_switch], 1
+    je LA20
     je terminate_program
-    mov esi, last_match
+        LOOP_5:
+mov esi, last_match
     call import_meta_file_mm32
     mov byte [eswitch], 0
     
@@ -322,8 +347,12 @@ LA30:
     
 LA29:
     cmp byte [eswitch], 1
+    jne LOOP_6
+cmp byte [backtrack_switch], 1
+    je LA27
     je terminate_program
-    
+        LOOP_6:
+
 LA27:
     cmp byte [eswitch], 0
     je LA23
@@ -336,8 +365,12 @@ LA27:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_7
+cmp byte [backtrack_switch], 1
+    je LA31
     je terminate_program
-    print "mov edi, outbuff"
+        LOOP_7:
+print "mov edi, outbuff"
     print 0x0A
     print '    '
     print "add edi, dword [outbuff_offset]"
@@ -433,40 +466,108 @@ GET_REFERENCE:
     cmp byte [eswitch], 1
     je LA36
     cmp byte [eswitch], 1
+    jne LOOP_8
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_8:
+cmp byte [eswitch], 1
+    jne LOOP_9
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_9:
+cmp byte [eswitch], 1
+    jne LOOP_10
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_10:
+cmp byte [eswitch], 1
+    jne LOOP_11
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_11:
+cmp byte [eswitch], 1
+    jne LOOP_12
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_12:
+cmp byte [eswitch], 1
+    jne LOOP_13
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_13:
+cmp byte [eswitch], 1
+    jne LOOP_14
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_14:
+cmp byte [eswitch], 1
+    jne LOOP_15
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_15:
+cmp byte [eswitch], 1
+    jne LOOP_16
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_16:
+cmp byte [eswitch], 1
+    jne LOOP_17
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_17:
+cmp byte [eswitch], 1
+    jne LOOP_18
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_18:
+cmp byte [eswitch], 1
+    jne LOOP_19
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_19:
+cmp byte [eswitch], 1
+    jne LOOP_20
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_20:
+cmp byte [eswitch], 1
+    jne LOOP_21
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_21:
+cmp byte [eswitch], 1
+    jne LOOP_22
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_22:
+cmp byte [eswitch], 1
+    jne LOOP_23
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_23:
+cmp byte [eswitch], 1
+    jne LOOP_24
+cmp byte [backtrack_switch], 1
+    je LA36
     je terminate_program
-    print "pop esi"
+        LOOP_24:
+print "pop esi"
     print 0x0A
     print '    '
     print "push esi"
@@ -513,8 +614,12 @@ OUTPUT:
     je LA40
     test_input_string "("
     cmp byte [eswitch], 1
+    jne LOOP_25
+cmp byte [backtrack_switch], 1
+    je LA40
     je terminate_program
-    
+        LOOP_25:
+
 LA41:
     error_store 'OUT1'
     call vstack_clear
@@ -531,19 +636,31 @@ LA43:
     je LA41
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_26
+cmp byte [backtrack_switch], 1
+    je LA40
     je terminate_program
-    test_input_string ")"
+        LOOP_26:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_27
+cmp byte [backtrack_switch], 1
+    je LA40
     je terminate_program
-    print "print 0x0A"
+        LOOP_27:
+print "print 0x0A"
     print 0x0A
     print '    '
     print "print '    '"
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
+    jne LOOP_28
+cmp byte [backtrack_switch], 1
+    je LA40
     je terminate_program
-    
+        LOOP_28:
+
 LA40:
     cmp byte [eswitch], 0
     je LA44
@@ -552,8 +669,12 @@ LA40:
     je LA45
     test_input_string "("
     cmp byte [eswitch], 1
+    jne LOOP_29
+cmp byte [backtrack_switch], 1
+    je LA45
     je terminate_program
-    
+        LOOP_29:
+
 LA46:
     error_store 'OUT1'
     call vstack_clear
@@ -570,11 +691,19 @@ LA48:
     je LA46
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_30
+cmp byte [backtrack_switch], 1
+    je LA45
     je terminate_program
-    test_input_string ")"
+        LOOP_30:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_31
+cmp byte [backtrack_switch], 1
+    je LA45
     je terminate_program
-    
+        LOOP_31:
+
 LA45:
     cmp byte [eswitch], 0
     je LA44
@@ -586,8 +715,12 @@ LA45:
     print '    '
     test_input_string "("
     cmp byte [eswitch], 1
+    jne LOOP_32
+cmp byte [backtrack_switch], 1
+    je LA49
     je terminate_program
-    
+        LOOP_32:
+
 LA50:
     error_store 'OUT1'
     call vstack_clear
@@ -604,11 +737,19 @@ LA52:
     je LA50
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_33
+cmp byte [backtrack_switch], 1
+    je LA49
     je terminate_program
-    test_input_string ")"
+        LOOP_33:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_34
+cmp byte [backtrack_switch], 1
+    je LA49
     je terminate_program
-    print "print 0x0A"
+        LOOP_34:
+print "print 0x0A"
     print 0x0A
     print '    '
     print "print '    '"
@@ -623,8 +764,12 @@ LA49:
     je LA53
     test_input_string "("
     cmp byte [eswitch], 1
+    jne LOOP_35
+cmp byte [backtrack_switch], 1
+    je LA53
     je terminate_program
-    
+        LOOP_35:
+
 LA54:
     error_store 'OUT1'
     call vstack_clear
@@ -641,11 +786,19 @@ LA56:
     je LA54
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_36
+cmp byte [backtrack_switch], 1
+    je LA53
     je terminate_program
-    test_input_string ")"
+        LOOP_36:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_37
+cmp byte [backtrack_switch], 1
+    je LA53
     je terminate_program
-    
+        LOOP_37:
+
 LA53:
     
 LA44:
@@ -660,8 +813,12 @@ LA57:
     je LA59
     test_input_string "("
     cmp byte [eswitch], 1
+    jne LOOP_38
+cmp byte [backtrack_switch], 1
+    je LA59
     je terminate_program
-    
+        LOOP_38:
+
 LA60:
     error_store 'OUT_IMMEDIATE'
     call vstack_clear
@@ -672,11 +829,19 @@ LA60:
     je LA60
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_39
+cmp byte [backtrack_switch], 1
+    je LA59
     je terminate_program
-    test_input_string ")"
+        LOOP_39:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_40
+cmp byte [backtrack_switch], 1
+    je LA59
     je terminate_program
-    
+        LOOP_40:
+
 LA59:
     
 LA58:
@@ -700,10 +865,18 @@ EX3:
     mov esi, last_match
     call vector_push_string_mm32
     cmp byte [eswitch], 1
+    jne LOOP_41
+cmp byte [backtrack_switch], 1
+    je LA61
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_41:
+cmp byte [eswitch], 1
+    jne LOOP_42
+cmp byte [backtrack_switch], 1
+    je LA61
     je terminate_program
-    print "error_store '"
+        LOOP_42:
+print "error_store '"
     call copy_last_match
     print "'"
     print 0x0A
@@ -732,8 +905,12 @@ LA64:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_43
+cmp byte [backtrack_switch], 1
+    je LA65
     je terminate_program
-    
+        LOOP_43:
+
 LA65:
     
 LA66:
@@ -741,8 +918,12 @@ LA66:
     je LA64
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_44
+cmp byte [backtrack_switch], 1
+    je LA63
     je terminate_program
-    
+        LOOP_44:
+
 LA63:
     cmp byte [eswitch], 0
     je LA67
@@ -754,11 +935,19 @@ LA68:
     
 LA67:
     cmp byte [eswitch], 1
+    jne LOOP_45
+cmp byte [backtrack_switch], 1
+    je LA62
     je terminate_program
-    test_input_string ">"
+        LOOP_45:
+test_input_string ">"
     cmp byte [eswitch], 1
+    jne LOOP_46
+cmp byte [backtrack_switch], 1
+    je LA62
     je terminate_program
-    
+        LOOP_46:
+
 LA62:
     
 LA69:
@@ -776,8 +965,12 @@ LA72:
     
 LA71:
     cmp byte [eswitch], 1
+    jne LOOP_47
+cmp byte [backtrack_switch], 1
+    je LA61
     je terminate_program
-    print "call "
+        LOOP_47:
+print "call "
     mov esi, str_vector_8192
     call vector_pop_string
     mov esi, eax
@@ -848,8 +1041,12 @@ LA79:
     
 LA78:
     cmp byte [eswitch], 1
+    jne LOOP_48
+cmp byte [backtrack_switch], 1
+    je LA76
     je terminate_program
-    print "match_not "
+        LOOP_48:
+print "match_not "
     call copy_last_match
     print 0x0A
     print '    '
@@ -882,11 +1079,19 @@ LA80:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_49
+cmp byte [backtrack_switch], 1
+    je LA81
     je terminate_program
-    test_input_string ")"
+        LOOP_49:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_50
+cmp byte [backtrack_switch], 1
+    je LA81
     je terminate_program
-    
+        LOOP_50:
+
 LA81:
     cmp byte [eswitch], 0
     je LA73
@@ -909,8 +1114,12 @@ LA82:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_51
+cmp byte [backtrack_switch], 1
+    je LA83
     je terminate_program
-    call label
+        LOOP_51:
+call label
     print "section .data"
     print 0x0A
     print '    '
@@ -929,8 +1138,12 @@ LA82:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_52
+cmp byte [backtrack_switch], 1
+    je LA84
     je terminate_program
-    print "MAX_ITER_"
+        LOOP_52:
+print "MAX_ITER_"
     call gn3
     print " dd "
     call copy_last_match
@@ -953,11 +1166,19 @@ LA86:
     
 LA85:
     cmp byte [eswitch], 1
+    jne LOOP_53
+cmp byte [backtrack_switch], 1
+    je LA83
     je terminate_program
-    test_input_string ">"
+        LOOP_53:
+test_input_string ">"
     cmp byte [eswitch], 1
+    jne LOOP_54
+cmp byte [backtrack_switch], 1
+    je LA83
     je terminate_program
-    call label
+        LOOP_54:
+call label
     print "section .text"
     print 0x0A
     print '    '
@@ -978,8 +1199,12 @@ LA85:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_55
+cmp byte [backtrack_switch], 1
+    je LA83
     je terminate_program
-    print "pop ecx"
+        LOOP_55:
+print "pop ecx"
     print 0x0A
     print '    '
     print "cmp ecx, dword [MAX_ITER_"
@@ -1036,8 +1261,12 @@ LA83:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_56
+cmp byte [backtrack_switch], 1
+    je LA87
     je terminate_program
-    print "cmp byte [eswitch], 0"
+        LOOP_56:
+print "cmp byte [eswitch], 0"
     print 0x0A
     print '    '
     print "je "
@@ -1048,12 +1277,24 @@ LA83:
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
+    jne LOOP_57
+cmp byte [backtrack_switch], 1
+    je LA87
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_57:
+cmp byte [eswitch], 1
+    jne LOOP_58
+cmp byte [backtrack_switch], 1
+    je LA87
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_58:
+cmp byte [eswitch], 1
+    jne LOOP_59
+cmp byte [backtrack_switch], 1
+    je LA87
     je terminate_program
-    
+        LOOP_59:
+
 LA87:
     cmp byte [eswitch], 0
     je LA73
@@ -1066,17 +1307,29 @@ LA87:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_60
+cmp byte [backtrack_switch], 1
+    je LA88
     je terminate_program
-    print "; Capture "
+        LOOP_60:
+print "; Capture "
     call copy_last_match
     print " as single node"
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
+    jne LOOP_61
+cmp byte [backtrack_switch], 1
+    je LA88
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_61:
+cmp byte [eswitch], 1
+    jne LOOP_62
+cmp byte [backtrack_switch], 1
+    je LA88
     je terminate_program
-    
+        LOOP_62:
+
 LA88:
     cmp byte [eswitch], 0
     je LA89
@@ -1089,29 +1342,49 @@ LA88:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_63
+cmp byte [backtrack_switch], 1
+    je LA90
     je terminate_program
-    test_input_string "<"
+        LOOP_63:
+test_input_string "<"
     cmp byte [eswitch], 1
+    jne LOOP_64
+cmp byte [backtrack_switch], 1
+    je LA90
     je terminate_program
-    error_store 'NUMBER'
+        LOOP_64:
+error_store 'NUMBER'
     call vstack_clear
     call NUMBER
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_65
+cmp byte [backtrack_switch], 1
+    je LA90
     je terminate_program
-    test_input_string ">"
+        LOOP_65:
+test_input_string ">"
     cmp byte [eswitch], 1
+    jne LOOP_66
+cmp byte [backtrack_switch], 1
+    je LA90
     je terminate_program
-    
+        LOOP_66:
+
 LA90:
     
 LA89:
     cmp byte [eswitch], 1
     je LA91
     cmp byte [eswitch], 1
+    jne LOOP_67
+cmp byte [backtrack_switch], 1
+    je LA91
     je terminate_program
-    
+        LOOP_67:
+
 LA91:
     cmp byte [eswitch], 0
     je LA73
@@ -1119,8 +1392,12 @@ LA91:
     cmp byte [eswitch], 1
     je LA92
     cmp byte [eswitch], 1
+    jne LOOP_68
+cmp byte [backtrack_switch], 1
+    je LA92
     je terminate_program
-    print "call backtrack_store"
+        LOOP_68:
+print "call backtrack_store"
     print 0x0A
     print '    '
     error_store 'EX1'
@@ -1129,19 +1406,35 @@ LA91:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_69
+cmp byte [backtrack_switch], 1
+    je LA92
     je terminate_program
-    
+        LOOP_69:
+
 LA93:
     test_input_string "/"
     cmp byte [eswitch], 1
     je LA94
     cmp byte [eswitch], 1
+    jne LOOP_70
+cmp byte [backtrack_switch], 1
+    je LA94
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_70:
+cmp byte [eswitch], 1
+    jne LOOP_71
+cmp byte [backtrack_switch], 1
+    je LA94
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_71:
+cmp byte [eswitch], 1
+    jne LOOP_72
+cmp byte [backtrack_switch], 1
+    je LA94
     je terminate_program
-    print "cmp byte [eswitch], 0"
+        LOOP_72:
+print "cmp byte [eswitch], 0"
     print 0x0A
     print '    '
     print "je "
@@ -1149,10 +1442,18 @@ LA93:
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
+    jne LOOP_73
+cmp byte [backtrack_switch], 1
+    je LA94
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_73:
+cmp byte [eswitch], 1
+    jne LOOP_74
+cmp byte [backtrack_switch], 1
+    je LA94
     je terminate_program
-    print "call backtrack_restore"
+        LOOP_74:
+print "call backtrack_restore"
     print 0x0A
     print '    '
     error_store 'EX1'
@@ -1161,8 +1462,12 @@ LA93:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_75
+cmp byte [backtrack_switch], 1
+    je LA94
     je terminate_program
-    
+        LOOP_75:
+
 LA94:
     
 LA95:
@@ -1170,11 +1475,19 @@ LA95:
     je LA93
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_76
+cmp byte [backtrack_switch], 1
+    je LA92
     je terminate_program
-    test_input_string "}"
+        LOOP_76:
+test_input_string "}"
     cmp byte [eswitch], 1
+    jne LOOP_77
+cmp byte [backtrack_switch], 1
+    je LA92
     je terminate_program
-    print "cmp byte [eswitch], 0"
+        LOOP_77:
+print "cmp byte [eswitch], 0"
     print 0x0A
     print '    '
     print "je "
@@ -1182,8 +1495,12 @@ LA95:
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
+    jne LOOP_78
+cmp byte [backtrack_switch], 1
+    je LA92
     je terminate_program
-    print "call backtrack_restore"
+        LOOP_78:
+print "call backtrack_restore"
     print 0x0A
     print '    '
     call label
@@ -1258,22 +1575,44 @@ LA101:
     call error_clear
     cmp byte [eswitch], 1
     je LA102
-    print "cmp byte [eswitch], 1"
-    print 0x0A
-    print '    '
     cmp byte [eswitch], 1
+    jne LOOP_79
+cmp byte [backtrack_switch], 1
+    je LA102
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_79:
+cmp byte [eswitch], 1
+    jne LOOP_80
+cmp byte [backtrack_switch], 1
+    je LA102
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_80:
+cmp byte [eswitch], 1
+    jne LOOP_81
+cmp byte [backtrack_switch], 1
+    je LA102
     je terminate_program
-    test_input_string "@"
+        LOOP_81:
+test_input_string "@"
     cmp byte [eswitch], 1
     je LA103
     cmp byte [eswitch], 1
+    jne LOOP_82
+cmp byte [backtrack_switch], 1
+    je LA103
     je terminate_program
-    print "jne "
-    call gn2
+        LOOP_82:
+print "cmp byte [eswitch], 1"
+    print 0x0A
+    print '    '
+    cmp byte [eswitch], 1
+    jne LOOP_83
+cmp byte [backtrack_switch], 1
+    je LA103
+    je terminate_program
+        LOOP_83:
+print "jne "
+    call gn3
     print 0x0A
     print '    '
     print "mov dword [outbuff_offset], 0"
@@ -1281,8 +1620,12 @@ LA101:
     print '    '
     test_input_string "("
     cmp byte [eswitch], 1
+    jne LOOP_84
+cmp byte [backtrack_switch], 1
+    je LA103
     je terminate_program
-    
+        LOOP_84:
+
 LA104:
     error_store 'OUT1'
     call vstack_clear
@@ -1299,11 +1642,19 @@ LA106:
     je LA104
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_85
+cmp byte [backtrack_switch], 1
+    je LA103
     je terminate_program
-    test_input_string ")"
+        LOOP_85:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_86
+cmp byte [backtrack_switch], 1
+    je LA103
     je terminate_program
-    print "mov edi, outbuff"
+        LOOP_86:
+print "mov edi, outbuff"
     print 0x0A
     print '    '
     print "call print_mm32"
@@ -1322,7 +1673,7 @@ LA106:
     print 0x0A
     print '    '
     call label
-    call gn2
+    call gn3
     print ":"
     print 0x0A
     print '    '
@@ -1339,16 +1690,47 @@ LA108:
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
     je LA110
+    print "cmp byte [eswitch], 1"
+    print 0x0A
+    print '    '
+    print "jne LOOP_"
+    mov esi, dword [loop_counter]
+    mov edi, outbuff
+    add edi, dword [outbuff_offset]
+    call inttostr
+    add dword [outbuff_offset], eax
+    print 0x0A
+    print "cmp byte [backtrack_switch], 1"
+    print 0x0A
+    print '    '
+    print "je "
+    call gn1
+    print 0x0A
+    print '    '
     print "je terminate_program"
     print 0x0A
     print '    '
+    print '    '
+    print "LOOP_"
+    mov esi, dword [loop_counter]
+    mov edi, outbuff
+    add edi, dword [outbuff_offset]
+    call inttostr
+    add dword [outbuff_offset], eax
+    inc dword [loop_counter]
+    print ":"
+    print 0x0A
     
 LA110:
     
 LA109:
     cmp byte [eswitch], 1
+    jne LOOP_87
+cmp byte [backtrack_switch], 1
+    je LA102
     je terminate_program
-    
+        LOOP_87:
+
 LA102:
     cmp byte [eswitch], 0
     je LA111
@@ -1367,8 +1749,12 @@ LA111:
     je LA101
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_88
+cmp byte [backtrack_switch], 1
+    je LA100
     je terminate_program
-    call label
+        LOOP_88:
+call label
     call gn1
     print ":"
     print 0x0A
@@ -1411,8 +1797,12 @@ LA115:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_89
+cmp byte [backtrack_switch], 1
+    je LA116
     je terminate_program
-    
+        LOOP_89:
+
 LA116:
     
 LA117:
@@ -1420,8 +1810,12 @@ LA117:
     je LA115
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_90
+cmp byte [backtrack_switch], 1
+    je LA114
     je terminate_program
-    call label
+        LOOP_90:
+call label
     call gn1
     print ":"
     print 0x0A
@@ -1469,8 +1863,12 @@ DEFINITION:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_91
+cmp byte [backtrack_switch], 1
+    je LA120
     je terminate_program
-    
+        LOOP_91:
+
 LA121:
     test_input_string ","
     cmp byte [eswitch], 1
@@ -1481,8 +1879,12 @@ LA121:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_92
+cmp byte [backtrack_switch], 1
+    je LA122
     je terminate_program
-    
+        LOOP_92:
+
 LA122:
     
 LA123:
@@ -1490,11 +1892,19 @@ LA123:
     je LA121
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_93
+cmp byte [backtrack_switch], 1
+    je LA120
     je terminate_program
-    test_input_string ">"
+        LOOP_93:
+test_input_string ">"
     cmp byte [eswitch], 1
+    jne LOOP_94
+cmp byte [backtrack_switch], 1
+    je LA120
     je terminate_program
-    
+        LOOP_94:
+
 LA120:
     cmp byte [eswitch], 0
     je LA124
@@ -1506,23 +1916,43 @@ LA125:
     
 LA124:
     cmp byte [eswitch], 1
+    jne LOOP_95
+cmp byte [backtrack_switch], 1
+    je LA119
     je terminate_program
-    test_input_string "="
+        LOOP_95:
+test_input_string "="
     cmp byte [eswitch], 1
+    jne LOOP_96
+cmp byte [backtrack_switch], 1
+    je LA119
     je terminate_program
-    error_store 'EX1'
+        LOOP_96:
+error_store 'EX1'
     call vstack_clear
     call EX1
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_97
+cmp byte [backtrack_switch], 1
+    je LA119
     je terminate_program
-    test_input_string ";"
+        LOOP_97:
+test_input_string ";"
     cmp byte [eswitch], 1
+    jne LOOP_98
+cmp byte [backtrack_switch], 1
+    je LA119
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_98:
+cmp byte [eswitch], 1
+    jne LOOP_99
+cmp byte [backtrack_switch], 1
+    je LA119
     je terminate_program
-    print "pop esi"
+        LOOP_99:
+print "pop esi"
     print 0x0A
     print '    '
     print "mov esp, ebp"
@@ -1657,18 +2087,30 @@ TOKEN_DEFINITION:
     print '    '
     test_input_string "="
     cmp byte [eswitch], 1
+    jne LOOP_100
+cmp byte [backtrack_switch], 1
+    je LA133
     je terminate_program
-    error_store 'TX1'
+        LOOP_100:
+error_store 'TX1'
     call vstack_clear
     call TX1
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_101
+cmp byte [backtrack_switch], 1
+    je LA133
     je terminate_program
-    test_input_string ";"
+        LOOP_101:
+test_input_string ";"
     cmp byte [eswitch], 1
+    jne LOOP_102
+cmp byte [backtrack_switch], 1
+    je LA133
     je terminate_program
-    print "ret"
+        LOOP_102:
+print "ret"
     print 0x0A
     print '    '
     
@@ -1709,8 +2151,12 @@ LA136:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_103
+cmp byte [backtrack_switch], 1
+    je LA137
     je terminate_program
-    
+        LOOP_103:
+
 LA137:
     
 LA138:
@@ -1718,8 +2164,12 @@ LA138:
     je LA136
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_104
+cmp byte [backtrack_switch], 1
+    je LA135
     je terminate_program
-    call label
+        LOOP_104:
+call label
     call gn1
     print ":"
     print 0x0A
@@ -1752,8 +2202,12 @@ TX2:
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
+    jne LOOP_105
+cmp byte [backtrack_switch], 1
+    je LA140
     je terminate_program
-    
+        LOOP_105:
+
 LA141:
     error_store 'TX3'
     call vstack_clear
@@ -1777,8 +2231,12 @@ LA143:
     je LA141
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_106
+cmp byte [backtrack_switch], 1
+    je LA140
     je terminate_program
-    call label
+        LOOP_106:
+call label
     call gn1
     print ":"
     print 0x0A
@@ -1800,8 +2258,12 @@ TX3:
     cmp byte [eswitch], 1
     je LA145
     cmp byte [eswitch], 1
+    jne LOOP_107
+cmp byte [backtrack_switch], 1
+    je LA145
     je terminate_program
-    print "mov byte [tflag], 1"
+        LOOP_107:
+print "mov byte [tflag], 1"
     print 0x0A
     print '    '
     print "call clear_token"
@@ -1815,8 +2277,12 @@ LA145:
     cmp byte [eswitch], 1
     je LA147
     cmp byte [eswitch], 1
+    jne LOOP_108
+cmp byte [backtrack_switch], 1
+    je LA147
     je terminate_program
-    print "mov byte [tflag], 0"
+        LOOP_108:
+print "mov byte [tflag], 0"
     print 0x0A
     print '    '
     
@@ -1837,8 +2303,12 @@ LA147:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_109
+cmp byte [backtrack_switch], 1
+    je LA148
     je terminate_program
-    print "cmp byte [eswitch], 0"
+        LOOP_109:
+print "cmp byte [eswitch], 0"
     print 0x0A
     print '    '
     print "je "
@@ -1867,13 +2337,25 @@ LA149:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_110
+cmp byte [backtrack_switch], 1
+    je LA151
     je terminate_program
-    test_input_string ")"
+        LOOP_110:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_111
+cmp byte [backtrack_switch], 1
+    je LA151
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_111:
+cmp byte [eswitch], 1
+    jne LOOP_112
+cmp byte [backtrack_switch], 1
+    je LA151
     je terminate_program
-    print "mov al, byte [eswitch]"
+        LOOP_112:
+print "mov al, byte [eswitch]"
     print 0x0A
     print '    '
     print "xor al, 1"
@@ -1898,18 +2380,34 @@ LA151:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_113
+cmp byte [backtrack_switch], 1
+    je LA152
     je terminate_program
-    test_input_string ")"
+        LOOP_113:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_114
+cmp byte [backtrack_switch], 1
+    je LA152
     je terminate_program
-    print "call scan_or_parse"
+        LOOP_114:
+print "call scan_or_parse"
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
+    jne LOOP_115
+cmp byte [backtrack_switch], 1
+    je LA152
     je terminate_program
-    cmp byte [eswitch], 1
+        LOOP_115:
+cmp byte [eswitch], 1
+    jne LOOP_116
+cmp byte [backtrack_switch], 1
+    je LA152
     je terminate_program
-    
+        LOOP_116:
+
 LA152:
     cmp byte [eswitch], 0
     je LA150
@@ -1946,11 +2444,19 @@ LA156:
     je LA154
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_117
+cmp byte [backtrack_switch], 1
+    je LA153
     je terminate_program
-    test_input_string ")"
+        LOOP_117:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_118
+cmp byte [backtrack_switch], 1
+    je LA153
     je terminate_program
-    
+        LOOP_118:
+
 LA153:
     cmp byte [eswitch], 0
     je LA150
@@ -1978,11 +2484,19 @@ LA157:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_119
+cmp byte [backtrack_switch], 1
+    je LA158
     je terminate_program
-    test_input_string ")"
+        LOOP_119:
+test_input_string ")"
     cmp byte [eswitch], 1
+    jne LOOP_120
+cmp byte [backtrack_switch], 1
+    je LA158
     je terminate_program
-    
+        LOOP_120:
+
 LA158:
     
 LA150:
@@ -2020,8 +2534,12 @@ LA160:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_121
+cmp byte [backtrack_switch], 1
+    je LA161
     je terminate_program
-    
+        LOOP_121:
+
 LA161:
     
 LA162:
@@ -2029,8 +2547,12 @@ LA162:
     je LA160
     mov byte [eswitch], 0
     cmp byte [eswitch], 1
+    jne LOOP_122
+cmp byte [backtrack_switch], 1
+    je LA159
     je terminate_program
-    call label
+        LOOP_122:
+call label
     call gn1
     print ":"
     print 0x0A
@@ -2078,8 +2600,12 @@ CX2:
     call vstack_restore
     call error_clear
     cmp byte [eswitch], 1
+    jne LOOP_123
+cmp byte [backtrack_switch], 1
+    je LA165
     je terminate_program
-    print "mov edi, "
+        LOOP_123:
+print "mov edi, "
     call copy_last_match
     print 0x0A
     print '    '
@@ -2110,8 +2636,12 @@ LA167:
     
 LA166:
     cmp byte [eswitch], 1
+    jne LOOP_124
+cmp byte [backtrack_switch], 1
+    je LA164
     je terminate_program
-    
+        LOOP_124:
+
 LA164:
     
 LA168:
@@ -2160,8 +2690,12 @@ COMMENT:
     je LA172
     match_not 10
     cmp byte [eswitch], 1
+    jne LOOP_125
+cmp byte [backtrack_switch], 1
+    je LA172
     je terminate_program
-    
+        LOOP_125:
+
 LA172:
     
 LA173:
