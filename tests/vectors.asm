@@ -1,54 +1,9 @@
-; Push into a vector
-; Usage: vector_push vector, value
-; edi: vector (mm32)
-; esi: value (imm32)
-vector_push:
-	mov eax, edi
-	; Get the length of the vector
-	mov ebx, [eax]
-	; Add the length to the pointer to set the value
-	add eax, ebx
-	add eax, 4
-	; Set the value
-	mov dword [eax], esi
-	; Increment the length
-	add ebx, 4
-	mov eax, edi
-	mov [eax], ebx
-	ret
+section .bss
+	vector1 resb 32
+	vector2 resb 32
+section .text
 
-; Pop from a vector
-; Usage: vector_pop vector
-; esi: vector (mm32)
-; @return eax (imm32) - The number that was popped
-vector_pop:
-	mov eax, esi
-	; Get the length of the vector
-	mov ebx, [eax]
-	; Get the old value
-	mov ecx, [eax + ebx]
-	; Subtract the length to the pointer to get the value
-	; Set the value to 0
-	add eax, ebx
-	mov dword [eax], 0
-	; Decrement the length
-	sub ebx, 4
-	mov eax, esi
-	mov [eax], ebx
-
-	mov eax, ecx
-	ret
-
-; Push a string into a vector
-; Usage: vector_push_string vector, value
-; %1: vector (mm32)
-; %2: value (string)
-%macro vector_push_string 2
-		create_string %2
-		mov esi, eax
-		mov edi, %1
-		call vector_push_string_mm32
-%endmacro
+global _start
 
 ; Push a string into a vector
 ; Usage: call vector_push_string_mm32
@@ -223,3 +178,27 @@ vector_reverse_n_string:
 		mov eax, edi
 		add dword [eax], edx
 		ret
+
+section .data
+	string1 db "Hey", 0x00
+	string2 db "there", 0x00
+	string3 db "!", 0x00
+
+section .text
+_start:
+	mov edi, vector1
+	mov esi, string1
+	call vector_push_string_mm32
+
+	mov esi, string2
+	call vector_push_string_mm32
+
+	mov esi, string3
+	call vector_push_string_mm32
+
+	mov edi, vector1
+	mov esi, 2
+	call vector_reverse_n_string
+
+	mov esi, vector1
+	call vector_pop_string

@@ -42,7 +42,7 @@ import_meta_file_mm32:
 		; Move the file content into the input_string at the current index, moving the
 		; rest of the input_string to the right.
 		mov esi, input_string
-		add esi, [input_string_offset]
+		add esi, [cursor]
 		mov edi, temp_import_buffer
 		call copy_string ; Store the input_string in a temporary buffer
 		
@@ -50,13 +50,13 @@ import_meta_file_mm32:
 		; and then append the temporary buffer again.
 		mov esi, import_file_content
 		mov edi, input_string
-		add edi, [input_string_offset]
+		add edi, [cursor]
 		call copy_string
 
 		mov esi, temp_import_buffer
 		mov edi, input_string
 		add edi, [import_file_content_length]
-		add edi, [input_string_offset]
+		add edi, [cursor]
 		call copy_string
 
 		restore_machine_state

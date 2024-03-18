@@ -1,0 +1,335 @@
+.SYNTAX LISP
+
+LISP =
+.DIRECT("section .data")
+.DIRECT("fn_arg_count dd 0")
+.DIRECT("fn_arg_num dd 0")
+.DIRECT("section .bss")
+.DIRECT("symbol_table resb 262144")
+.DIRECT("section .text")
+PREAMBLE $(ROOT_BODY) POSTAMBLE;
+
+ROOT_BODY = COMMENT | "[" (DEFUNC | DEFINE | SET | ASMMACRO | WHILE | IF_ELSE | IF | ASM | MOV | FUNC_CALL) "]";
+
+// -------------------------------- Preamble -----------------------------------
+
+PREAMBLE =
+	.LABEL("section .text")
+		->("global _start")
+	.LABEL("_start:")
+		->("push ebp")
+		->("mov ebp, esp");
+
+POSTAMBLE =
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("mov eax, 1")
+		->("mov ebx, 0")
+		->("int 0x80");
+
+// ---------------------------------- body -------------------------------------
+
+BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | MOV | RETURN | FUNC_CALL) "]";
+
+// --------------------------------- arithmetic --------------------------------
+
+ARITHMETIC = ("+" CALL_ARGS
+	->("pop ebx")
+	->("pop eax")
+	->("add eax, ebx")
+	| "-" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("sub eax, ebx")
+	| "*" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("imul eax, ebx")
+	| "/" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("idiv ebx")
+	| "%" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("idiv ebx")
+	| "==" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("sete al")
+	| "!=" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setne al")
+	| "<" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setl al")
+	| ">" CALL_ARGS
+		->("pop ebx")
+		->("pop eax")
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setg al"));
+
+// --------------------------------- return ------------------------------------
+
+RETURN = "return" CALL_ARG
+	->("mov esp, ebp")
+	->("pop ebp")
+	->("ret");
+
+// ---------------------------------- while ------------------------------------
+
+WHILE = "while" "["
+	.LABEL(*2 ":")
+		(FUNC_CALL | ARITHMETIC)
+	->("cmp eax, 1") 
+	->("jne " *1) "]"
+		$(BODY)
+	->("jmp " *2)
+	.LABEL(*1 ":");
+
+// ----------------------------------- if --------------------------------------
+
+IF = "if" "[" (FUNC_CALL | ARITHMETIC)
+	->("cmp eax, 1")
+	->("jne " *1) "]" $BODY
+	.LABEL(*1 ":");
+
+// --------------------------------- if/else -----------------------------------
+
+IF_ELSE = "if/else" "[" (FUNC_CALL | ARITHMETIC)
+	->("cmp eax, 1")
+	->("jne " *1) "]"
+	"[" $BODY "]"
+	->("jmp " *2)
+	.LABEL(*1 ":")
+	"[" $BODY "]"
+	.LABEL(*2 ":");
+
+// ----------------------------- Assembler Macro -------------------------------
+
+ASMMACRO = "asmmacro" "[" ID 
+	->("jmp " *1)
+	.LABEL(* ":")
+		->("push ebp")
+		->("mov ebp, esp") $(ID) "]"
+	$(RAW ->(*))
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("ret")
+	.LABEL(*1 ":");
+
+// ----------------------------------- asm -------------------------------------
+
+ASM = "asm" RAW ->(*);
+
+MOV = "mov" ID % (
+	(SYMBOL_TABLE_ID | DEREFERENCE | "[" (FUNC_CALL | ARITHMETIC) "]")
+		->("mov " % ", eax")
+	| NUMBER
+		->("mov " % ", " *));
+
+// --------------------------------- define ------------------------------------
+
+DEFINE = "define" ID %
+	// write the index into the symbol table
+	.DIRECT("inc dword [fn_arg_num]")
+	.DIRECT("mov edx, dword [fn_arg_num]")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_set") (
+	(NUMBER
+		MOV_INTO ->(* " ; define " %))
+	| (STRING 
+	.LABEL("section .data")
+		->(*3 " db " * ", 0x00")
+	.LABEL("section .text")
+		MOV_INTO ->(*3 " ; define " %))
+	| (SYMBOL_TABLE_ID
+		MOV_INTO ->("eax ; define " %))
+	| (DEREFERENCE
+		MOV_INTO ->("eax ; define " %))
+	| ("[" (FUNC_CALL | ARITHMETIC) "]"
+		MOV_INTO ->("eax ; define " %))
+) // subtract 4 from the stack pointer so we don't accidentally overwrite the variable
+	->("sub esp, 4");
+
+MOV_INTO = .RS("mov dword [ebp")
+	// use the symbol table to get the index of the variable
+	// then calculate the offset by doing `8 + (arg_count - index) * 4`
+	.DIRECT("mov eax, dword [fn_arg_num]") // index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax")
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	.RS("], ");
+
+// ----------------------------------- set -------------------------------------
+
+SET = "set!" ID % % (
+	(NUMBER 
+		SET_INTO ->(* " ; set " %))
+	| (STRING 
+	.LABEL("section .data")
+		->(*3 " db " * ", 0x00")
+	.LABEL("section .text")
+		SET_INTO ->(*3 " ; set " %))
+	| (SYMBOL_TABLE_ID 
+		SET_INTO ->("eax ; set " %))
+	| (DEREFERENCE
+		SET_INTO ->("eax ; set " %))
+	| ("[" (FUNC_CALL | ARITHMETIC) "]"
+		SET_INTO ->("eax ; set " %))
+);
+
+SET_INTO = 
+	.RS("mov [ebp")
+	// set the value of the variable
+	// we can use the symbol table to get the index of the variable
+	// then calculate the offset by doing `8 + (arg_count - index) * 4`
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, str_vector_8192")
+	.DIRECT("call vector_pop_string")
+	.DIRECT("mov esi, eax")
+	.DIRECT("call hash_get") // index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax")
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	.RS("], ");
+
+// ------------------------------- Dereference ---------------------------------
+
+DEREFERENCE = "&[" (FUNC_CALL | ARITHMETIC) 
+	->("mov eax, [eax]") "]"
+| "&1[" (FUNC_CALL | ARITHMETIC)
+	->("mov ebx, eax")
+	->("xor eax, eax")
+	->("mov al, byte [ebx]") "]"
+| "&2[" (FUNC_CALL | ARITHMETIC)
+	->("mov ebx, eax")
+	->("xor eax, eax") 
+	->("mov ax, word [ebx]") "]"
+| "&" (SYMBOL_TABLE_ID
+	->("mov eax, dword [eax]")
+	| DEREFERENCE 
+		->("mov eax, dword [eax]"));
+
+// --------------------------------- defunc ------------------------------------
+
+DEFUNC = "defunc" "[" ID
+	->("jmp " *1)
+	.LABEL(* ":")
+		->("push ebp")
+		->("mov ebp, esp")
+	.DIRECT("mov dword [fn_arg_num], 0")
+	$(ID
+	// We found a new argument, we need to put it into the symbol table
+	// with it's index as a value
+	.DIRECT("inc dword [fn_arg_count] ; found new argument!")
+	.DIRECT("inc dword [fn_arg_num]")
+	.DIRECT("mov edx, dword [fn_arg_num]")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_set"))
+	// increase the arg num to `arg_num + 2` to make space for the return address and the old ebp
+	// this will make it possible to use `8 + (arg_count - index) * 4` to get the offset of local variables
+	.DIRECT("add dword [fn_arg_num], 2")
+	"]"
+		$(BODY)
+	// TODO: Maybe remove
+	.DIRECT("mov dword [fn_arg_count], 0")
+	.DIRECT("mov dword [fn_arg_num], 0")
+		->("mov esp, ebp")
+		->("pop ebp")
+		->("ret")
+	.LABEL(*1 ":");
+
+// ------------------------------ Function Call --------------------------------
+
+FUNC_CALL = ID % CALL_ARGS
+	->("call " %);
+
+// ------------------------- Function Call Arguments ---------------------------
+
+CALL_ARGS = $(CALL_ARG);
+
+CALL_ARG = (NUMBER ->("push " *))
+	| (STRING 
+		.LABEL("section .data")
+			->(*3 " db " * ", 0x00")
+		.LABEL("section .text")
+			->("push " *3))
+	| SYMBOL_TABLE_ID
+			->("push eax")
+	| DEREFERENCE
+		->("push eax")
+	| "[" (FUNC_CALL | ARITHMETIC) "]"
+		->("push eax");
+
+// ----------------------------- Symbol Table Id -------------------------------
+
+SYMBOL_TABLE_ID = ID 
+	// We need to get the index of the argument from the symbol table
+	// We can do this by doing `8 + (arg_count - index) * 4`
+	// This will account for the 8 bytes of the function call (esp and ip)
+	.RS("mov eax, dword [ebp")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax") // print the number
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	->("] ; get " *);
+
+// -------------------------------- Comments -----------------------------------
+
+COMMENT = "//" .NOT 10;
+
+.TOKENS
+
+// Remove any leading whitespace
+PREFIX = $.ANY(32!9!13!10);
+
+// Match numbers (sequence of digits)
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+
+// Match any digit
+DIGIT  = .ANY(48:57);
+
+// Match any sequence of characters and digits, may not start with a digit.
+ID     = PREFIX .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+// Matches any uppercase or lowercase character as well as underscore
+ALPHA  = .ANY(65:90!95!97:122) ;
+
+// Matches anything but double quotes that is enclosed by double quotes.
+// e.g. "hello world" but not "awd "inner" "
+STRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+
+// Same as STRING but does not capture the double quotes.
+RAW 	 = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);

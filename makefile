@@ -21,3 +21,6 @@ watch:
 
 watch-compile-gyro:
 	bash ./watch-full-compile.bash ./bootstrap/meta ./gyro/gyro.meta ./gyro/gyro-test.txt
+
+bundle:
+	cd bin && rm -f ../release/meta-linux-x64.zip && zip -r ../release/meta-linux-x64.zip ./meta-linux-x64/meta

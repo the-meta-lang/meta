@@ -110,13 +110,16 @@
 				[printi value]]]
 		[set i [+ i 1]]]]
 
-[define [memwritestring *address *str]
+[define [memwritestring *address *str offset]
 	[define i 0]
 	// Loop until we hit a null terminator
 	[while [!= &1[+ str i] 0]
-		[memwrite [+ address i] &1[+ str i]]
+		[memwrite [+ address [+ i offset]] &1[+ str i]]
 		[set i [+ i 1]]]
 	[return i]]
+
+[define [memwrite *address value]
+	[asm "mov [edi], esi"]]
 
 [define [printi num]
 	[define space [malloc 10]]
@@ -149,10 +152,8 @@
 	[asm "mov ecx, edi"]
 	[asm "int 0x80"]]
 
-[define [memwrite *address value]
-	[asm "mov [edi], esi"]]
+[define buffer [malloc 4096]]
 
-// [memwritestring *memory "H"]
 [printf "%d" 123456576]
 
 [free *memory]

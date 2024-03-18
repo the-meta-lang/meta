@@ -34,22 +34,30 @@ gn4:
 		save_machine_state ; Save the flags register
 		mov esi, vstack
 		call vector_pop
-		cmp edi, 0xFFFF
+		cmp eax, 0xFFFF
 		je .generate_new_number
 
 	.print_label:
+			push eax
 			print "LD"
-			call print_int
+			pop eax
+			mov esi, eax
+			push eax
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop eax
 
-			mov esi, edi
+			mov esi, eax
 			mov edi, vstack
 			call vector_push
 
 			jmp .end
 
 	.generate_new_number:
-			add word [gn4_number], 1
-			mov edi, [gn4_number]
+			add dword [gn4_number], 1
+			mov eax, [gn4_number]
 			jmp .print_label
 
 	.end:
@@ -59,23 +67,35 @@ gn4:
 gn3:
 		save_machine_state ; Save the flags register
 		mov esi, vstack
-		call vector_pop
-		cmp edi, 0xFFFF
+		call vector_pop ; pop gn4 number off the stack
+		push eax ; store gn4 so we can add it later.
+		call vector_pop ; get gn3 off the stack
+		cmp eax, 0xFFFF ; check if gn3 is "null", we start at 0 so we can't use that, instead 0xFFFF
 		je .generate_new_number
 
 	.print_label:
+			push eax
 			print "LC"
-			call print_int
+			pop eax
+			mov esi, eax
+			push eax
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop eax
 
-			mov esi, edi
+			mov esi, eax
 			mov edi, vstack
 			call vector_push
+			pop esi
+			call vector_push 
 
 			jmp .end
 
 	.generate_new_number:
-			add word [gn3_number], 1
-			mov edi, [gn3_number]
+			add dword [gn3_number], 1
+			mov eax, [gn3_number]
 			jmp .print_label
 
 	.end:
@@ -85,23 +105,39 @@ gn3:
 gn2:
 		save_machine_state ; Save the flags register
 		mov esi, vstack
-		call vector_pop
-		cmp edi, 0xFFFF
+		call vector_pop ; pop gn4 number off the stack
+		push eax ; store gn4 so we can add it later.
+		call vector_pop ; pop gn3 number off the stack
+		push eax ; store gn3 so we can add it later.
+		call vector_pop ; get gn2 off the stack
+		cmp eax, 0xFFFF ; check if gn2 is "null", we start at 0 so we can't use that, instead 0xFFFF
 		je .generate_new_number
 
 	.print_label:
+			push eax
 			print "LB"
-			call print_int
+			pop eax
+			mov esi, eax
+			push eax
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop eax
 
-			mov esi, edi
+			mov esi, eax
 			mov edi, vstack
 			call vector_push
+			pop esi
+			call vector_push
+			pop esi
+			call vector_push 
 
 			jmp .end
 
 	.generate_new_number:
-			add word [gn2_number], 1
-			mov edi, [gn2_number]
+			add dword [gn2_number], 1
+			mov eax, [gn2_number]
 			jmp .print_label
 
 	.end:
@@ -111,23 +147,43 @@ gn2:
 gn1:
 		save_machine_state ; Save the flags register
 		mov esi, vstack
-		call vector_pop
-		cmp edi, 0xFFFF
+		call vector_pop ; pop gn4 number off the stack
+		push eax ; store gn4 so we can add it later.
+		call vector_pop ; pop gn3 number off the stack
+		push eax ; store gn3 so we can add it later.
+		call vector_pop ; pop gn2 number off the stack
+		push eax ; store gn2 so we can add it later.
+		call vector_pop ; get gn1 off the stack
+		cmp eax, 0xFFFF ; check if gn1 is "null", we start at 0 so we can't use that, instead 0xFFFF
 		je .generate_new_number
 
 	.print_label:
+			push eax
 			print "LA"
-			call print_int
+			pop eax
+			mov esi, eax
+			push eax
+			mov edi, outbuff
+			add edi, dword [outbuff_offset]
+			call inttostr
+			add dword [outbuff_offset], eax
+			pop eax
 
-			mov esi, edi
+			mov esi, eax
 			mov edi, vstack
 			call vector_push
+			pop esi
+			call vector_push
+			pop esi
+			call vector_push
+			pop esi
+			call vector_push 
 
 			jmp .end
 
 	.generate_new_number:
-			add word [gn1_number], 1
-			mov edi, [gn1_number]
+			add dword [gn1_number], 1
+			mov eax, [gn1_number]
 			jmp .print_label
 
 	.end:
