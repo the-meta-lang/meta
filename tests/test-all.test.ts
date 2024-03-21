@@ -38,33 +38,32 @@ for (const testName of tests) {
 		// Write the output to a file
 		const grammarAssembly = path.join(tmp, "grammar.asm");
 		await Bun.write(grammarAssembly, compiledGrammar);
-	
-		let executablePath: string;
+
 	
 		test("should be buildable by nasm", async () => {
-			executablePath = await assemble(grammarAssembly);
-		})
-	
-		test("should be executable and produce the defined output", async () => {
-			// Copy the test file to the tmp directory
-			const inputFileContent = await Bun.file(inputFilePath).text()
-			await Bun.write(path.join(tmp, "input.txt"), inputFileContent);
-	
-			const process = spawnSync([executablePath, inputFilePath], {
-				stdout: "pipe"
-			});
-			
-			const exitCode = process.exitCode;
-	
-			expect(exitCode).toBe(0);
-	
-			// Check the output
-	
-			const output = (await new Response(process.stdout).text()).trim();
-			const expectedOutput = await Bun.file(outputFilePath).text();
-			
-	
-			expect(output).toBe(expectedOutput);
+			const executablePath = await assemble(grammarAssembly);
+
+			test("should be executable and produce the defined output", async () => {
+				// Copy the test file to the tmp directory
+				const inputFileContent = await Bun.file(inputFilePath).text()
+				await Bun.write(path.join(tmp, "input.txt"), inputFileContent);
+		
+				const process = spawnSync([executablePath, inputFilePath], {
+					stdout: "pipe"
+				});
+				
+				const exitCode = process.exitCode;
+		
+				expect(exitCode).toBe(0);
+		
+				// Check the output
+		
+				const output = (await new Response(process.stdout).text()).trim();
+				const expectedOutput = await Bun.file(outputFilePath).text();
+				
+		
+				expect(output).toBe(expectedOutput);
+			})
 		})
 	});
 }

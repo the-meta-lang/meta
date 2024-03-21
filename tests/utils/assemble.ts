@@ -4,24 +4,30 @@
  * rm $input_file.o
  */
 
-import { spawnSync } from "bun";
+import { spawn, spawnSync } from "bun";
 
 export const assemble = async (file: string) => {
-	const process = spawnSync(["nasm", "-F", "dwarf", "-g", "-f", "elf32", "-o", `${file}.o`, file], {
-		stderr: "inherit"
-	});
+	return new Promise<string>((resolve, reject) => {
+		spawn(["nasm", "-F", "dwarf", "-g", "-f", "elf32", "-o", `${file}.o`, file], {
+			stderr: "inherit",
+			onExit(proc, exitCode, signalCode, error) {
+				if (exitCode !== 0) {
+					throw new Error("NASM failed to assemble");
+				}
 
-	if (process.exitCode !== 0) {
-		throw new Error("NASM failed to assemble");
-	}
-
-	const ld = spawnSync(["ld", "-m", "elf_i386", "-o", `${file}.bin`, `${file}.o`]);
-
-	if (ld.exitCode !== 0) {
-		throw new Error("LD failed to link");
-	}
-
-	spawnSync(["rm", `${file}.o`]);
-
-	return `${file}.bin`;
+				// Looks like nasm sucks and doesn't release the file immediately
+				setTimeout(() => {
+					spawn(["ld", "-m", "elf_i386", "-o", `${file}.bin`, `${file}.o`], {
+						onExit(proc, exitCode, signalCode, error) {
+							if (exitCode !== 0) {
+								throw new Error("LD failed to link");
+							}
+							
+							resolve(`${file}.bin`);
+						}
+					})
+				}, 50)
+			}
+		});
+	})
 }
