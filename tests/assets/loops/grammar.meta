@@ -1,0 +1,3 @@
+.SYNTAX PROGRAM
+
+PROGRAM = $("loop" .UF("loop" .NL));

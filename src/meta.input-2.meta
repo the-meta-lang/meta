@@ -1,11 +1,8 @@
 .SYNTAX PROGRAM
 
-PROGRAM = {
-	 (NUMBER ">" ->("greater") NUMBER)
-	/ (NUMBER ">=" ->("greater equal") NUMBER)
-	/ (NUMBER ">=>" ->("awdawd equal") NUMBER)
-};
+PROGRAM = ID_REF<"id">;
 
+ID_REF<name> = ID %("This is my " *name ": " *) ->(%);
 
 .TOKENS
 

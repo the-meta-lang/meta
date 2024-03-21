@@ -1,71 +1,9 @@
-// [define ptr_wilderness 0]
-// [define ptr_bss_end 0]
-// [define fbin 0]
+[defunc [add num1 num2]
+	[+ num1 num2]]
 
-// mov dword [ptr_wilderness], fbin + 8
-// mov dword [ptr_bss_end], fbin + 8
-// sbrk esi ; 
+[defunc [sum num1 num2 num3 num4]
+	[add num1 [add num2 [add num3 num4]]]]
 
-// [defunc [premalloc size]
-// 	[set! ptr_wilderness [+ fbin 8]]
-// 	[set! ptr_bss_end [+ fbin 8]]
-// 	[mov ebx [+ size ptr_bss_end]]
-// 	[mov eax 45]
-// 	// increment break by requested size
-// 	[asm "int 0x80"]
-// 	[set! ptr_bss_end [+ ptr_bss_end size]]]
-// 
-// [defunc [malloc size]
-// 	// Ensure the wilderness pointer is set
-// 	[if [== ptr_wilderness 0]
-// 		[return 0]]]
-// 
-// [premalloc 0]
 
-[defunc [strcpy src dest]
-	[define i 0]
-	[while [!= &1[+ src i] 0]
-		[mov ebx &1[+ src i]]
-		[asm "push ebx"]
-		[mov eax [+ dest i]]
-		[asm "pop ebx"]
-		[asm "mov byte [eax], bl"]
-		[set! i [+ i 1]]]]
 
-// [defunc [substr string from to]
-// 	[define difference [- to from]]
-// 	[if [< difference 0]
-// 		[return 0]]
-// 	[if [> difference [strlen string]]
-// 		[return 0]]
-// 	[define tmp [malloc [- to from]]]
-// 	[define i 0]
-// 	[while [!= &1[+ string i] 0]
-// 		[setrefbyte [+ tmp i] &1[+ string i]]]
-// 	[return tmp]]
-// 
-// [defunc [setrefbyte dest value]
-// 	[mov eax dest]
-// 	[mov ebx value]
-// 	[asm "mov byte [eax], bl"]]
-
-[defunc [strlen string]
-	[define length 0]
-	[while [!= &1[+ string length] 0]
-		[set! length [+ length 1]]]
-	[return length]]
-
-[defunc [print string]
-	[define length [strlen string]]
-	[mov ecx string]
-	[mov edx length]
-	[mov ebx 1]
-	[mov eax 4]
-	[asm "int 0x80"]]
-
-[define string1 "   "]
-[define string2 "Hey"]
-
-[strcpy string2 string1]
-
-[print string1]
+[sum 1 2 3 4]

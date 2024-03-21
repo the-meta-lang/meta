@@ -9,7 +9,7 @@ LISP =
 .DIRECT("section .text")
 PREAMBLE $(ROOT_BODY) POSTAMBLE;
 
-ROOT_BODY = COMMENT | "[" (DEFUNC | DEFINE | SET | ASMMACRO | WHILE | IF_ELSE | IF | ASM | MOV | FUNC_CALL) "]";
+ROOT_BODY = COMMENT | "[" (DEFUNC | DEFINE | SET | ASMMACRO | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | MOV | FUNC_CALL) "]";
 
 // -------------------------------- Preamble -----------------------------------
 
@@ -33,54 +33,36 @@ BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | M
 
 // --------------------------------- arithmetic --------------------------------
 
-ARITHMETIC = ("+" CALL_ARGS
-	->("pop ebx")
-	->("pop eax")
+ARITHMETIC = ("+" BINOP_ARGS
 	->("add eax, ebx")
 	| "-" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
 		->("sub eax, ebx")
 	| "*" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
 		->("imul eax, ebx")
 	| "/" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
 		->("idiv ebx")
 	| "%" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
 		->("idiv ebx")
 	| "==" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("sete al")
-	| "!=" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
+	| "!=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setne al")
 	| "<" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setl al")
 	| ">" CALL_ARGS
-		->("pop ebx")
-		->("pop eax")
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setg al"));
 
 // --------------------------------- return ------------------------------------
 
-RETURN = "return" CALL_ARG
+RETURN = "return" CALL_ARGS
 	->("mov esp, ebp")
 	->("pop ebp")
 	->("ret");
@@ -131,8 +113,8 @@ ASMMACRO = "asmmacro" "[" ID
 
 ASM = "asm" RAW ->(*);
 
-MOV = "mov" ID % (
-	(SYMBOL_TABLE_ID | DEREFERENCE | "[" (FUNC_CALL | ARITHMETIC) "]")
+MOV = "mov" ID %(*) (
+	(SYMBOL_TABLE_ID | "[" (FUNC_CALL | ARITHMETIC) "]")
 		->("mov " % ", eax")
 	| NUMBER
 		->("mov " % ", " *));
@@ -154,8 +136,6 @@ DEFINE = "define" ID %
 	.LABEL("section .text")
 		MOV_INTO ->(*3 " ; define " %))
 	| (SYMBOL_TABLE_ID
-		MOV_INTO ->("eax ; define " %))
-	| (DEREFERENCE
 		MOV_INTO ->("eax ; define " %))
 	| ("[" (FUNC_CALL | ARITHMETIC) "]"
 		MOV_INTO ->("eax ; define " %))
@@ -179,20 +159,18 @@ MOV_INTO = .RS("mov dword [ebp")
 
 // ----------------------------------- set -------------------------------------
 
-SET = "set!" ID % % (
+SET = "set!" ID %(*) (
 	(NUMBER 
-		SET_INTO ->(* " ; set " %))
+		SET_INTO ->(* " ; set "))
 	| (STRING 
 	.LABEL("section .data")
 		->(*3 " db " * ", 0x00")
 	.LABEL("section .text")
-		SET_INTO ->(*3 " ; set " %))
+		SET_INTO ->(*3 " ; set "))
 	| (SYMBOL_TABLE_ID 
-		SET_INTO ->("eax ; set " %))
-	| (DEREFERENCE
-		SET_INTO ->("eax ; set " %))
+		SET_INTO ->("eax ; set "))
 	| ("[" (FUNC_CALL | ARITHMETIC) "]"
-		SET_INTO ->("eax ; set " %))
+		SET_INTO ->("eax ; set "))
 );
 
 SET_INTO = 
@@ -216,23 +194,6 @@ SET_INTO =
 	.DIRECT("add dword [outbuff_offset], eax")
 	.RS("], ");
 
-// ------------------------------- Dereference ---------------------------------
-
-DEREFERENCE = "&[" (FUNC_CALL | ARITHMETIC) 
-	->("mov eax, [eax]") "]"
-| "&1[" (FUNC_CALL | ARITHMETIC)
-	->("mov ebx, eax")
-	->("xor eax, eax")
-	->("mov al, byte [ebx]") "]"
-| "&2[" (FUNC_CALL | ARITHMETIC)
-	->("mov ebx, eax")
-	->("xor eax, eax") 
-	->("mov ax, word [ebx]") "]"
-| "&" (SYMBOL_TABLE_ID
-	->("mov eax, dword [eax]")
-	| DEREFERENCE 
-		->("mov eax, dword [eax]"));
-
 // --------------------------------- defunc ------------------------------------
 
 DEFUNC = "defunc" "[" ID
@@ -255,7 +216,6 @@ DEFUNC = "defunc" "[" ID
 	.DIRECT("add dword [fn_arg_num], 2")
 	"]"
 		$(BODY)
-	// TODO: Maybe remove
 	.DIRECT("mov dword [fn_arg_count], 0")
 	.DIRECT("mov dword [fn_arg_num], 0")
 		->("mov esp, ebp")
@@ -263,35 +223,124 @@ DEFUNC = "defunc" "[" ID
 		->("ret")
 	.LABEL(*1 ":");
 
+
+
 // ------------------------------ Function Call --------------------------------
 
 FUNC_CALL = ID % CALL_ARGS
-	->("call " %);
+	->("call " %)
+	// TODO: This has to pop the number of arguments the function had from the stack. Not just 2
+	->("pop edi")
+	->("pop edi");
 
 // ------------------------- Function Call Arguments ---------------------------
 
-CALL_ARGS = $(CALL_ARG);
+// [add 1 2 [add 3 4]]
+//
+// mov esi, 3
+// mov edi, 4
+// call add
+// mov ebx, eax
+// mov esi, 1
+// mov edi, 2
 
-CALL_ARG = (NUMBER ->("push " *))
-	| (STRING 
-		.LABEL("section .data")
-			->(*3 " db " * ", 0x00")
-		.LABEL("section .text")
-			->("push " *3))
-	| SYMBOL_TABLE_ID
-			->("push eax")
-	| DEREFERENCE
+// CALL_ARGS = $((NUMBER %("mov esi, " *)
+// 	| ("[" (FUNC_CALL | ARITHMETIC) "]" 
+// 		%("")
+// 		->("mov esi, eax"))
+// 	| SYMBOL_TABLE_ID
+// 		%("")) $((
+// 			NUMBER %("mov edi, " *)
+// 		| ("[" (FUNC_CALL | ARITHMETIC) "]" 
+// 			%("")
+// 			->("mov edi, eax"))
+// 		| SYMBOL_TABLE_ID
+// 			%("")) $((
+// 				NUMBER %("mov edx, " *)
+// 			| "[" (FUNC_CALL | ARITHMETIC) "]"
+// 				%("")
+// 				->("mov edx, eax")) $((
+// 					NUMBER %("mov ecx, " *)
+// 				| "[" (FUNC_CALL | ARITHMETIC) "]"
+// 					%("")
+// 					->("mov ecx, eax")) $((
+// 							NUMBER %("push " *)
+// 						| "[" (FUNC_CALL | ARITHMETIC) "]"
+// 							%("")
+// 						->("push eax")))
+// 						// TODO: Unlimited arguments possible. Push onto the stack n times. Capture n while looping.
+// 					->(%))
+// 				->(%))
+// 			->(%))
+// 		->(%));
+
+CALL_ARGS = $((
+			NUMBER %("push " *)
+		| "[" (FUNC_CALL | ARITHMETIC) "]"
+			%("")
 		->("push eax")
-	| "[" (FUNC_CALL | ARITHMETIC) "]"
-		->("push eax");
+		| SYMBOL_TABLE_ID
+			%("push eax")
+		| STRING_ARG) ->(%))
+	;
+
+STRING_ARG = STRING 
+			.LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				%("")
+				->("push " *3);
+
+
+BINOP_ARGS = $((NUMBER %("mov eax, " *)
+	| ("[" (FUNC_CALL | ARITHMETIC) "]" 
+		%(""))
+	// TODO: SYMBOL_TABLE_ID Outputs directly. It should push the value onto the stack.
+	| SYMBOL_TABLE_ID
+		%("")) $((
+			NUMBER %("mov ebx, " *)
+		| ("[" (FUNC_CALL | ARITHMETIC) "]" 
+			%("")
+			->("mov ebx, eax"))
+		| SYMBOL_TABLE_ID_EBX
+			%("")) 
+			->(%))
+		->(%));
+
+// TODO: Use argument *op
+// TODO: Needs META Compiler to support string concat in % operator.
+CALL_ARG<op> = (NUMBER %("mov esi, ") %(*)
+	| "[" (FUNC_CALL | ARITHMETIC) "]" 
+		%("") %("")
+		->("mov esi, eax"));
 
 // ----------------------------- Symbol Table Id -------------------------------
 
+// TODO: Replace with SYMBOL_TABLE_ID<reg>
 SYMBOL_TABLE_ID = ID 
 	// We need to get the index of the argument from the symbol table
 	// We can do this by doing `8 + (arg_count - index) * 4`
 	// This will account for the 8 bytes of the function call (esp and ip)
 	.RS("mov eax, dword [ebp")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Index is now in eax
+	.DIRECT("mov ebx, dword [fn_arg_count]")
+	.DIRECT("sub ebx, eax") // (arg_count - index)
+	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax") // print the number
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	->("] ; get " *);
+
+SYMBOL_TABLE_ID_EBX = ID 
+	// We need to get the index of the argument from the symbol table
+	// We can do this by doing `8 + (arg_count - index) * 4`
+	// This will account for the 8 bytes of the function call (esp and ip)
+	.RS("mov ebx, dword [ebp")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
 	.DIRECT("call hash_get") // Index is now in eax

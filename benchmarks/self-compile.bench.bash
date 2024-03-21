@@ -1,0 +1,1 @@
+hyperfine "./bootstrap/meta.bin ./src/meta.meta" --warmup 3 --export-markdown ./benchmarks/results.md

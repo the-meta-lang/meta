@@ -295,6 +295,7 @@ _read_file_argument_loop:
 _read_file_argument_end:
 		ret
 
+%include "./lib/strcat.asm"
 %include "./lib/vectors.asm"
 %include "./lib/string.asm"
 %include "./lib/print.asm"
