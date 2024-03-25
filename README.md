@@ -8,13 +8,13 @@
 <br />
 <div align="center">
   <a href="https://continuum-ai.de/meta">
-    <img src="images/logo.svg" width="300">
+    <img src="images/logo-light.svg" width="300">
   </a>
 
 <h3 align="center">META</h3>
 
   <p align="center">
-    The META Programming Language
+    The META Compiler writing language
     <br />
     <a href="https://continuum-ai.de/meta/docs"><strong>Explore the docs »</strong></a>
     <br />

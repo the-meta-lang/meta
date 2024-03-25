@@ -1,0 +1,26 @@
+.SYNTAX PROGRAM
+
+PROGRAM = $(ASSERTION);
+
+ASSERTION = {
+	("assert" ID "==" NUMBER ";" .UF("id-number" .NL))
+	/ ("assert" NUMBER "==" ID ";" .UF("number-id" .NL))
+	/ ("assert" ID "==" ID ";" .UF("id-id" .NL))
+	/ ("assert" NUMBER "==" NUMBER ";" .UF("number-number" .NL))
+};
+
+.TOKENS
+
+// Remove any leading whitespace
+PREFIX = $.ANY(32!9!13!10);
+
+// Match any digit
+DIGIT  = .ANY(48:57);
+
+// Match any sequence of characters and digits, may not start with a digit.
+ID     = PREFIX .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+NUMBER = PREFIX .TOKEN DIGIT $DIGIT .DELTOK;
+
+// Matches any uppercase or lowercase character as well as underscore
+ALPHA  = .ANY(65:90!95!97:122);

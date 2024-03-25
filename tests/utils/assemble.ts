@@ -12,7 +12,7 @@ export const assemble = async (file: string) => {
 			stderr: "inherit",
 			onExit(proc, exitCode, signalCode, error) {
 				if (exitCode !== 0) {
-					throw new Error("NASM failed to assemble");
+					throw new Error(`NASM failed to assemble ${file}`);
 				}
 
 				// Looks like nasm sucks and doesn't release the file immediately

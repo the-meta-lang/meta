@@ -1,15 +1,51 @@
+%define MAX_INPUT_LENGTH 8192
+
 section .bss
 	import_file_content resb MAX_INPUT_LENGTH / 2
 	temp_import_buffer resb MAX_INPUT_LENGTH / 2
 section .data
 	import_file_content_length dd 0x00
+
+section .data
+	tflag db 0
+	; Parse Flag, indicates a parsing error which may be recovered from
+	; by backtracking 
+	pflag db 0
+	; Error switch, indicates a parsing error that is not recoverable
+	eswitch db 0
+	outbuff_offset dd 0
+	backtrack_switch db 0
+
+	cursor dd 0
+
+
+section .bss
+		input_string resb MAX_INPUT_LENGTH
+		input_pointer resb 4
+		lfbuffer resb 1
+		FILE resb 256
+		str_vector_8192 resb 8192
+		last_match resb 512
+
+		err_inbuff_offset resb 512
+		err_fn_names resb 8192
+
+		; TODO: This is a temporary solution, we should use a dynamic buffer
+		outbuff resb 5242880 ; 5MB for the output buffer
+		
+
+		; Space for the backtracking output buffer (int[])
+		bk_outbuff_offset resb 512
+		; Space for the backtracking input buffer (int[])
+		bk_inbuff_offset resb 512
+		; Space for the backtracking token buffer (string[])
+		bk_token resb 8192
 section .text
 
 ; Reads a file and stores the content in the input_string
 ; input:
 ; esi: The file path
 import_meta_file_mm32:
-	save_machine_state
 	; Open and read the file specified in
 		; the FILE constant to enable easier debugging.
 		mov eax, 5 ; syscall for 'open'
@@ -61,17 +97,7 @@ import_meta_file_mm32:
 		mov eax, dword [import_file_content_length]
 		add dword [cursor], eax
 
-		restore_machine_state
 		ret
-
-
-%macro import_meta_file 1
-	section .data
-		%%_import_file db %1, 0x00
-	section .text
-		mov esi, %%_import_file
-		call import_meta_file_mm32
-%endmacro
 
 ; Copies a string from a given memory location into another memory location until it hits
 ; a null terminator.
@@ -98,3 +124,22 @@ copy_string:
 		pop esi
 		pop eax
 		ret
+
+section .data
+		file db "stuff/file.txt", 0x00
+
+section .text
+global _start
+_start:
+	; Import the file
+	mov esi, file
+	mov byte [input_string], 72
+	mov byte [input_string+1], 97
+	mov byte [input_string+2], 108
+	mov byte [input_string+3], 108
+	mov byte [input_string+4], 111
+	add dword [cursor], 5
+	call import_meta_file_mm32
+	mov eax, input_string
+	add eax, dword [cursor]
+	mov byte [eax], 111

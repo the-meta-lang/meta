@@ -121,10 +121,17 @@ section .text
 		je  %%_end_match_not_loop
 		cmp byte [esi], 0
 		je  %%_end_match_not_loop
+		mov eax, last_match
+		add eax, ecx
+		mov bl, byte [esi]
+		mov byte [eax], bl
 		inc esi
 		inc ecx
 		jmp %%_match_not_loop
 %%_end_match_not_loop:
+		mov eax, last_match
+		add eax, ecx
+		mov byte [eax], 0x00
 		add [cursor], ecx
 		restore_machine_state
 %endmacro
@@ -176,20 +183,20 @@ input_blanks:
 		; Find the first non-whitespace character in the input string
 		mov esi, input_string
 		add esi, [cursor]
-ib_find_non_whitespace:
+	.find_non_whitespace:
 		cmp byte [esi], ' '     ; Compare the current character with a space
-		je  ib_skip_whitespace     ; Jump if it's a newline
+		je  .skip_whitespace     ; Jump if it's a newline
 		cmp byte [esi], 0x0A ; Skip newlines
-		je  ib_skip_whitespace     ; Jump if it's a tab
+		je  .skip_whitespace     ; Jump if it's a tab
 		cmp byte [esi], 0x09 ; Skip Tabs
-		je ib_skip_whitespace
-		jmp  ib_end_of_string       ; We've hit the end of initial spaces, let's end it here
+		je .skip_whitespace
+		jmp  .end_of_string       ; We've hit the end of initial spaces, let's end it here
 
-ib_skip_whitespace:
+	.skip_whitespace:
 		inc esi                 ; Move to the next character
-		jmp ib_find_non_whitespace ; Continue searching for non-whitespace
+		jmp .find_non_whitespace ; Continue searching for non-whitespace
 
-ib_end_of_string:
+	.end_of_string:
 	; Copy the remaining part of the string (without leading whitespace) to the beginning
 	mov eax, input_string ; Get the address of the start of the string
 	sub esi, eax ; Subtract the offset of the end of the string from the beginning
@@ -238,6 +245,54 @@ section .text
 		; rep movsb ; Copy the string into last_match
 		mov eax, %%_str_length
 		add [cursor], eax
+		mov byte [eswitch], 0 ; Set zero flag to 0 to indicate equality
+		jmp %%_end
+
+%%_strings_not_equal:
+		; Strings are not equal
+		mov byte [eswitch], 1		; Set the zero flag to false
+
+%%_end:
+%endmacro
+
+; Macro for testing against input string
+; Expects to be given a string to compare the input against
+%macro test_input_string_no_cursor_advance 1
+section .data
+		%%_str db %1, 0x00
+		%%_str_length equ $ - %%_str - 1 ; Adjust for null terminator
+section .text
+		call input_blanks
+		mov edi, input_string
+		add edi, [cursor]
+		mov esi, %%_str
+		mov ebx, %%_str 
+
+		; Input:
+		;   edi = address of the first string
+		;   esi = address of the second string
+		; Output:
+		;   Zero flag (ZF) set if strings are equal, cleared otherwise
+
+		; Manual string comparison loop
+		xor eax, eax            ; Clear EAX (result)
+
+%%_compare_loop:
+		lodsb                   ; Load the next byte from [esi] into AL, incrementing esi
+		test al, al             ; Check if we've reached the null terminator
+		jz %%_strings_equal     ; If null terminator is reached, strings are equal
+		cmp al, [edi]           ; Compare the byte with [edi]
+		jne %%_strings_not_equal ; Jump if not equal
+		inc edi                 ; Move to the next byte in the first string
+		jmp %%_compare_loop     ; Repeat the loop
+
+%%_strings_equal:
+		; Strings are equal
+		; TODO: Don't move result into last_match, never necessary and really infuriating...
+		; mov esi, %%_str ; Source
+		; mov edi, last_match ; Destination
+		; mov ecx, %%_str_length
+		; rep movsb ; Copy the string into last_match
 		mov byte [eswitch], 0 ; Set zero flag to 0 to indicate equality
 		jmp %%_end
 

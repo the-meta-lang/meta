@@ -1,6 +1,6 @@
 .SYNTAX PROGRAM
 
-PROGRAM = $(("hello" | "bye") ID ->(*));
+PROGRAM = $(("hello" | "bye") ID .UF(* .NL));
 
 .TOKENS
 

@@ -1,6 +1,6 @@
 .SYNTAX PROGRAM
 
-PROGRAM = "local" "const" ID ->("const" *);
+PROGRAM = "local" "const" ID .UF("const " *);
 
 .TOKENS
 

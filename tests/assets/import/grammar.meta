@@ -1,0 +1,6 @@
+.SYNTAX PROGRAM
+
+import "tests/assets/import/imported.meta";
+import "tests/assets/import/imported-2.meta";
+
+PROGRAM = IMPORT1 IMPORT2;

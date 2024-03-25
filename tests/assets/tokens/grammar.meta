@@ -1,0 +1,22 @@
+.SYNTAX PROGRAM
+
+PROGRAM = $(CAPTURE_TOKEN | IMPORT);
+
+IMPORT = "import" TOKEN .UF("import " * .NL);
+
+CAPTURE_TOKEN = TOKEN .UF(*);
+
+.TOKENS
+
+// Skip all spaces and tabs then capture the next word
+TOKEN = PREFIX .RESERVED("import") .TOKEN ALPHA $(ALPHA | DIGIT) .DELTOK;
+
+// Digits 0-9
+DIGIT = .ANY(48:57);
+
+// a-z, A-Z, and _
+ALPHA = .ANY(65:90!97:122!95);
+
+// Testing loops across multiple input characters
+// Skips all spaces and tabs
+PREFIX = $.ANY(32!9!10!13);
