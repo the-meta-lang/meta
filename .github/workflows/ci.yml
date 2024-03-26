@@ -18,7 +18,10 @@ jobs:
           sudo apt install -y binutils
       - name: Run Tests
         # Remove ANSI escape codes from the output
-        run: bash ./tests/test.bash | sed -r "s/\x1B\[[0-9;]*[JKmsu]//g" > tests/results.txt
+        run: bash ./tests/test.bash > tests/results.txt
+      - name: Remove ANSI Escape Codes
+        if: always()
+        run: sed -i 's/\x1b\[[0-9;]*m//g' tests/results.txt
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v4
@@ -42,7 +45,7 @@ jobs:
           sudo apt install -y wget
           sudo apt install -y dpkg
           wget https://github.com/sharkdp/hyperfine/releases/download/v1.16.1/hyperfine_1.16.1_amd64.deb
-          dpkg -i hyperfine_1.16.1_amd64.deb
+          sudo dpkg -i hyperfine_1.16.1_amd64.deb
       - name: Run Benchmarks
         run: bash benchmarks/*.bench.bash
 
