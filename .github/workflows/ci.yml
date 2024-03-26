@@ -17,7 +17,8 @@ jobs:
           sudo apt install -y nasm
           sudo apt install -y binutils
       - name: Run Tests
-        run: bash ./tests/test.bash > tests/results.txt\
+        # Remove ANSI escape codes from the output
+        run: bash ./tests/test.bash | sed -r "s/\x1B\[[0-9;]*[JKmsu]//g" > tests/results.txt
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v4
