@@ -46,13 +46,13 @@ for TEST in $TESTS; do
 		if [ "$EXPECTED" != "$RECEIVED" ]; then
 				echo -e "\033[A\033[2K\r\x1b[37;41;1m[ FAILED ]\x1b[0m: $TEST_NAME (log: $TMP_DIR/diff.txt)"
 				FAILED_TESTS=$((FAILED_TESTS + 1))
+				DIFF=$(diff "$TMP_DIR/output.txt" "$TEST/output.txt")
+				# Write the diff into a log
+				echo "$DIFF" > "$TMP_DIR/diff.txt"
 		else
 				# Clear the line before printing
 				echo -e "\033[A\033[2K\r\x1b[37;42;1m[ PASSED ]\x1b[0m: $TEST_NAME"
 		fi
-		DIFF=$(diff "$TMP_DIR/output.txt" "$TEST/output.txt")
-		# Write the diff into a log
-		echo "$DIFF" > "$TMP_DIR/diff.txt"
 done
 
 # Get the end time in millis

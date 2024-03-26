@@ -30,6 +30,7 @@ jobs:
           path: |
             tests/results.txt
             tests/tmp/**/diff.txt
+          compression-level: 9
   
   benchmark:
     needs:
@@ -54,3 +55,4 @@ jobs:
         with:
           name: benchmark-results
           path: benchmarks/results/
+          compression-level: 9
