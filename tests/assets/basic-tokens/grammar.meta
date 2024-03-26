@@ -1,6 +1,6 @@
 .SYNTAX PROGRAM
 
-PROGRAM = ID ->(*);
+PROGRAM = ID .UF(*);
 
 .TOKENS
 

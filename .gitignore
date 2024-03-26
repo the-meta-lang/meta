@@ -2,7 +2,3 @@ release
 
 # tmp files for tests
 tests/tmp
-
-# Test Runner (Bun)
-node_modules
-bun.lockb
