@@ -3,6 +3,8 @@
 LISP =
 .DIRECT("section .data")
 .DIRECT("fn_arg_count dd 0")
+// Count of arguments that was actually used.
+.DIRECT("used_arg_count dd 0")
 .DIRECT("fn_arg_num dd 0")
 .DIRECT("section .bss")
 .DIRECT("symbol_table resb 262144")
@@ -23,8 +25,8 @@ PREAMBLE =
 POSTAMBLE =
 		->("mov esp, ebp")
 		->("pop ebp")
+		->("mov ebx, eax")
 		->("mov eax, 1")
-		->("mov ebx, 0")
 		->("int 0x80");
 
 // ---------------------------------- body -------------------------------------
@@ -35,15 +37,30 @@ BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | M
 
 ARITHMETIC = ("+" BINOP_ARGS
 	->("add eax, ebx")
-	| "-" CALL_ARGS
+	| "-" BINOP_ARGS
 		->("sub eax, ebx")
-	| "*" CALL_ARGS
+	| "*" BINOP_ARGS
 		->("imul eax, ebx")
-	| "/" CALL_ARGS
-		->("idiv ebx")
-	| "%" CALL_ARGS
-		->("idiv ebx")
-	| "==" CALL_ARGS
+	| "/" BINOP_ARGS
+		->("div ebx")
+	// Modulo
+	| "%" BINOP_ARGS
+		->("xor edx, edx")
+		->("div ebx")
+		->("mov eax, edx")
+	| "&&" BINOP_ARGS
+		->("and eax, ebx")
+	| "||" BINOP_ARGS
+		->("or eax, ebx")
+	| "<=" BINOP_ARGS
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setle al")
+	| ">=" BINOP_ARGS
+		->("cmp eax, ebx")
+		->("mov eax, 0")
+		->("setge al")
+	| "==" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("sete al")
@@ -51,11 +68,22 @@ ARITHMETIC = ("+" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setne al")
-	| "<" CALL_ARGS
+	// Bitwise left-shift
+	| "<<" BINOP_ARGS
+		->("mov ecx, ebx")
+		->("shl eax, cl")
+	// Bitwise right-shift
+	| ">>" BINOP_ARGS
+		->("mov ecx, ebx")
+		->("shr eax, cl")
+	// Xor
+	| "^" BINOP_ARGS
+		->("xor eax, ebx")
+	| "<" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setl al")
-	| ">" CALL_ARGS
+	| ">" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setg al"));
@@ -158,8 +186,7 @@ MOV_INTO = .RS("mov dword [ebp")
 	.RS("], ");
 
 // ----------------------------------- set -------------------------------------
-
-SET = "set!" ID %(*) (
+SET = "set!" ID %("" *) (
 	(NUMBER 
 		SET_INTO ->(* " ; set "))
 	| (STRING 
@@ -227,11 +254,18 @@ DEFUNC = "defunc" "[" ID
 
 // ------------------------------ Function Call --------------------------------
 
-FUNC_CALL = ID % CALL_ARGS
+FUNC_CALL = ID %
+	.DIRECT("mov dword [used_arg_count], 0")
+	CALL_ARGS
 	->("call " %)
 	// TODO: This has to pop the number of arguments the function had from the stack. Not just 2
+	.DIRECT("loop_pop_args:")
+	.DIRECT("cmp dword [used_arg_count], 0")
+	.DIRECT("je loop_pop_args_end")
 	->("pop edi")
-	->("pop edi");
+	.DIRECT("dec dword [used_arg_count]")
+	.DIRECT("jmp loop_pop_args")
+	.DIRECT("loop_pop_args_end:");
 
 // ------------------------- Function Call Arguments ---------------------------
 
@@ -281,7 +315,9 @@ CALL_ARGS = $((
 		->("push eax")
 		| SYMBOL_TABLE_ID
 			%("push eax")
-		| STRING_ARG) ->(%))
+		| STRING_ARG) 
+		->(%)
+		.DIRECT("inc dword [used_arg_count]"))
 	;
 
 STRING_ARG = STRING 
@@ -301,7 +337,8 @@ BINOP_ARGS = $((NUMBER %("mov eax, " *)
 			NUMBER %("mov ebx, " *)
 		| ("[" (FUNC_CALL | ARITHMETIC) "]" 
 			%("")
-			->("mov ebx, eax"))
+			//->("mov ebx, eax")
+			)
 		| SYMBOL_TABLE_ID_EBX
 			%("")) 
 			->(%))

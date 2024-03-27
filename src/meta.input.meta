@@ -1,5 +1,7 @@
 .SYNTAX PROGRAM
 
+import "src/lib/tokens.meta";
+
 PROGRAM = 
 .DIRECT("section .data")
 .DIRECT("loop_counter dd 0")
@@ -157,9 +159,9 @@ EX3 = ID %
 					->("mov edi, last_match")
 			)
 				->("call strcat")
-				->("mov esi, eax"))
+				->("mov esi, eax"))) ")"
 		| .EMPTY
-			->("mov esi, last_match")))
+			->("mov esi, last_match"))
 		->("mov edi, str_vector_8192")
 		->("call vector_push_string_mm32")
 	| "(" EX1 ")"
@@ -217,6 +219,8 @@ EX3 = ID %
 			->("je " *1)
 			// We exited with an error, let's backtrack
 			->("call backtrack_restore")
+			// NOTE: I don't actually think this works and it probably doesn't...
+			->("mov byte [eswitch], 1")
 		.LABEL(*1 ":")
 			->("call backtrack_clear")
 	| COMMENT;
@@ -252,17 +256,18 @@ EX2 = (EX3
 			.DIRECT("call inttostr")
 			.DIRECT("add dword [outbuff_offset], eax")
 			.UF(.NL)
-			->("cmp byte [backtrack_switch], 1")
-			->("je " *1)
-			->("je terminate_program")
-			.UF(.TB "LOOP_")
+			.UF(.TB "cmp byte [backtrack_switch], 1" .NL)
+			.UF(.TB "je " *1 .NL)
+			// If we're not backtracking we're done here.
+			.UF(.TB "jmp terminate_program" .NL)
+			.UF("LOOP_")
 			.DIRECT("mov esi, dword [loop_counter]")
 			.DIRECT("mov edi, outbuff")
 			.DIRECT("add edi, dword [outbuff_offset]")
 			.DIRECT("call inttostr")
 			.DIRECT("add dword [outbuff_offset], eax")
 			.DIRECT("inc dword [loop_counter]")
-			.UF(":" .NL))
+			.UF(":" .NL .TB))
 		| OUTPUT)
 	.LABEL(*1 ":");
 
@@ -306,78 +311,7 @@ GENERIC_ARG = NUMBER
 		->("pop esi")
 		->("push esi");
 
-// --------------------------------- Tokens ------------------------------------
 
-TOKEN_DEFINITION = ID
-	.LABEL(* ":") "=" TX1 ";" ->("ret");
-
-TX1 = TX2 $("|" 
-				->("cmp byte [eswitch], 0")
-				->("je " *1) TX2) 
-      .LABEL(*1 ":") ;
-
-TX2 = TX3
-	->("cmp byte [eswitch], 1")
-	->("je " *1)
-			// Return from rule if error switch = 1
-      $(TX3 
-				->("cmp byte [eswitch], 1")
-				->("je " *1))
-      .LABEL(*1 ":");
-
-// Capture the next incoming tokens until .DELTOK
-TX3 = (".TOKEN"
-					// Capture the incoming token
-					->("mov byte [tflag], 1")
-					->("call clear_token")
-				| ".DELTOK"
-					// Stop capturing the token
-					->("mov byte [tflag], 0")
-				| "$" .LABEL(*1 ":") TX3 
-					->("cmp byte [eswitch], 0")
-					->("je " *1)) 
-        ->("mov byte [eswitch], 0")
-			| ".ANYBUT(" CX1 ")"
-				// Negate the error switch
-				->("mov al, byte [eswitch]")
-				->("xor al, 1")
-				->("mov byte [eswitch], al")
-				->("call scan_or_parse")
-			| ".ANY(" CX1 ")"
-				->("call scan_or_parse")
-			// Reserve a string that may not be used in a token.
-			// Helpful when identifiers could be named the same as a keyword e.g. "if"
-			| ".RESERVED(" $(STRING 
-					->("test_input_string " *)
-					->("mov al, byte [eswitch]")
-					->("xor al, 1")
-					->("mov byte [eswitch], al")) ")"
-			| ID
-				->("call " *)
-			| "(" TX1 ")";
-
-// OR
-CX1 = CX2 $("!"
-				->("cmp byte [eswitch], 0")
-				->("je " *1) CX2)
-			.LABEL(*1 ":");
-
-// Match a range of characters
-// FROM : TO
-CX2 = CX3 (":" 
-				->("mov edi, " *)
-				->("call test_char_greater_equal")
-				->("cmp byte [eswitch], 0")
-				->("jne " *1) 
-      CX3
-				->("mov edi, " *)
-        ->("call test_char_less_equal")
-			.LABEL(*1 ":")
-			| .EMPTY 
-				->("mov edi, " *)
-				->("call test_char_equal"));
-
-CX3 = NUMBER | STRING;
 
 // -------------------------------- Comments -----------------------------------
 

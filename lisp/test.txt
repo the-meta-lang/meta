@@ -1,9 +1,0 @@
-[defunc [add num1 num2]
-	[+ num1 num2]]
-
-[defunc [sum num1 num2 num3 num4]
-	[add num1 [add num2 [add num3 num4]]]]
-
-
-
-[sum 1 2 3 4]

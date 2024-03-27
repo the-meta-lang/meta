@@ -1,0 +1,72 @@
+// --------------------------------- Tokens ------------------------------------
+
+TOKEN_DEFINITION = ID
+	.LABEL(* ":") "=" TX1 ";" ->("ret");
+
+TX1 = TX2 $("|" 
+				->("cmp byte [eswitch], 0")
+				->("je " *1) TX2) 
+      .LABEL(*1 ":") ;
+
+TX2 = TX3
+	->("cmp byte [eswitch], 1")
+	->("je " *1)
+			// Return from rule if error switch = 1
+      $(TX3 
+				->("cmp byte [eswitch], 1")
+				->("je " *1))
+      .LABEL(*1 ":");
+
+// Capture the next incoming tokens until .DELTOK
+TX3 = (".TOKEN"
+					// Capture the incoming token
+					->("mov byte [tflag], 1")
+					->("call clear_token")
+				| ".DELTOK"
+					// Stop capturing the token
+					->("mov byte [tflag], 0")
+				| "$" .LABEL(*1 ":") TX3 
+					->("cmp byte [eswitch], 0")
+					->("je " *1)) 
+        ->("mov byte [eswitch], 0")
+			| ".ANYBUT(" CX1 ")"
+				// Negate the error switch
+				->("mov al, byte [eswitch]")
+				->("xor al, 1")
+				->("mov byte [eswitch], al")
+				->("call scan_or_parse")
+			| ".ANY(" CX1 ")"
+				->("call scan_or_parse")
+			// Reserve a string that may not be used in a token.
+			// Helpful when identifiers could be named the same as a keyword e.g. "if"
+			| ".RESERVED(" $(STRING 
+					->("test_input_string_no_cursor_advance " *)
+					->("mov al, byte [eswitch]")
+					->("xor al, 1")
+					->("mov byte [eswitch], al")) ")"
+			| ID
+				->("call " *)
+			| "(" TX1 ")";
+
+// OR
+CX1 = CX2 $("!"
+				->("cmp byte [eswitch], 0")
+				->("je " *1) CX2)
+			.LABEL(*1 ":");
+
+// Match a range of characters
+// FROM : TO
+CX2 = CX3 (":" 
+				->("mov edi, " *)
+				->("call test_char_greater_equal")
+				->("cmp byte [eswitch], 0")
+				->("jne " *1) 
+      CX3
+				->("mov edi, " *)
+        ->("call test_char_less_equal")
+			.LABEL(*1 ":")
+			| .EMPTY 
+				->("mov edi, " *)
+				->("call test_char_equal"));
+
+CX3 = NUMBER | STRING;

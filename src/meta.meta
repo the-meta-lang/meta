@@ -1,5 +1,8 @@
 .SYNTAX PROGRAM
 
+// TODO: This doesn't work for some mysterious reason... WTF really...
+// import "src/lib/tokens.meta";
+
 PROGRAM = 
 .DIRECT("section .data")
 .DIRECT("loop_counter dd 0")
@@ -76,6 +79,11 @@ RESOLVE_ARGUMENT = ID
 	// We need to get the index of the argument from the symbol table
 	// We can do this by doing `8 + (arg_count - index) * 4`
 	// This will account for the 8 bytes of the function call (esp and ip)
+	// TODO: This is how we're gonna do it!
+	// [define index [hash_get symbol_table *]]
+	// [define offset [tosignedstr [+ 8 [* 4 [- fn_arg_count index]]]]]
+	// ->("mov esi dword [ebp" *offset "] ; get " *);
+	
 	.RS("mov esi, dword [ebp")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
@@ -138,6 +146,10 @@ EX3 = ID %
 	| STRING ->("test_input_string " *)
 	| ".RET"						->("ret")
 	| ".NOT" (STRING | NUMBER) ->("match_not " *)
+	// TODO: This is a terrible solution...
+	// Having to do %(*) every time the next character is an open parenthesis is just bad...
+	// You should be able to do % without anything.
+	// TODO: Change to "%(" and % to do pushing separately
 	| "%" ("(" $(STRING
 			.LABEL("section .data")
 				->(*3 " db " * ", 0x00")
@@ -381,6 +393,7 @@ CX2 = CX3 (":"
 				->("call test_char_equal"));
 
 CX3 = NUMBER | STRING;
+
 
 // -------------------------------- Comments -----------------------------------
 
