@@ -104,3 +104,19 @@ premalloc:
 		sbrk esi ; increment break by requested size
 		pop ebx
 		ret
+
+
+section .text
+global _start
+
+_start:
+		mov esi, 4
+		call premalloc
+
+	.loop:
+		mov esi, 16
+		call malloc
+
+		mov eax, 1
+		mov ebx, 0
+		int 0x80

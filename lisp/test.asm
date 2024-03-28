@@ -29,6 +29,9 @@ section .bss
     fbin: resb 4 ; free bin stores freed chunks with single linked list starting at fd_ptr, 4 bytes
 section .text
 
+; Allocates memory of size esi
+; Returns pointer to allocated memory
+; Returns 0 if no memory is available or premalloc has not been called before.
 malloc:
 		push ebx
 
@@ -39,7 +42,6 @@ malloc:
 		;----------------------
 
 		;--store_req_space--
-		mov esi, [esp + 8]
 		add esi, 8 ; add space for metadata to do size check
 		;-------------------
 
@@ -97,7 +99,6 @@ free:
 
 premalloc:
 		push ebx
-		mov esi, [esp + 8]
 		mov dword [ptr_wilderness], fbin + 8
 		mov dword [ptr_bss_end], fbin + 8
 		sbrk esi ; increment break by requested size
