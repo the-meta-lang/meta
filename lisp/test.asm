@@ -566,17 +566,21 @@ section .text
     
     call printstr
     pop edi
+    push 32768
+    call malloc
+    pop edi
+    
+section .bss
+    hashmap resd 0
+    
+section .text
+    mov dword [hashmap], eax ; define hash
     jmp LA15
     
 main:
     push ebp
     mov ebp, esp
-    push 32768
-    call malloc
-    pop edi
-    mov dword [ebp-4], eax ; define hashmap
-    sub esp, 4
-    mov eax, dword [ebp-4] ; get hashmap
+    mov eax, dword [hashmap]
     push eax
     
 section .data
@@ -590,7 +594,7 @@ section .text
     pop edi
     pop edi
     pop edi
-    mov eax, dword [ebp-4] ; get hashmap
+    mov eax, dword [hashmap]
     push eax
     
 section .data

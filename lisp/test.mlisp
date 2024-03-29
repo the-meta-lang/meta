@@ -76,8 +76,9 @@
 [premalloc 0]
 [printstr [strcat "Hey " "You"]]
 
+[define hashmap [malloc 32768]]
+
 [defunc [main]
-	[define hashmap [malloc 32768]]
 	[hash_set hashmap "Key" 4]
 	[hash_get hashmap "Key"]]
 

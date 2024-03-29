@@ -1,3 +1,8 @@
+section .bss
+	vector resb 32
+section .text
+global _start
+
 ; Push into a vector
 ; Usage: vector_push vector, value
 ; edi: vector (mm32)
@@ -38,17 +43,6 @@ vector_pop:
 
 	mov eax, ecx
 	ret
-
-; Push a string into a vector
-; Usage: vector_push_string vector, value
-; %1: vector (mm32)
-; %2: value (string)
-%macro vector_push_string 2
-		create_string %2
-		mov esi, eax
-		mov edi, %1
-		call vector_push_string_mm32
-%endmacro
 
 ; Push a string into a vector
 ; Usage: call vector_push_string_mm32
@@ -104,10 +98,6 @@ vector_pop_string:
 		mov eax, esi
 		; Get the length of the vector
 		mov ebx, dword [eax]
-		; If the length is zero, return an empty string
-		cmp ebx, 0
-		je .empty
-
 		; Add the length to the pointer to set the value
 		add eax, ebx
 		add eax, 4 ; Add the offset for the first 4 bytes that indicate the length
@@ -154,13 +144,6 @@ vector_pop_string:
 		sub eax, ecx
 		add eax, 1
 		; Restore altered registers
-		pop ecx
-		pop edx
-		pop ebx
-		ret
-	.empty:
-		mov eax, .string
-		mov byte [eax], 0
 		pop ecx
 		pop edx
 		pop ebx
@@ -220,3 +203,32 @@ vector_reverse_n_string:
 		mov eax, edi
 		add dword [eax], edx
 		ret
+
+section .data
+	string db "Hello", 0x00
+
+section .text
+	_start:
+		mov edi, vector
+		mov esi, string
+		call vector_push_string_mm32
+		mov edi, vector
+		mov esi, string
+		call vector_push_string_mm32
+		mov edi, vector
+		mov esi, string
+		call vector_push_string_mm32
+
+		mov esi, vector
+		call vector_pop_string
+		mov esi, vector
+		call vector_pop_string
+		mov esi, vector
+		call vector_pop_string
+
+		mov edi, vector
+		mov esi, string
+		call vector_push_string_mm32
+		mov eax, 1
+		mov ebx, 0
+		int 0x80

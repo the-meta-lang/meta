@@ -6,6 +6,8 @@ LISP =
 // Count of arguments that was actually used.
 .DIRECT("used_arg_count dd 0")
 .DIRECT("fn_arg_num dd 0")
+// A boolean set to 1 if we're currently in the global scope.
+.DIRECT("is_global db 1")
 .DIRECT("section .bss")
 .DIRECT("symbol_table resb 262144")
 .DIRECT("section .text")
@@ -149,13 +151,25 @@ MOV = "mov" ID %(*) (
 
 // --------------------------------- define ------------------------------------
 
-DEFINE = "define" ID %
+DEFINE = "define" ID % %
 	// write the index into the symbol table
+	// If we're in the global scope we need to open a data section here
+	.DIRECT("cmp byte [is_global], 1")
+	.DIRECT("jne define_local")
+	// According to the symbol table specification we need to add 0x80000000 (first bit of 32 bit int) to signal a global variable
+	// As we don't need positional information for a global, we can ignore adding fn_arg_num or incrementing it
+	.DIRECT("mov edx, 0x80000000")
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_set")
+	.DIRECT("jmp define_end")
+	.DIRECT("define_local:")
 	.DIRECT("inc dword [fn_arg_num]")
 	.DIRECT("mov edx, dword [fn_arg_num]")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
-	.DIRECT("call hash_set") (
+	.DIRECT("call hash_set")
+	.DIRECT("define_end:") (
 	(NUMBER
 		MOV_INTO ->(* " ; define " %))
 	| (STRING 
@@ -168,9 +182,23 @@ DEFINE = "define" ID %
 	| ("[" (FUNC_CALL | ARITHMETIC) "]"
 		MOV_INTO ->("eax ; define " %))
 ) // subtract 4 from the stack pointer so we don't accidentally overwrite the variable
-	->("sub esp, 4");
+	.DIRECT("cmp byte [is_global], 1")
+	.DIRECT("je no_sub")
+	->("sub esp, 4")
+	.DIRECT("no_sub:");
 
-MOV_INTO = .RS("mov dword [ebp")
+MOV_INTO = 
+	// We need to check whether we're in the global scope
+	.DIRECT("cmp byte [is_global], 1")
+	.DIRECT("jne mov_into_local")
+	// If we're in the global scope we need to open a data section here
+	.LABEL("section .bss")
+	->(% " resd 0")
+	.LABEL("section .text")
+	.RS("mov dword [" % "], ")
+	.DIRECT("jmp mov_end")
+	.DIRECT("mov_into_local:")
+	.RS("mov dword [ebp")
 	// use the symbol table to get the index of the variable
 	// then calculate the offset by doing `8 + (arg_count - index) * 4`
 	.DIRECT("mov eax, dword [fn_arg_num]") // index is now in eax
@@ -183,10 +211,11 @@ MOV_INTO = .RS("mov dword [ebp")
 	.DIRECT("add edi, dword [outbuff_offset]")
 	.DIRECT("call inttostrsigned")
 	.DIRECT("add dword [outbuff_offset], eax")
-	.RS("], ");
+	.RS("], ")
+	.DIRECT("mov_end:");
 
 // ----------------------------------- set -------------------------------------
-SET = "set!" ID %("" *) (
+SET = "set!" ID %("" *) %("" *) (
 	(NUMBER 
 		SET_INTO ->(* " ; set "))
 	| (STRING 
@@ -201,15 +230,23 @@ SET = "set!" ID %("" *) (
 );
 
 SET_INTO = 
-	.RS("mov [ebp")
-	// set the value of the variable
-	// we can use the symbol table to get the index of the variable
-	// then calculate the offset by doing `8 + (arg_count - index) * 4`
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, str_vector_8192")
 	.DIRECT("call vector_pop_string")
 	.DIRECT("mov esi, eax")
-	.DIRECT("call hash_get") // index is now in eax
+	.DIRECT("call hash_get") // Variable information now in eax
+		// We need to check whether we're in the global scope
+	.DIRECT("cmp eax, 0x80000000")
+	.DIRECT("jne set_into_local")
+	.RS("mov dword [" % "], ")
+	.DIRECT("jmp set_into_end")
+	.DIRECT("set_into_local:")
+	.DIRECT("push eax")
+	.RS("mov [ebp")
+	.DIRECT("pop eax")
+	// set the value of the variable
+	// we can use the symbol table to get the index of the variable
+	// then calculate the offset by doing `8 + (arg_count - index) * 4`
 	.DIRECT("mov ebx, dword [fn_arg_count]")
 	.DIRECT("sub ebx, eax") // (arg_count - index)
 	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
@@ -219,11 +256,14 @@ SET_INTO =
 	.DIRECT("add edi, dword [outbuff_offset]")
 	.DIRECT("call inttostrsigned")
 	.DIRECT("add dword [outbuff_offset], eax")
-	.RS("], ");
+	.RS("], ")
+	.DIRECT("set_into_end:");
 
 // --------------------------------- defunc ------------------------------------
 
-DEFUNC = "defunc" "[" ID
+DEFUNC = "defunc"
+	.DIRECT("mov byte [is_global], 0")
+	"[" ID
 	->("jmp " *1)
 	.LABEL(* ":")
 		->("push ebp")
@@ -248,7 +288,8 @@ DEFUNC = "defunc" "[" ID
 		->("mov esp, ebp")
 		->("pop ebp")
 		->("ret")
-	.LABEL(*1 ":");
+	.LABEL(*1 ":")
+	.DIRECT("mov byte [is_global], 1");
 
 
 
@@ -355,13 +396,21 @@ CALL_ARG<op> = (NUMBER %("mov esi, ") %(*)
 
 // TODO: Replace with SYMBOL_TABLE_ID<reg>
 SYMBOL_TABLE_ID = ID 
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Variable information now in eax
+		// We need to check whether we're in the global scope
+	.DIRECT("cmp eax, 0x80000000")
+	.DIRECT("jne st_local")
+	->("mov eax, dword [" * "]")
+	.DIRECT("jmp st_end")
+	.DIRECT("st_local:")
 	// We need to get the index of the argument from the symbol table
 	// We can do this by doing `8 + (arg_count - index) * 4`
 	// This will account for the 8 bytes of the function call (esp and ip)
+	.DIRECT("push eax")
 	.RS("mov eax, dword [ebp")
-	.DIRECT("mov edi, symbol_table")
-	.DIRECT("mov esi, last_match")
-	.DIRECT("call hash_get") // Index is now in eax
+	.DIRECT("pop eax")
 	.DIRECT("mov ebx, dword [fn_arg_count]")
 	.DIRECT("sub ebx, eax") // (arg_count - index)
 	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
@@ -371,16 +420,25 @@ SYMBOL_TABLE_ID = ID
 	.DIRECT("add edi, dword [outbuff_offset]")
 	.DIRECT("call inttostrsigned")
 	.DIRECT("add dword [outbuff_offset], eax")
-	->("] ; get " *);
+	->("] ; get " *)
+	.DIRECT("st_end:");
 
 SYMBOL_TABLE_ID_EBX = ID 
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Variable information now in eax
+		// We need to check whether we're in the global scope
+	.DIRECT("cmp eax, 0x80000000")
+	.DIRECT("jne st_ebx_local")
+	->("mov ebx, dword [" * "]")
+	.DIRECT("jmp st_ebx_end")
+	.DIRECT("st_ebx_local:")
 	// We need to get the index of the argument from the symbol table
 	// We can do this by doing `8 + (arg_count - index) * 4`
 	// This will account for the 8 bytes of the function call (esp and ip)
+	.DIRECT("push eax")
 	.RS("mov ebx, dword [ebp")
-	.DIRECT("mov edi, symbol_table")
-	.DIRECT("mov esi, last_match")
-	.DIRECT("call hash_get") // Index is now in eax
+	.DIRECT("pop eax")
 	.DIRECT("mov ebx, dword [fn_arg_count]")
 	.DIRECT("sub ebx, eax") // (arg_count - index)
 	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
@@ -390,7 +448,8 @@ SYMBOL_TABLE_ID_EBX = ID
 	.DIRECT("add edi, dword [outbuff_offset]")
 	.DIRECT("call inttostrsigned")
 	.DIRECT("add dword [outbuff_offset], eax")
-	->("] ; get " *);
+	->("] ; get " *)
+	.DIRECT("st_ebx_end:");
 
 // -------------------------------- Comments -----------------------------------
 
