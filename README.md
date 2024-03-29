@@ -1,4 +1,3 @@
-<a name="readme-top"></a>
 [![Contributors][contributors-shield]][contributors-url]
 [![Forks][forks-shield]][forks-url]
 [![Stargazers][stars-shield]][stars-url]
@@ -7,20 +6,16 @@
 
 <br />
 <div align="center">
-  <a href="https://continuum-ai.de/meta">
+  <a href="https://meta-lang.com">
     <img src="images/logo-light.svg" width="300">
   </a>
 
 <h3 align="center">META</h3>
 
   <p align="center">
-    The META Compiler writing language
-    <br />
-    <a href="https://continuum-ai.de/meta/docs"><strong>Explore the docs »</strong></a>
+    <a href="https://meta-lang.com/docs"><strong>Explore the docs »</strong></a>
     <br />
     <br />
-    <a href="https://github.com/the-meta-lang/meta">View Demo</a>
-    ·
     <a href="https://github.com/the-meta-lang/meta/issues">Report Bug</a>
     ·
     <a href="https://github.com/the-meta-lang/meta/issues">Request Feature</a>
@@ -29,103 +24,39 @@
 
 - [About The Project](#about-the-project)
 - [Getting Started](#getting-started)
-	- [Prerequisites](#prerequisites)
-	- [Installation](#installation)
-	- [Using JavaScript](#using-javascript)
-	- [Using CLI](#using-cli)
 - [Contributing](#contributing)
 - [License](#license)
 
 
 <!-- ABOUT THE PROJECT -->
 ## About The Project
-META is a compiler writing language inspired by the META-II Metacompiler from the seminal paper "[META II a syntax-oriented compiler writing language](https://dl.acm.org/doi/10.1145/800257.808896)" written by Val Schorre in 1963. META allows for the creation of compilers and interpreters for programming languages using a concise and powerful syntax.
+META is a compiler writing language inspired by the META-II Metacompiler from the seminal paper "[META II a syntax-oriented compiler writing language](https://dl.acm.org/doi/10.1145/800257.808896)" written by Val Schorre in 1963. META allows for the creation of compilers, parsers and interpreters for programming languages using a concise and powerful syntax.
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
-<!-- GETTING STARTED -->
+
 ## Getting Started
 
-This is an example of how you may give instructions on setting up your project locally.
-To get a local copy up and running follow these simple example steps.
+META comes as a standalone binary. You may also compile it for your specific system but as of yet, it has only been tested on Linux x86_64 and the used syscalls **WILL NOT WORK on Windows**.
 
-### Prerequisites
-
-To use the @metalang package, you must first have Node.js installed on your system. If you don't already have it, please download and install the latest version from the [official Node.js website](https://nodejs.org/en/).
-
-
-### Installation
-
-If you want to use META as a JavaScript/TypeScript dependency and customize its behavior follow [this guide](#using-javascript).
-If you only want to use the command line application follow [this guide instead](#using-cli)
-
-### Using JavaScript
-
-After installing Node.js, create a new directory for your project, navigate to the directory in the terminal, and run the following command:
-```sh
-npm init
-```
-
-This command will initialize your project with a package.json file which will track all the dependencies of your project.
-
-have created a Node.js project, you can now install the `@metalang/core` package.
+The binary takes a single positional argument, a path to a source `.meta` file containing the syntax definition for your language.
 
 ```sh
-npm install @metalang/core --save
+./bootstrap/meta.bin <source>
 ```
 
-In your JavaScript you can now import `@metalang/core` like this:
+Replace `<source>` with the actual filename of your META program source file. The bootstrap compiler will then generate a compiler for your program.
 
-```js
-import { compile } from "@metalang/core";
-```
+Congratulations! You've just written your first compiler!
 
-Now you can compile any META file just like you would with our cli.
-
-```js
-import * as fs from "fs";
-
-const content = fs.readFileSync("<source");
-compile(content, {
-	debug: false,
-	performanceMetrics: true
-})
-```
-
-Congratulations, you've just compiled your first program with `meta`.
-
-_For more examples, please refer to the [Documentation](https://continuum-ai.de/meta/docs)_
-
-### Using CLI
+If you want to further develop a compiler using hot reloading, you can use the `cascase.bash` file. This script will watch for changes in any of the supplied files and compile/execute them in order they were passed in. You might use it like this:
 
 ```sh
-npm install @metalang/cli -g
+bash cascase.bash <root-compiler> <application-compiler> <input>
 ```
 
-This will install the command line interface globally and will expose the following command to your terminal:
+The output will be printed to the console.
 
-```sh
-meta <command> <...options>
-```
-
-Once you have `@metalang/cli` installed, you can start compiling your META programs.
-
-To compile a META program, open up a terminal or command prompt and navigate to the directory containing your META program source file. Then, run the following command:
-
-```sh
-meta compile <source>
-```
-
-Replace `<source>` with the actual filename of your META program source file. The meta command will then generate a compiler for your program.
-
-Congratulations! You've just compiled your first META program using `@metalang/cli`.
-
-Note that the above command is just a basic example. `@metalang` provides many more options for optimizing and customizing your META compiler.
-
-_For more examples, please refer to the [Documentation](https://continuum-ai.de/meta/docs)_
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
+_For more examples, please refer to the [Documentation](https://meta-lang.com/docs)_
 
 ## Contributing
 
@@ -140,14 +71,9 @@ Don't forget to give the project a star! Thanks again!
 4. Push to the Branch (`git push origin feature/AmazingFeature`)
 5. Open a Pull Request
 
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
-
-
 ## License
 
 Distributed under the MIT License. See `LICENSE` for more information.
-
-<p align="right">(<a href="#readme-top">back to top</a>)</p>
 
 
 [contributors-shield]: https://img.shields.io/github/contributors/the-meta-lang/meta.svg?style=for-the-badge

@@ -1,0 +1,19 @@
+[defunc [derefb mem]
+	[asm "mov ebx, dword [ebp+8]"]
+	[asm "xor eax, eax"]
+	[asm "mov al, byte [ebx]"]]
+
+[defunc [println string]
+	[define length 0]
+	[while [!= [derefb [+ string length]] 0]
+		[set! length [+ length 1]]]
+	[asm "mov eax, 4"]
+	[asm "mov ebx, 1"]
+	[asm "mov ecx, dword [ebp+8]"]
+	[asm "mov edx, dword [ebp-4]"]
+	[asm "int 0x80"]]
+
+[defunc [sayHello]
+	[println "Hello, World!"]]
+
+[sayHello]

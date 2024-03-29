@@ -150,7 +150,7 @@ EX3 = ID %
 	// Having to do %(*) every time the next character is an open parenthesis is just bad...
 	// You should be able to do % without anything.
 	// TODO: Change to "%(" and % to do pushing separately
-	| "%" ("(" $(STRING
+	| "%" ("<" $(STRING
 			.LABEL("section .data")
 				->(*3 " db " * ", 0x00")
 			.LABEL("section .text")
@@ -169,7 +169,7 @@ EX3 = ID %
 					->("mov edi, last_match")
 			)
 				->("call strcat")
-				->("mov esi, eax"))) ")"
+				->("mov esi, eax"))) ">"
 		| .EMPTY
 			->("mov esi, last_match"))
 		->("mov edi, str_vector_8192")

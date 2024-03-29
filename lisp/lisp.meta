@@ -143,7 +143,7 @@ ASMMACRO = "asmmacro" "[" ID
 
 ASM = "asm" RAW ->(*);
 
-MOV = "mov" ID %(*) (
+MOV = "mov" ID %<*> (
 	(SYMBOL_TABLE_ID | "[" (FUNC_CALL | ARITHMETIC) "]")
 		->("mov " % ", eax")
 	| NUMBER
@@ -215,7 +215,7 @@ MOV_INTO =
 	.DIRECT("mov_end:");
 
 // ----------------------------------- set -------------------------------------
-SET = "set!" ID %("" *) %("" *) (
+SET = "set!" ID %<"" *> %<"" *> (
 	(NUMBER 
 		SET_INTO ->(* " ; set "))
 	| (STRING 
@@ -310,52 +310,13 @@ FUNC_CALL = ID %
 
 // ------------------------- Function Call Arguments ---------------------------
 
-// [add 1 2 [add 3 4]]
-//
-// mov esi, 3
-// mov edi, 4
-// call add
-// mov ebx, eax
-// mov esi, 1
-// mov edi, 2
-
-// CALL_ARGS = $((NUMBER %("mov esi, " *)
-// 	| ("[" (FUNC_CALL | ARITHMETIC) "]" 
-// 		%("")
-// 		->("mov esi, eax"))
-// 	| SYMBOL_TABLE_ID
-// 		%("")) $((
-// 			NUMBER %("mov edi, " *)
-// 		| ("[" (FUNC_CALL | ARITHMETIC) "]" 
-// 			%("")
-// 			->("mov edi, eax"))
-// 		| SYMBOL_TABLE_ID
-// 			%("")) $((
-// 				NUMBER %("mov edx, " *)
-// 			| "[" (FUNC_CALL | ARITHMETIC) "]"
-// 				%("")
-// 				->("mov edx, eax")) $((
-// 					NUMBER %("mov ecx, " *)
-// 				| "[" (FUNC_CALL | ARITHMETIC) "]"
-// 					%("")
-// 					->("mov ecx, eax")) $((
-// 							NUMBER %("push " *)
-// 						| "[" (FUNC_CALL | ARITHMETIC) "]"
-// 							%("")
-// 						->("push eax")))
-// 						// TODO: Unlimited arguments possible. Push onto the stack n times. Capture n while looping.
-// 					->(%))
-// 				->(%))
-// 			->(%))
-// 		->(%));
-
 CALL_ARGS = $((
-			NUMBER %("push " *)
+			NUMBER %<"push " *>
 		| "[" (FUNC_CALL | ARITHMETIC) "]"
-			%("")
+			%<"">
 		->("push eax")
 		| SYMBOL_TABLE_ID
-			%("push eax")
+			%<"push eax">
 		| STRING_ARG) 
 		->(%)
 		.DIRECT("inc dword [used_arg_count]"))
@@ -365,31 +326,31 @@ STRING_ARG = STRING
 			.LABEL("section .data")
 				->(*3 " db " * ", 0x00")
 			.LABEL("section .text")
-				%("")
+				%<"">
 				->("push " *3);
 
 
-BINOP_ARGS = $((NUMBER %("mov eax, " *)
+BINOP_ARGS = $((NUMBER %<"mov eax, " *>
 	| ("[" (FUNC_CALL | ARITHMETIC) "]" 
-		%(""))
+		%<"">)
 	// TODO: SYMBOL_TABLE_ID Outputs directly. It should push the value onto the stack.
 	| SYMBOL_TABLE_ID
-		%("")) $((
-			NUMBER %("mov ebx, " *)
+		%<"">) $((
+			NUMBER %<"mov ebx, " *>
 		| ("[" (FUNC_CALL | ARITHMETIC) "]" 
-			%("")
+			%<"">
 			//->("mov ebx, eax")
 			)
 		| SYMBOL_TABLE_ID_EBX
-			%("")) 
+			%<"">) 
 			->(%))
 		->(%));
 
 // TODO: Use argument *op
 // TODO: Needs META Compiler to support string concat in % operator.
-CALL_ARG<op> = (NUMBER %("mov esi, ") %(*)
+CALL_ARG<op> = (NUMBER %<"mov esi, "> %<*>
 	| "[" (FUNC_CALL | ARITHMETIC) "]" 
-		%("") %("")
+		%<""> %<"">
 		->("mov esi, eax"));
 
 // ----------------------------- Symbol Table Id -------------------------------

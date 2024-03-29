@@ -1190,7 +1190,7 @@ LA78:
     test_input_string "%"
     cmp byte [eswitch], 1
     je LA82
-    test_input_string "("
+    test_input_string "<"
     cmp byte [eswitch], 1
     je LA83
     
@@ -1315,7 +1315,7 @@ LA86:
     je LA83
     je terminate_program
 LOOP_70:
-    test_input_string ")"
+    test_input_string ">"
     cmp byte [eswitch], 1
     jne LOOP_71
     cmp byte [backtrack_switch], 1
