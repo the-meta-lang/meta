@@ -2,3 +2,6 @@ release
 
 # tmp files for tests
 tests/tmp
+
+# Artifact folder for github actions tests
+artifacts

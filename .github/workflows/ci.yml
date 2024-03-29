@@ -18,19 +18,18 @@ jobs:
           sudo apt install -y binutils
       - name: Run Tests
         # Remove ANSI escape codes from the output
-        run: bash ./tests/test.bash > tests/results.txt
+        run: bash ./tests/test.bash ./bootstrap/meta.bin > tests/results.txt
       - name: Remove ANSI Escape Codes
         if: always()
         run: sed -i 's/\x1b\[[0-9;]*m//g' tests/results.txt
       - name: Upload Test Artifacts
         if: always()
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: test-results
           path: |
             tests/results.txt
             tests/tmp/**/diff.txt
-          compression-level: 9
   
   benchmark:
     needs:
@@ -51,8 +50,7 @@ jobs:
         run: bash benchmarks/*.bench.bash
 
       - name: Upload Benchmark Artifacts
-        uses: actions/upload-artifact@v4
+        uses: actions/upload-artifact@v3
         with:
           name: benchmark-results
           path: benchmarks/results/
-          compression-level: 9

@@ -27,4 +27,4 @@ bundle:
 
 # Runs all github actions locally
 act:
-	act -P ubuntu-latest=catthehacker/ubuntu:act-latest
+	act -P ubuntu-latest=catthehacker/ubuntu:act-latest --env ACTIONS_RUNTIME_URL=http://host.docker.internal:8080/ --env ACTIONS_RUNTIME_TOKEN=foo --env ACTIONS_CACHE_URL=http://host.docker.internal:8080/ --artifact-server-path artifacts

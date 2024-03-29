@@ -13,8 +13,7 @@ The first 8 bits are used to store the variable's type and properties. The next 
 Let's look at the first 8 bits in more detail:
 
 
-Bit Index | Function                 | Description
-----------|--------------------------|----------------
-0         | Is this variable global? | 0 = No, 1 = Yes
-1         | B2                       | C2
-2         | B3                       | C3
+Bit Index | Usage
+----------|-----------------------------
+0         | Is this variable global?
+1         | Are we dealing with a const?

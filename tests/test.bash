@@ -1,5 +1,14 @@
 #!/bin/bash
 
+# Get the compiler binary to use for all compilations from the cmdline args
+if [ $# -eq 0 ]; then
+		echo "Usage: $0 <compiler-binary>"
+		exit 1
+fi
+
+# Set the compiler binary
+COMPILER_BIN=$1
+
 # Get the start time in millis
 START_TIME=$(date +%s%3N)
 
@@ -26,7 +35,7 @@ for TEST in $TESTS; do
 		# First we need to grab the grammar file
 		cp "$TEST/grammar.meta" "$TMP_DIR/grammar.meta"
 		# Then we need to compile the grammar file
-		./bootstrap/meta.bin "$TMP_DIR/grammar.meta" > "$TMP_DIR/grammar.asm"
+		$COMPILER_BIN "$TMP_DIR/grammar.meta" > "$TMP_DIR/grammar.asm"
 		# And compile the generated assembly
 		FILE="$TMP_DIR/grammar.asm"
 
