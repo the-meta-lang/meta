@@ -23,7 +23,8 @@ jobs:
       - name: Save Test Results
         if: always()
         run: |
-          cat tests/results.txt | sed 's/\x1b\[[0-9;]*m//g' > tests/results.txt
+          CONTENT=$(cat tests/results.txt)
+          echo "$CONTENT" | sed 's/\x1b\[[0-9;]*m//g' > tests/results.txt
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v3
