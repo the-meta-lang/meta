@@ -19,7 +19,7 @@ jobs:
           sudo apt install -y build-essential
       - name: Run Tests
         # Remove ANSI escape codes from the output
-        run: make test | sed 's/\x1b\[[0-9;]*m//g' > tests/results.txt
+        run: make test-all | sed 's/\x1b\[[0-9;]*m//g' > tests/results.txt
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v3
