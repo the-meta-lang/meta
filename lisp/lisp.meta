@@ -33,7 +33,7 @@ POSTAMBLE =
 
 // ---------------------------------- body -------------------------------------
 
-BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | MOV | RETURN | FUNC_CALL) "]";
+BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | MOV | RETURN | FUNC_CALL | BODY) "]";
 
 // --------------------------------- arithmetic --------------------------------
 
@@ -50,10 +50,12 @@ ARITHMETIC = ("+" BINOP_ARGS
 		->("xor edx, edx")
 		->("div ebx")
 		->("mov eax, edx")
-	| "&&" BINOP_ARGS
+	| "and" BINOP_ARGS
 		->("and eax, ebx")
-	| "||" BINOP_ARGS
+	| "or" BINOP_ARGS
 		->("or eax, ebx")
+	| "not" BINOP_ARGS
+		->("not eax")
 	| "<=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
@@ -120,10 +122,10 @@ IF = "if" "[" (FUNC_CALL | ARITHMETIC)
 IF_ELSE = "if/else" "[" (FUNC_CALL | ARITHMETIC)
 	->("cmp eax, 1")
 	->("jne " *1) "]"
-	"[" $BODY "]"
+	BODY
 	->("jmp " *2)
 	.LABEL(*1 ":")
-	"[" $BODY "]"
+	BODY
 	.LABEL(*2 ":");
 
 // ----------------------------- Assembler Macro -------------------------------
@@ -193,7 +195,7 @@ MOV_INTO =
 	.DIRECT("jne mov_into_local")
 	// If we're in the global scope we need to open a data section here
 	.LABEL("section .bss")
-	->(% " resd 0")
+	->(% " resd 1")
 	.LABEL("section .text")
 	.RS("mov dword [" % "], ")
 	.DIRECT("jmp mov_end")

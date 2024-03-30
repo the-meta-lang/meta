@@ -6,4 +6,5 @@ act:
 	act -P ubuntu-latest=catthehacker/ubuntu:act-latest --env ACTIONS_RUNTIME_URL=http://host.docker.internal:8080/ --env ACTIONS_RUNTIME_TOKEN=foo --env ACTIONS_CACHE_URL=http://host.docker.internal:8080/ --artifact-server-path artifacts
 
 test:
-	bash ./tests/test.bash ./bootstrap/meta.bin
+	lib/bashunit -v ./tests/test.bash || \
+	lib/bashunit -v ./lisp/tests/test.bash

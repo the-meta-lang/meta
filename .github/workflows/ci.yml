@@ -11,17 +11,15 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - name: Install nasm and binutils
+      - name: Install nasm, binutils and build-essential (make)
         run: |
           sudo apt update
           sudo apt install -y nasm
           sudo apt install -y binutils
+          sudo apt install -y build-essential
       - name: Run Tests
         # Remove ANSI escape codes from the output
-        run: bash ./tests/test.bash ./bootstrap/meta.bin > tests/results.txt
-      - name: Remove ANSI Escape Codes
-        if: always()
-        run: sed -i 's/\x1b\[[0-9;]*m//g' tests/results.txt
+        run: make test | sed 's/\x1b\[[0-9;]*m//g' > tests/results.txt
       - name: Upload Test Artifacts
         if: always()
         uses: actions/upload-artifact@v3
@@ -29,7 +27,7 @@ jobs:
           name: test-results
           path: |
             tests/results.txt
-            tests/tmp/**/diff.txt
+          retention-days: 15
   
   benchmark:
     needs:
@@ -54,3 +52,4 @@ jobs:
         with:
           name: benchmark-results
           path: benchmarks/results/
+          retention-days: 15
