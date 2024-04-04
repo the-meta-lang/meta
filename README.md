@@ -48,10 +48,10 @@ Replace `<source>` with the actual filename of your META program source file. Th
 
 Congratulations! You've just written your first compiler!
 
-If you want to further develop a compiler using hot reloading, you can use the `cascase.bash` file. This script will watch for changes in any of the supplied files and compile/execute them in order they were passed in. You might use it like this:
+If you want to further develop a compiler using hot reloading, you can use the `cascade.bash` file. This script will watch for changes in any of the supplied files and compile/execute them in order they were passed in. You might use it like this:
 
 ```sh
-bash cascase.bash <root-compiler> <application-compiler> <input>
+bash cascade.bash <root-compiler> <application-compiler> <input>
 ```
 
 The output will be printed to the console.

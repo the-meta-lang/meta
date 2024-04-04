@@ -571,7 +571,7 @@ section .text
     pop edi
     
 section .bss
-    hashmap resd 0
+    hashmap resd 1
     
 section .text
     mov dword [hashmap], eax ; define hash

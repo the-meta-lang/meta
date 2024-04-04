@@ -1,0 +1,13 @@
+// Symbol tables are inherently trees, whenever we enter a new scope, we create
+// a new symbol table that is a child of the current symbol table. When we leave
+// the scope, we discard the symbol table. This is a recursive process, and the
+// symbol tables form a tree structure.
+// A struct for a symbol table is defined as follows:
+// struct SymbolTable {
+//     SymbolTable* parent;
+//     map<string, int> table;
+// };
+// This way, we can iterate through the symbol tables by following the parent
+// pointers. The root of the tree is the global symbol table, it has no parent.
+
+[defunc []]

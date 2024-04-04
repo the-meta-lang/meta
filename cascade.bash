@@ -9,8 +9,14 @@ if [ $len -lt 2 ]; then
 fi
 
 compile() {
-	nasm -F dwarf -g -f elf32 -i ./assembly -o $1.o $1.asm 
+	nasm -F dwarf -g -f elf32 -i ./assembly -o $1.o $1.asm
+	# Verify that an object file has been created.
+	if [ ! -f "$1.o" ]; then
+		echo "Failed to compile $1.asm"
+		return 1
+	fi
 	ld -m elf_i386 -o $1.bin $1.o
+	chmod +x $1.bin
 	rm $1.o
 }
 

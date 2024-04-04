@@ -158,7 +158,7 @@ EX3 = ID %
 			// TODO: I'm not even gonna pretend like this isn't a terrible solution...
 			// This is no extensible at all...
 			// It's gonna break as soon as you pass something like %(* "Hello") cause then
-			// strcat will completely break...
+			// strcat will completely fuck itself...
 			|	("*" (
 					RESOLVE_ARGUMENT
 					->("mov edi, outbuff")
@@ -285,11 +285,11 @@ EX1 = EX2 $ ("|"
 	->("cmp byte [eswitch], 0")
 	->("je " *1) EX2) .LABEL(*1 ":");
 
-// Generics can be defined like this:
+// Arguments can be defined like this:
 // DEFINITION<arg1, arg2>
 // and used like this:
 // : *arg1 *arg2 or #arg1 depending on the data type (string | int)
-DEFINITION = ID 
+DEFINITION = ID
 	.LABEL(* ":")
 		->("push ebp")
 		->("mov ebp, esp")
@@ -393,7 +393,6 @@ CX2 = CX3 (":"
 				->("call test_char_equal"));
 
 CX3 = NUMBER | STRING;
-
 
 // -------------------------------- Comments -----------------------------------
 

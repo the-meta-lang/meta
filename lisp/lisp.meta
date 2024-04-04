@@ -2,13 +2,16 @@
 
 LISP =
 .DIRECT("section .data")
-.DIRECT("fn_arg_count dd 0")
 // Count of arguments that was actually used.
 .DIRECT("used_arg_count dd 0")
+.DIRECT("push_prefix db 'push dword [ebp', 0x00")
+.DIRECT("push_prefix_global db 'push dword [', 0x00")
 .DIRECT("fn_arg_num dd 0")
 // A boolean set to 1 if we're currently in the global scope.
 .DIRECT("is_global db 1")
+.DIRECT("loop_counter dd 0")
 .DIRECT("section .bss")
+.DIRECT("push_buffer resb 128")
 .DIRECT("symbol_table resb 262144")
 .DIRECT("section .text")
 PREAMBLE $(ROOT_BODY) POSTAMBLE;
@@ -33,7 +36,15 @@ POSTAMBLE =
 
 // ---------------------------------- body -------------------------------------
 
-BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | ARITHMETIC | ASM | MOV | RETURN | FUNC_CALL | BODY) "]";
+BODY = COMMENT | "[" (DEFINE | SET | WHILE | IF_ELSE | IF | CONTINUE | BREAK | ARITHMETIC | ASM | MOV | RETURN | FUNC_CALL | BODY) "]";
+
+// ------------------------------ Control Flow ---------------------------------
+
+CONTINUE = "continue" 
+	->("jmp " *2);
+
+BREAK = "break" 
+	->("jmp " *1);
 
 // --------------------------------- arithmetic --------------------------------
 
@@ -44,6 +55,7 @@ ARITHMETIC = ("+" BINOP_ARGS
 	| "*" BINOP_ARGS
 		->("imul eax, ebx")
 	| "/" BINOP_ARGS
+		->("xor edx, edx")
 		->("div ebx")
 	// Modulo
 	| "%" BINOP_ARGS
@@ -145,7 +157,7 @@ ASMMACRO = "asmmacro" "[" ID
 
 ASM = "asm" RAW ->(*);
 
-MOV = "mov" ID %<*> (
+MOV = "mov" ID % (
 	(SYMBOL_TABLE_ID | "[" (FUNC_CALL | ARITHMETIC) "]")
 		->("mov " % ", eax")
 	| NUMBER
@@ -166,7 +178,6 @@ DEFINE = "define" ID % %
 	.DIRECT("call hash_set")
 	.DIRECT("jmp define_end")
 	.DIRECT("define_local:")
-	.DIRECT("inc dword [fn_arg_num]")
 	.DIRECT("mov edx, dword [fn_arg_num]")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
@@ -186,6 +197,7 @@ DEFINE = "define" ID % %
 ) // subtract 4 from the stack pointer so we don't accidentally overwrite the variable
 	.DIRECT("cmp byte [is_global], 1")
 	.DIRECT("je no_sub")
+	.DIRECT("dec dword [fn_arg_num]")
 	->("sub esp, 4")
 	.DIRECT("no_sub:");
 
@@ -204,9 +216,7 @@ MOV_INTO =
 	// use the symbol table to get the index of the variable
 	// then calculate the offset by doing `8 + (arg_count - index) * 4`
 	.DIRECT("mov eax, dword [fn_arg_num]") // index is now in eax
-	.DIRECT("mov ebx, dword [fn_arg_count]")
-	.DIRECT("sub ebx, eax") // (arg_count - index)
-	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("imul eax, eax, 4") // (arg_count - index) * 4
 	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
 	.DIRECT("mov esi, eax")
 	.DIRECT("mov edi, outbuff")
@@ -244,14 +254,12 @@ SET_INTO =
 	.DIRECT("jmp set_into_end")
 	.DIRECT("set_into_local:")
 	.DIRECT("push eax")
-	.RS("mov [ebp")
+	.RS("mov dword [ebp")
 	.DIRECT("pop eax")
 	// set the value of the variable
 	// we can use the symbol table to get the index of the variable
 	// then calculate the offset by doing `8 + (arg_count - index) * 4`
-	.DIRECT("mov ebx, dword [fn_arg_count]")
-	.DIRECT("sub ebx, eax") // (arg_count - index)
-	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("imul eax, eax, 4") // (arg_count - index) * 4
 	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
 	.DIRECT("mov esi, eax")
 	.DIRECT("mov edi, outbuff")
@@ -274,18 +282,16 @@ DEFUNC = "defunc"
 	$(ID
 	// We found a new argument, we need to put it into the symbol table
 	// with it's index as a value
-	.DIRECT("inc dword [fn_arg_count] ; found new argument!")
-	.DIRECT("inc dword [fn_arg_num]")
 	.DIRECT("mov edx, dword [fn_arg_num]")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
-	.DIRECT("call hash_set"))
+	.DIRECT("call hash_set")
+	.DIRECT("inc dword [fn_arg_num]"))
 	// increase the arg num to `arg_num + 2` to make space for the return address and the old ebp
 	// this will make it possible to use `8 + (arg_count - index) * 4` to get the offset of local variables
-	.DIRECT("add dword [fn_arg_num], 2")
+	.DIRECT("mov dword [fn_arg_num], -3")
 	"]"
 		$(BODY)
-	.DIRECT("mov dword [fn_arg_count], 0")
 	.DIRECT("mov dword [fn_arg_num], 0")
 		->("mov esp, ebp")
 		->("pop ebp")
@@ -301,28 +307,85 @@ FUNC_CALL = ID %
 	.DIRECT("mov dword [used_arg_count], 0")
 	CALL_ARGS
 	->("call " %)
-	// TODO: This has to pop the number of arguments the function had from the stack. Not just 2
-	.DIRECT("loop_pop_args:")
-	.DIRECT("cmp dword [used_arg_count], 0")
-	.DIRECT("je loop_pop_args_end")
-	->("pop edi")
-	.DIRECT("dec dword [used_arg_count]")
-	.DIRECT("jmp loop_pop_args")
-	.DIRECT("loop_pop_args_end:");
+	// Revert the stack pointer to it's original position
+	.DIRECT("mov ebx, dword [used_arg_count]")
+	.DIRECT("imul ebx, ebx, 4")
+	.UF("add esp, ")
+	.DIRECT("mov esi, ebx")
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostr")
+	.DIRECT("add dword [outbuff_offset], eax")
+	.DIRECT("mov dword [used_arg_count], 0")
+	.UF(.NL .TB);
 
 // ------------------------- Function Call Arguments ---------------------------
 
 CALL_ARGS = $((
 			NUMBER %<"push " *>
-		| "[" (FUNC_CALL | ARITHMETIC) "]"
+		| "[" .DIRECT("push dword [used_arg_count]") (FUNC_CALL | ARITHMETIC) .DIRECT("pop dword [used_arg_count]") "]"
 			%<"">
 		->("push eax")
-		| SYMBOL_TABLE_ID
-			%<"push eax">
-		| STRING_ARG) 
-		->(%)
+		| SYMBOL_TABLE_PUSH_BUFFER
+		| STRING_ARG)
 		.DIRECT("inc dword [used_arg_count]"))
-	;
+	.DIRECT("mov ecx, dword [used_arg_count]")
+	.DIRECT("loop_pop_args:")
+	.DIRECT("cmp ecx, 0")
+	.DIRECT("je loop_pop_args_end")
+	.DIRECT("push ecx")
+	->(%)
+	.DIRECT("pop ecx")
+	.DIRECT("dec ecx")
+	.DIRECT("jmp loop_pop_args")
+	.DIRECT("loop_pop_args_end:");
+
+SYMBOL_TABLE_PUSH_BUFFER = ID 
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Variable information now in eax
+		// We need to check whether we're in the global scope
+	.DIRECT("cmp eax, 0x80000000")
+	.DIRECT("jne stpb_local")
+
+	.DIRECT("mov esi, push_prefix_global")
+	.DIRECT("mov edi, push_buffer")
+	.DIRECT("call buffc")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("mov edi, push_buffer")
+	.DIRECT("add edi, 12")
+	.DIRECT("call buffc")
+	.DIRECT("mov edi, push_buffer")
+	.DIRECT("add edi, 12")
+	.DIRECT("mov byte [edi+eax], ']'")
+	.DIRECT("mov byte [edi+eax+1], 0x00")
+	.DIRECT("mov esi, push_buffer")
+	.DIRECT("mov edi, str_vector_8192")
+	.DIRECT("call vector_push_string_mm32")
+	.DIRECT("jmp stpb_end")
+	.DIRECT("stpb_local:")
+	// We need to get the index of the argument from the symbol table
+	// We can do this by doing `8 + (arg_count - index) * 4`
+	// This will account for the 8 bytes of the function call (esp and ip)
+	.DIRECT("push eax")
+	.DIRECT("mov esi, push_prefix")
+	.DIRECT("mov edi, push_buffer")
+	.DIRECT("call buffc")
+	.DIRECT("pop eax")
+	.DIRECT("imul eax, eax, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax") // print the number
+	.DIRECT("mov edi, push_buffer")
+	.DIRECT("add edi, 15")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("mov edi, push_buffer")
+	.DIRECT("add edi, 15")
+	.DIRECT("mov byte [edi+eax], ']'")
+	.DIRECT("mov byte [edi+eax+1], 0x00")
+	.DIRECT("mov esi, push_buffer")
+	.DIRECT("mov edi, str_vector_8192")
+	.DIRECT("call vector_push_string_mm32")
+	.DIRECT("stpb_end:");
 
 STRING_ARG = STRING 
 			.LABEL("section .data")
@@ -332,28 +395,40 @@ STRING_ARG = STRING
 				->("push " *3);
 
 
-BINOP_ARGS = $((NUMBER %<"mov eax, " *>
-	| ("[" (FUNC_CALL | ARITHMETIC) "]" 
-		%<"">)
-	// TODO: SYMBOL_TABLE_ID Outputs directly. It should push the value onto the stack.
-	| SYMBOL_TABLE_ID
-		%<"">) $((
-			NUMBER %<"mov ebx, " *>
-		| ("[" (FUNC_CALL | ARITHMETIC) "]" 
-			%<"">
-			//->("mov ebx, eax")
-			)
-		| SYMBOL_TABLE_ID_EBX
-			%<"">) 
-			->(%))
-		->(%));
+BINOP_ARGS = $((NUMBER ->("push " *)
+	| ("[" (FUNC_CALL | ARITHMETIC) "]")
+	| SYMBOL_TABLE_PUSH) $((
+			NUMBER ->("push " *)
+		| ("[" (FUNC_CALL | ARITHMETIC) "]")
+		| SYMBOL_TABLE_PUSH)
+		->("pop ebx"))
+	->("pop eax"));
 
-// TODO: Use argument *op
-// TODO: Needs META Compiler to support string concat in % operator.
-CALL_ARG<op> = (NUMBER %<"mov esi, "> %<*>
-	| "[" (FUNC_CALL | ARITHMETIC) "]" 
-		%<""> %<"">
-		->("mov esi, eax"));
+SYMBOL_TABLE_PUSH = ID 
+	.DIRECT("mov edi, symbol_table")
+	.DIRECT("mov esi, last_match")
+	.DIRECT("call hash_get") // Variable information now in eax
+		// We need to check whether we're in the global scope
+	.DIRECT("cmp eax, 0x80000000")
+	.DIRECT("jne stp_local")
+	->("push dword [" * "]")
+	.DIRECT("jmp stp_end")
+	.DIRECT("stp_local:")
+	// We need to get the index of the argument from the symbol table
+	// We can do this by doing `8 + (arg_count - index) * 4`
+	// This will account for the 8 bytes of the function call (esp and ip)
+	.DIRECT("push eax")
+	.RS("push dword [ebp")
+	.DIRECT("pop eax")
+	.DIRECT("imul eax, eax, 4") // (arg_count - index) * 4
+	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
+	.DIRECT("mov esi, eax") // print the number
+	.DIRECT("mov edi, outbuff")
+	.DIRECT("add edi, dword [outbuff_offset]")
+	.DIRECT("call inttostrsigned")
+	.DIRECT("add dword [outbuff_offset], eax")
+	->("] ; get " *)
+	.DIRECT("stp_end:");
 
 // ----------------------------- Symbol Table Id -------------------------------
 
@@ -374,9 +449,7 @@ SYMBOL_TABLE_ID = ID
 	.DIRECT("push eax")
 	.RS("mov eax, dword [ebp")
 	.DIRECT("pop eax")
-	.DIRECT("mov ebx, dword [fn_arg_count]")
-	.DIRECT("sub ebx, eax") // (arg_count - index)
-	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("imul eax, eax, 4") // (arg_count - index) * 4
 	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
 	.DIRECT("mov esi, eax") // print the number
 	.DIRECT("mov edi, outbuff")
@@ -402,9 +475,7 @@ SYMBOL_TABLE_ID_EBX = ID
 	.DIRECT("push eax")
 	.RS("mov ebx, dword [ebp")
 	.DIRECT("pop eax")
-	.DIRECT("mov ebx, dword [fn_arg_count]")
-	.DIRECT("sub ebx, eax") // (arg_count - index)
-	.DIRECT("imul eax, ebx, 4") // (arg_count - index) * 4
+	.DIRECT("imul eax, eax, 4") // (arg_count - index) * 4
 	.DIRECT("add eax, 8") // 8 + (arg_count - index) * 4
 	.DIRECT("mov esi, eax") // print the number
 	.DIRECT("mov edi, outbuff")
