@@ -49,60 +49,77 @@ BREAK = "break"
 // --------------------------------- arithmetic --------------------------------
 
 ARITHMETIC = ("+" BINOP_ARGS
-	->("add eax, ebx")
+		->("add eax, ebx")
+		->("push eax")
 	| "-" BINOP_ARGS
 		->("sub eax, ebx")
+		->("push eax")
 	| "*" BINOP_ARGS
 		->("imul eax, ebx")
+		->("push eax")
 	| "/" BINOP_ARGS
 		->("xor edx, edx")
 		->("div ebx")
+		->("push eax")
 	// Modulo
 	| "%" BINOP_ARGS
 		->("xor edx, edx")
 		->("div ebx")
 		->("mov eax, edx")
+		->("push eax")
 	| "and" BINOP_ARGS
 		->("and eax, ebx")
+		->("push eax")
 	| "or" BINOP_ARGS
 		->("or eax, ebx")
+		->("push eax")
 	| "not" BINOP_ARGS
 		->("not eax")
+		->("push eax")
 	| "<=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setle al")
+		->("push eax")
 	| ">=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setge al")
+		->("push eax")
 	| "==" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("sete al")
+		->("push eax")
 	| "!=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setne al")
+		->("push eax")
 	// Bitwise left-shift
 	| "<<" BINOP_ARGS
 		->("mov ecx, ebx")
 		->("shl eax, cl")
+		->("push eax")
 	// Bitwise right-shift
 	| ">>" BINOP_ARGS
 		->("mov ecx, ebx")
 		->("shr eax, cl")
+		->("push eax")
 	// Xor
 	| "^" BINOP_ARGS
 		->("xor eax, ebx")
+		->("push eax")
 	| "<" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setl al")
+		->("push eax")
 	| ">" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
-		->("setg al"));
+		->("setg al")
+		->("push eax"));
 
 // --------------------------------- return ------------------------------------
 
@@ -317,7 +334,8 @@ FUNC_CALL = ID %
 	.DIRECT("call inttostr")
 	.DIRECT("add dword [outbuff_offset], eax")
 	.DIRECT("mov dword [used_arg_count], 0")
-	.UF(.NL .TB);
+	.UF(.NL .TB)
+	.UF("push eax" .NL .TB);
 
 // ------------------------- Function Call Arguments ---------------------------
 
@@ -325,7 +343,6 @@ CALL_ARGS = $((
 			NUMBER %<"push " *>
 		| "[" .DIRECT("push dword [used_arg_count]") (FUNC_CALL | ARITHMETIC) .DIRECT("pop dword [used_arg_count]") "]"
 			%<"">
-		->("push eax")
 		| SYMBOL_TABLE_PUSH_BUFFER
 		| STRING_ARG)
 		.DIRECT("inc dword [used_arg_count]"))

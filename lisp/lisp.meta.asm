@@ -564,6 +564,9 @@ LOOP_9:
     print "add eax, ebx"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA46:
     cmp byte [eswitch], 0
@@ -585,6 +588,9 @@ LOOP_10:
     print "sub eax, ebx"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA48:
     cmp byte [eswitch], 0
@@ -604,6 +610,9 @@ LA48:
     jmp terminate_program
 LOOP_11:
     print "imul eax, ebx"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     
@@ -628,6 +637,9 @@ LOOP_12:
     print 0x0A
     print '    '
     print "div ebx"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
@@ -663,6 +675,9 @@ LOOP_14:
     print "mov eax, edx"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA51:
     cmp byte [eswitch], 0
@@ -682,6 +697,9 @@ LA51:
     jmp terminate_program
 LOOP_15:
     print "and eax, ebx"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     
@@ -705,6 +723,9 @@ LOOP_16:
     print "or eax, ebx"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA53:
     cmp byte [eswitch], 0
@@ -724,6 +745,9 @@ LA53:
     jmp terminate_program
 LOOP_17:
     print "not eax"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     
@@ -753,6 +777,9 @@ LOOP_18:
     print "setle al"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA55:
     cmp byte [eswitch], 0
@@ -778,6 +805,9 @@ LOOP_19:
     print 0x0A
     print '    '
     print "setge al"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     
@@ -807,6 +837,9 @@ LOOP_20:
     print "sete al"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA57:
     cmp byte [eswitch], 0
@@ -832,6 +865,9 @@ LOOP_21:
     print 0x0A
     print '    '
     print "setne al"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     cmp byte [eswitch], 1
@@ -864,6 +900,9 @@ LOOP_23:
     print "shl eax, cl"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     jne LOOP_24
     cmp byte [backtrack_switch], 1
@@ -894,6 +933,9 @@ LOOP_25:
     print "shr eax, cl"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     cmp byte [eswitch], 1
     jne LOOP_26
     cmp byte [backtrack_switch], 1
@@ -919,6 +961,9 @@ LA60:
     jmp terminate_program
 LOOP_27:
     print "xor eax, ebx"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     
@@ -948,6 +993,9 @@ LOOP_28:
     print "setl al"
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA62:
     cmp byte [eswitch], 0
@@ -973,6 +1021,9 @@ LOOP_29:
     print 0x0A
     print '    '
     print "setg al"
+    print 0x0A
+    print '    '
+    print "push eax"
     print 0x0A
     print '    '
     
@@ -2519,6 +2570,9 @@ LOOP_104:
     mov dword [used_arg_count], 0
     print 0x0A
     print '    '
+    print "push eax"
+    print 0x0A
+    print '    '
     
 LA156:
     
@@ -2616,9 +2670,6 @@ section .text
     je LA161
     jmp terminate_program
 LOOP_108:
-    print "push eax"
-    print 0x0A
-    print '    '
     
 LA161:
     cmp byte [eswitch], 0
