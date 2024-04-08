@@ -30,7 +30,7 @@ backtrack_restore:
 		call vector_pop_string
 		mov edi, eax ; Mov the pointer to the token into edi
 		mov esi, last_match ; Move the target pointer into esi
-		call buffc
+		call strcpy
 		ret
 
 

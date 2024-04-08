@@ -1,11 +1,7 @@
-[defunc [addnum a b c d]
-	[define q 1]
-	[define k 1]
-	[define p 1]
-	[+ a [+ b [+ c k]]]]
+[defunc [getptr str i]
+	[+ str i]]
 
 [defunc [main]
-	[define x 1]
-	[addnum 1 x 3 [addnum 5 x 7 8]]]
+	[getptr "Hello, World!" 2]]
 
 [main]

@@ -6,7 +6,7 @@
 ;   edi - pointer to destination buffer
 ; Output
 ;   eax - length of the string
-buffc:
+strcpy:
 		push ebp
 		mov ebp, esp
 		xor ecx, ecx ; Keep track of the length so we can return it
@@ -32,7 +32,7 @@ buffc:
 ; Input
 ;   esi - pointer to source buffer
 ;   edi - pointer to destination buffer
-buffcend:
+strcpyend:
 		push ebp
 		mov ebp, esp
 	.loop:
@@ -42,7 +42,7 @@ buffcend:
 		inc edi
 		jmp .loop
 	.done:
-		call buffc
+		call strcpy
 		mov esp, ebp
 		pop ebp
 		ret

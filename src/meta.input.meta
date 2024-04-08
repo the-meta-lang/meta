@@ -1,6 +1,7 @@
 .SYNTAX PROGRAM
 
-import "src/lib/tokens.meta";
+// TODO: This doesn't work for some mysterious reason... WTF really...
+// import "src/lib/tokens.meta";
 
 PROGRAM = 
 .DIRECT("section .data")
@@ -43,15 +44,39 @@ IMPORT_STATEMENT = "import" RAW ";"
 
 // --------------------------------- Output ------------------------------------
 
-OUT1 = "*1" ->("call gn1")
-	| "*2" ->("call gn2")
-	| "*3" ->("call gn3")
-	| "*4" ->("call gn4")
+OUT1 = "*1" 
+		->("call gn1")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+		->("add dword [outbuff_offset], eax")
+	| "*2" 
+		->("call gn2")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+		->("add dword [outbuff_offset], eax")
+	| "*3" 
+		->("call gn3")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+	->("add dword [outbuff_offset], eax")
+	| "*4" 
+		->("call gn4")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+		->("add dword [outbuff_offset], eax")
 	| "*" (
 			GET_REFERENCE
 			->("mov edi, outbuff")
 			->("add edi, [outbuff_offset]")
-			->("call buffc")
+			->("call strcpy")
 			->("add dword [outbuff_offset], eax")
 		| .EMPTY ->("call copy_last_match")
 	)
@@ -66,7 +91,7 @@ OUT1 = "*1" ->("call gn1")
 				->("mov esi, eax")
 				->("mov edi, outbuff")
 				->("add edi, [outbuff_offset]")
-				->("call buffc")
+				->("call strcpy")
 				->("add dword [outbuff_offset], eax")
 	| ".NL"
 		->("print 0x0A")
@@ -78,6 +103,11 @@ RESOLVE_ARGUMENT = ID
 	// We need to get the index of the argument from the symbol table
 	// We can do this by doing `8 + (arg_count - index) * 4`
 	// This will account for the 8 bytes of the function call (esp and ip)
+	// TODO: This is how we're gonna do it!
+	// [define index [hash_get symbol_table *]]
+	// [define offset [tosignedstr [+ 8 [* 4 [- fn_arg_count index]]]]]
+	// ->("mov esi dword [ebp" *offset "] ; get " *);
+	
 	.RS("mov esi, dword [ebp")
 	.DIRECT("mov edi, symbol_table")
 	.DIRECT("mov esi, last_match")
@@ -140,7 +170,11 @@ EX3 = ID %
 	| STRING ->("test_input_string " *)
 	| ".RET"						->("ret")
 	| ".NOT" (STRING | NUMBER) ->("match_not " *)
-	| "%" ("(" $(STRING
+	// TODO: This is a terrible solution...
+	// Having to do %(*) every time the next character is an open parenthesis is just bad...
+	// You should be able to do % without anything.
+	// TODO: Change to "%(" and % to do pushing separately
+	| "%" ("<" $(STRING
 			.LABEL("section .data")
 				->(*3 " db " * ", 0x00")
 			.LABEL("section .text")
@@ -148,18 +182,18 @@ EX3 = ID %
 			// TODO: I'm not even gonna pretend like this isn't a terrible solution...
 			// This is no extensible at all...
 			// It's gonna break as soon as you pass something like %(* "Hello") cause then
-			// strcat will completely break...
+			// strcat will completely fuck itself...
 			|	("*" (
 					RESOLVE_ARGUMENT
 					->("mov edi, outbuff")
 					->("add edi, [outbuff_offset]")
-					->("call buffc")
+					->("call strcpy")
 					->("add dword [outbuff_offset], eax")
 				| .EMPTY
 					->("mov edi, last_match")
 			)
 				->("call strcat")
-				->("mov esi, eax"))) ")"
+				->("mov esi, eax"))) ">"
 		| .EMPTY
 			->("mov esi, last_match"))
 		->("mov edi, str_vector_8192")
@@ -275,11 +309,11 @@ EX1 = EX2 $ ("|"
 	->("cmp byte [eswitch], 0")
 	->("je " *1) EX2) .LABEL(*1 ":");
 
-// Generics can be defined like this:
+// Arguments can be defined like this:
 // DEFINITION<arg1, arg2>
 // and used like this:
 // : *arg1 *arg2 or #arg1 depending on the data type (string | int)
-DEFINITION = ID 
+DEFINITION = ID
 	.LABEL(* ":")
 		->("push ebp")
 		->("mov ebp, esp")
@@ -311,7 +345,78 @@ GENERIC_ARG = NUMBER
 		->("pop esi")
 		->("push esi");
 
+// --------------------------------- Tokens ------------------------------------
 
+TOKEN_DEFINITION = ID
+	.LABEL(* ":") "=" TX1 ";" ->("ret");
+
+TX1 = TX2 $("|" 
+				->("cmp byte [eswitch], 0")
+				->("je " *1) TX2) 
+      .LABEL(*1 ":") ;
+
+TX2 = TX3
+	->("cmp byte [eswitch], 1")
+	->("je " *1)
+			// Return from rule if error switch = 1
+      $(TX3 
+				->("cmp byte [eswitch], 1")
+				->("je " *1))
+      .LABEL(*1 ":");
+
+// Capture the next incoming tokens until .DELTOK
+TX3 = (".TOKEN"
+					// Capture the incoming token
+					->("mov byte [tflag], 1")
+					->("call clear_token")
+				| ".DELTOK"
+					// Stop capturing the token
+					->("mov byte [tflag], 0")
+				| "$" .LABEL(*1 ":") TX3 
+					->("cmp byte [eswitch], 0")
+					->("je " *1)) 
+        ->("mov byte [eswitch], 0")
+			| ".ANYBUT(" CX1 ")"
+				// Negate the error switch
+				->("mov al, byte [eswitch]")
+				->("xor al, 1")
+				->("mov byte [eswitch], al")
+				->("call scan_or_parse")
+			| ".ANY(" CX1 ")"
+				->("call scan_or_parse")
+			// Reserve a string that may not be used in a token.
+			// Helpful when identifiers could be named the same as a keyword e.g. "if"
+			| ".RESERVED(" $(STRING 
+					->("test_input_string_no_cursor_advance " *)
+					->("mov al, byte [eswitch]")
+					->("xor al, 1")
+					->("mov byte [eswitch], al")) ")"
+			| ID
+				->("call " *)
+			| "(" TX1 ")";
+
+// OR
+CX1 = CX2 $("!"
+				->("cmp byte [eswitch], 0")
+				->("je " *1) CX2)
+			.LABEL(*1 ":");
+
+// Match a range of characters
+// FROM : TO
+CX2 = CX3 (":" 
+				->("mov edi, " *)
+				->("call test_char_greater_equal")
+				->("cmp byte [eswitch], 0")
+				->("jne " *1) 
+      CX3
+				->("mov edi, " *)
+        ->("call test_char_less_equal")
+			.LABEL(*1 ":")
+			| .EMPTY 
+				->("mov edi, " *)
+				->("call test_char_equal"));
+
+CX3 = NUMBER | STRING;
 
 // -------------------------------- Comments -----------------------------------
 

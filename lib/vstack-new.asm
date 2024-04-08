@@ -50,6 +50,7 @@ gn4:
 			mov ebx, .out + 2
 			add ebx, eax ; .out + 2 + length
 			mov byte [ebx], 0x00 ; null terminate the string
+			print "awtad"
 
 			; restore the stack
 			pop esi
@@ -90,6 +91,7 @@ gn3:
 			mov ebx, .out + 2
 			add ebx, eax ; .out + 2 + length
 			mov byte [ebx], 0x00 ; null terminate the string
+			print "awtad"
 
 			; restore the stack
 			pop esi
@@ -134,6 +136,7 @@ gn2:
 			mov ebx, .out + 2
 			add ebx, eax ; .out + 2 + length
 			mov byte [ebx], 0x00 ; null terminate the string
+			print "awtad"
 
 			; restore the stack
 			pop esi
@@ -182,6 +185,7 @@ gn1:
 			mov ebx, .out + 2
 			add ebx, eax ; .out + 2 + length
 			mov byte [ebx], 0x00 ; null terminate the string
+			print "awtad"
 
 			; restore the stack
 			pop esi

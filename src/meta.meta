@@ -44,15 +44,39 @@ IMPORT_STATEMENT = "import" RAW ";"
 
 // --------------------------------- Output ------------------------------------
 
-OUT1 = "*1" ->("call gn1")
-	| "*2" ->("call gn2")
-	| "*3" ->("call gn3")
-	| "*4" ->("call gn4")
+OUT1 = "*1" 
+		->("call gn1")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+		->("add dword [outbuff_offset], eax")
+	| "*2" 
+		->("call gn2")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+		->("add dword [outbuff_offset], eax")
+	| "*3" 
+		->("call gn3")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+	->("add dword [outbuff_offset], eax")
+	| "*4" 
+		->("call gn4")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+		->("add dword [outbuff_offset], eax")
 	| "*" (
 			GET_REFERENCE
 			->("mov edi, outbuff")
 			->("add edi, [outbuff_offset]")
-			->("call buffc")
+			->("call strcpy")
 			->("add dword [outbuff_offset], eax")
 		| .EMPTY ->("call copy_last_match")
 	)
@@ -67,7 +91,7 @@ OUT1 = "*1" ->("call gn1")
 				->("mov esi, eax")
 				->("mov edi, outbuff")
 				->("add edi, [outbuff_offset]")
-				->("call buffc")
+				->("call strcpy")
 				->("add dword [outbuff_offset], eax")
 	| ".NL"
 		->("print 0x0A")
@@ -163,7 +187,7 @@ EX3 = ID %
 					RESOLVE_ARGUMENT
 					->("mov edi, outbuff")
 					->("add edi, [outbuff_offset]")
-					->("call buffc")
+					->("call strcpy")
 					->("add dword [outbuff_offset], eax")
 				| .EMPTY
 					->("mov edi, last_match")

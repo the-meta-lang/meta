@@ -334,7 +334,7 @@ LA27:
     mov esi, eax
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print 0x0A
     
@@ -632,7 +632,7 @@ FUNCTION_PARAM:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print 0x0A
     print '    '
@@ -1394,7 +1394,7 @@ FUNCTION_CALL_ARG:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", "
     call copy_last_match
@@ -1430,7 +1430,7 @@ LA123:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", "
     call gn3
@@ -1458,7 +1458,7 @@ section .text
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", eax"
     print 0x0A
@@ -1479,7 +1479,7 @@ LA126:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", eax"
     print 0x0A
@@ -1500,7 +1500,7 @@ LA127:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print 0x0A
     print '    '
@@ -1705,7 +1705,7 @@ LA137:
     mov esi, eax
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print 0x0A
     print '    '
@@ -1952,7 +1952,7 @@ MOV_INTO:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print 0x0A
     print '    '
@@ -2122,7 +2122,7 @@ VALUE:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", "
     call copy_last_match
@@ -2158,7 +2158,7 @@ LA183:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", "
     call gn3
@@ -2193,7 +2193,7 @@ LA186:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", eax"
     print 0x0A
@@ -2214,7 +2214,7 @@ LA187:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print 0x0A
     print '    '
@@ -2281,7 +2281,7 @@ SYMBOL_TABLE_ID:
     push esi
     mov edi, outbuff
     add edi, [outbuff_offset]
-    call buffc
+    call strcpy
     add dword [outbuff_offset], eax
     print ", dword [ebp"
     mov edi, symbol_table

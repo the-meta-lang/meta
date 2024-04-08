@@ -88,7 +88,7 @@ section .text
 		mov esi, %%_str
 		mov edi, outbuff
 		add edi, [outbuff_offset]
-		call buffc
+		call strcpy
 		add dword [outbuff_offset], eax
 		pop edi
 		pop esi
@@ -308,7 +308,7 @@ copy_last_match:
 		mov esi, last_match
 		mov edi, outbuff
 		add edi, [outbuff_offset]
-		call buffc
+		call strcpy
 		add dword [outbuff_offset], eax
 		ret
 

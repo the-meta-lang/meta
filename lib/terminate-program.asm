@@ -42,7 +42,7 @@ stacktrace:
 		mov esi, eax
 		mov edi, outbuff
 		add edi, [outbuff_offset]
-		call buffc
+		call strcpy
 		add dword [outbuff_offset], eax
 
 		print " at line "
