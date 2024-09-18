@@ -1,0 +1,314 @@
+.SYNTAX PROGRAM
+
+// body of compiler definition 
+PROGRAM = ".SYNTAX" ID 
+          ->(.LB "// " * " compiler" .NL)
+          ->("export const Compiler = {" .LM+ .NL .NL)
+          PREAMBLE
+          $(PR | COMMENT)
+					((".CODE"
+					$(CODE_RULE | COMMENT)) | .EMPTY)
+					((".TOKENS"
+					$(TR | COMMENT)) | .EMPTY)
+          ".END" 
+          POSTAMBLE 
+          ->(.LM- "}" .NL) ;
+
+// object definition preamble 
+PREAMBLE = ->("compile: function (input) {" .LM+ .NL)
+           ->("// initialize compiler variables" .NL)
+           ->("this.inbuf = input ;" .NL)
+           ->("this.initialize() ;" .NL)
+           ->("// call the first rule" .NL)
+           ->("this.ctxpush(" 39 * 39 ") ;" .NL)
+           ->("this.rule" * "() ;" .NL)
+           ->("this.ctxpop() ;" .NL)
+           ->("// special case handling of first rule failure" .NL)
+           ->("if ((!this.eflag) && (!this.pflag)) {" .LM+ .NL)
+           ->("this.eflag = true ;" .NL)
+           ->("this.erule = " 39 * 39 " ;" .NL)
+           ->("this.einput = this.inp ; } ;" .LM- .NL)
+           ->("return this.eflag ;" .NL)
+           ->(.LM- "}," .NL .NL) ;
+
+
+// runtime and object definition postamble  
+POSTAMBLE = 
+           ->("// runtime variables" .NL)
+           ->("pflag: false ," .NL)
+           ->("tflag: false ," .NL)
+           ->("eflag: false ," .NL)
+           ->("inp: 0 ," .NL)
+           ->("inbuf:  " 39 39 " ," .NL)
+           ->("outbuf:  " 39 39 " ," .NL)
+           ->("erule:  " 39 39 " ," .NL)
+           ->("einput: 0 ," .NL)
+           ->("token: " 39 39 " ," .NL)
+           ->("labelcount: 0 ," .NL)
+           ->("stackframesize: 6 ," .NL)
+           ->("stackframe: 0 ," .NL)
+           ->("stos: -1 ," .NL)
+           ->("stack: [] ," .NL .NL)
+
+           ->("initialize: function () {".LM+ .NL)
+           ->("// initialize for another compile" .NL)
+           ->("this.pflag = false ;" .NL)
+           ->("this.tflag = false ;" .NL)
+           ->("this.eflag = false ;" .NL)
+           ->("this.inp = 0 ;" .NL)
+           ->("this.outbuf = " 39 39 " ;" .NL)
+           ->("this.erule = " 39 39 " ;" .NL)
+           ->("this.einput = 0 ;" .NL)
+           ->("this.token = " 39 39 " ;" .NL)
+           ->("this.labelcount = 1 ;" .NL)
+           ->("this.stackframe = -1 ;" .NL)
+           ->("this.stos = -1 ;" .NL)
+           ->("this.stack = [] ;" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("ctxpush: function (rulename){" .LM+ .NL)
+           ->("// push and initialize a new stackframe" .NL)
+           ->("var LM ;" .NL)  
+           ->("// new context inherits current context left margin" .NL)
+           ->("LM = 0; if (this.stackframe >= 0) LM = this.stack[this.stackframe + 2] ;" .NL)
+           ->("this.stos++ ;" .NL)
+           ->("this.stackframe = this.stos * this.stackframesize ;" .NL)
+           ->("// stackframe definition" .NL)
+           ->("this.stack[this.stackframe + 0] = 0 ;        // generated label" .NL)
+           ->("this.stack[this.stackframe + 1] = rulename ; // called rule name" .NL)
+           ->("this.stack[this.stackframe + 2] = LM ;       // left margin" .NL)
+           ->("// clear additional stackframe backtracking entries" .NL)
+           ->("this.bkclear() ;" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("ctxpop: function (){" .LM+ .NL)
+           ->("// pop and possibly deallocate old stackframe" .NL)
+           ->("this.stos-- ; // pop stackframe" .NL)
+           ->("this.stackframe = this.stos * this.stackframesize ;" .NL)
+           ->(.LM- "}," .NL .NL)          
+
+           ->("out: function (s){" .LM+ .NL)
+           ->("// output string" .NL)
+           ->("var i ;" .NL)
+           ->("// if newline last output, add left margin before string" .NL)
+           ->("if (this.outbuf.charAt(this.outbuf.length - 1) == " 39 92 "n" 39 ") {" .NL)
+           ->("  i = this.stack[this.stackframe + 2] ;" .NL)
+           ->("  while (i>0) { this.outbuf += " 39 " " 39 " ; i-- } ; } ;" .NL)
+           ->("this.outbuf += s ;" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("eol: function (){" .LM+ .NL)
+           ->("// output end of line" .NL)
+           ->("this.outbuf += " 39 92 "n" 39 " ;" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("test: function (s) {" .LM+ .NL)
+           ->("// test for a string in the input" .NL)
+           ->("var i ;" .NL)
+           ->("// delete whitespace" .NL) 
+           ->("while ((this.inbuf.charAt(this.inp) == " 39 " " 39 ")  ||" .NL)
+           ->("       (this.inbuf.charAt(this.inp) == " 39 92 "n" 39 ") ||" .NL) 
+           ->("       (this.inbuf.charAt(this.inp) == " 39 92 "r" 39 ") ||" .NL)
+           ->("       (this.inbuf.charAt(this.inp) == " 39 92 "t" 39 ") ) this.inp++ ;" .NL)
+           ->("// test string case insensitive" .NL) 
+           ->("this.pflag = true ; i = 0 ;" .NL)
+           ->("while (this.pflag && (i < s.length) && ((this.inp+i) < this.inbuf.length) )" .NL)
+           ->("{ this.pflag = (s.charAt(i).toUpperCase() ==" .NL)
+           ->("                this.inbuf.charAt(this.inp+i).toUpperCase()) ;" .NL)
+           ->("  i++ ; } ;" .NL)
+           ->("this.pflag = this.pflag && (i == s.length) ;" .NL)
+           ->("// advance input if found" .NL) 
+           ->("if (this.pflag) this.inp = this.inp + s.length ;" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("bkerr: function () {" .LM+ .NL)
+           ->("// compilation error, provide error indication and context" .NL)
+           ->("this.eflag = true ;" .NL)
+           ->("this.erule = this.stack[this.stackframe + 1] ;" .NL)
+           ->("this.einput = this.inp ;" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("bkset: function () {" .LM+ .NL)
+           ->("// set backtrack context on stack" .NL)
+           ->("this.stack[this.stackframe + 3] = this.inp ;           // input position" .NL)
+           ->("this.stack[this.stackframe + 4] = this.outbuf.length ; // output position" .NL)
+           ->("this.stack[this.stackframe + 5] = this.token ;         // current token" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("bkclear: function () {" .LM+ .NL)
+           ->("// clear backtrack context on stack" .NL)
+           ->("this.stack[this.stackframe + 3] = -1 ; // input position" .NL)
+           ->("this.stack[this.stackframe + 4] = -1 ; // output position" .NL)
+           ->("this.stack[this.stackframe + 5] = " 39 39 " ; // current token" .NL)
+           ->(.LM- "}," .NL .NL)
+
+           ->("bkrestore: function () {" .LM+ .NL)
+           ->("// restore context for backtracking" .NL)
+           ->("this.eflag = false ;" .NL)
+           ->("this.inp = this.stack[this.stackframe + 3] ;           // input position" .NL)
+           ->("this.outbuf = this.outbuf.substring(0,this.stack[this.stackframe + 4]) ; // output position" .NL)
+           ->("this.token = this.stack[this.stackframe + 5] ;         // current token" .NL)
+           ->(.LM- "}" .NL .NL) ;
+
+// parsing rule definition 
+// @example PARSE_RULE<argument, argument2>
+PR = ID ->("rule" * ": function") (("<" ID ->("(" *) $(ID ->(", " *)) ">" ->(")")) | (.EMPTY ->("()"))) ->("{" .LM+ .NL)
+     "=" EX1 ";"
+     ->(.LM- "} ," .NL .NL) ;
+
+// token rule definition 
+TR = ID ->("rule"* ": function () {" .LM+ .NL)
+     ":" TX1 ";"
+     ->(.LM- "} ," .NL .NL) ;
+
+// comment definition 
+COMMENT = "//" CMLINE ->("//" * .NL) ;
+
+// -------------------------- META Lisp Definitions ----------------------------
+
+CODE_RULE = LISP_DEFINE | LISP_DEFUNC;
+
+LISPARG = ID | NUMBER | RAWSTRING;
+
+LISP_DEFINE = "[define" ID ->("let " * " = ") LISPARG ->(* ";" .NL) "]";
+
+LISP_DEFUNC = "[defunc" ID ->("function " * "(") "[" (ID ->(*) | .EMPTY) $(ID ->(", " *)) "]" ->(") {" .LM+ .NL) LISP "]" ->("}" .LM- .NL);
+
+LISP_IF = "[if" ->("if (") (LISPARG ->(*) | LISP) ->(") {" .LM+ .NL) LISP ->(.LM- "} ;" .NL) "]";
+
+LISP_WHILE = "[while" LISPARG ->("while (" * ") {" .LM+ .NL) LISPARG ->(.LM- "} ;" .NL) "]";
+
+LISP = ">" | "<" | "==" | "!=" | "<=" | ">=" | "+" | "-" | "*" | "/" | "&&" | "||";
+
+LISP_OPERATOR_METHOD<operator> = "[" *operator ((LISPARG ->(*)) | LISP) $((LISPARG ->(*operator *)) | LISP) "]";
+
+LISP = LISP_DEFINE
+		 | LISP_IF
+		 | LISP_WHILE
+		 | LISP_OPERATOR_METHOD<"+">
+		 | LISP_OPERATOR_METHOD<"-">
+		 | LISP_OPERATOR_METHOD<"*">
+		 | LISP_OPERATOR_METHOD<"/">
+		 | LISP_OPERATOR_METHOD<">">
+		 | LISP_OPERATOR_METHOD<"<">
+		 | LISP_OPERATOR_METHOD<"==">
+		 | LISP_OPERATOR_METHOD<"!=">
+		 | LISP_OPERATOR_METHOD<"<=">
+		 | LISP_OPERATOR_METHOD<">=">
+		 | LISP_OPERATOR_METHOD<"&&">
+		 | LISP_OPERATOR_METHOD<"||">
+		 | "[" LISP "]";
+
+// --------------------------- Parsing expressions -----------------------------
+EX1 = EX2 $("|" ->("if ((!this.pflag) && (!this.eflag)) {" .LM+ .NL)
+                EX2
+                ->(.LM- "} ;" .NL) ) ;
+
+EX2 = (EX3 ->("if (this.pflag) {" .LM+ .NL)
+				| OUTPUT ->("if (true) {" .LM+ .NL))
+			->("while (!this.eflag) {" .LM+ .NL)
+      $(EX3 ->("if (!this.pflag) this.bkerr();" .NL)
+            ->("if (this.eflag) break ;" .NL)
+				| OUTPUT)
+      ->("break }" .LM- .NL)
+      ->(.LM- "} ;" .NL) ;
+
+EX3 = ID        ->("this.ctxpush(" 39 * 39 ") ;" .NL)
+								->("this.rule" * "(")
+                (("<" (ID | RAWSTRING | NUMBER) ->(*) $((ID | RAWSTRING | NUMBER) ->(", " *)) ">") | .EMPTY) ->(");" .NL)
+                ->("this.ctxpop() ;" .NL) |
+      STRING    ->("this.test(" 39 * 39 ");" .NL) |
+      "(" EX1 ")"                            |
+      ".EMPTY"  ->("this.pflag = true ;" .NL)    |
+      ".LITCHR" ->("this.token = this.inbuf.charCodeAt(this.inp) ;" .NL)
+                ->("this.inp++ ;" .NL)  |
+      ".PASS"   ->("this.inp = 0 ;" .NL)  |
+      "$" ->("this.pflag = true ;" .NL)
+          ->("while (this.pflag & !this.eflag) {" .LM+ .NL)
+           EX3 
+          ->(.LM- "} ;" .NL)
+          ->("this.pflag = !this.eflag ;" .NL) |
+      "{" ->("this.bkset() ;" .NL)
+          EX1
+          $("|" ->("if (!this.pflag) {" .LM+ .NL)
+                ->("if (this.eflag) this.bkrestore() ;" .NL)
+                EX1
+                ->(.LM- "} ;" .NL) )
+      "}" ->("if (this.eflag) this.bkrestore() ;" .NL)
+          ->("this.bkclear() ;" .NL)
+			| "*" ID ->("this.test(" * ");" .NL)
+			| LISP;
+
+// output expressions 
+OUTPUT = "->" "(" $OUT1 ")" ;
+
+OUT1 = "*" (ID ->("this.out(" * ");" .NL) | .EMPTY ->("this.out(this.token) ;" .NL))|
+       STRING  ->("this.out(" 39 * 39 ") ;" .NL) |
+       NUMBER  ->("this.out(String.fromCharCode(" * ")) ;" .NL)        |
+       "#"     ->("if (this.stack[this.stackframe + 0] == 0) {" .LM+ .NL) 
+               ->("this.stack[this.stackframe + 0] = this.labelcount ;" .NL)
+               ->("this.labelcount++ ; } ;" .LM- .NL) 
+               ->("this.out(this.stack[this.stackframe + 0]) ;" .NL) |
+       ".NL"   ->("this.eol() ;" .NL)          |
+       ".LB"             |
+       ".TB"   ->("this.out(" 39 92 "t" 39 ") ;" .NL)          |
+       ".LM+"  ->("this.stack[this.stackframe + 2] += 2 ;" .NL) |
+       ".LM-"  ->("this.stack[this.stackframe + 2] -= 2 ;" .NL) ;
+
+// token expressions 
+TX1 = TX2 $("/" ->("if (!this.pflag) {" .LM+ .NL) TX2 ->(.LM- "} ;" .NL) ) ;
+
+TX2 = TX3 ->("if (this.pflag) {" .LM+ .NL) 
+      $(TX3 ->("if (!this.pflag) return;" .NL) ) 
+      ->(.LM- "} ;" .NL) ;
+
+TX3 = ( ".TOKEN"  ->("this.tflag = true ; " .NL)
+                  ->("this.token = " 39 39 " ;" .NL) |
+        ".DELTOK" ->("this.tflag = false ;" .NL) |
+        "$" ->("this.pflag = true ;" .NL)
+            ->("while (this.pflag) {" .LM+ .NL)
+             TX3 
+            ->(.LM- "};" .NL) )
+        ->("this.pflag = true ;" .NL) |
+      ".ANYBUT(" CX1 ")" ->("this.pflag = !this.pflag ;" .NL) 
+        ->("if (this.pflag) {" .LM+ .NL)
+        ->("if (this.tflag) this.token += this.inbuf.charAt(this.inp) ;" .NL)
+        ->("this.inp++ } ;" .LM- .NL) |
+      ".ANY(" CX1 ")" 
+        ->("if (this.pflag) {" .LM+ .NL)
+        ->("if (this.tflag) this.token += this.inbuf.charAt(this.inp) ;" .NL)
+        ->("this.inp++ } ;" .LM- .NL) |
+      ID                 
+        ->("this.ctxpush(" 39 * 39 ") ;" .NL)
+        ->("this.rule" * "() ;" .NL)
+        ->("this.ctxpop() ;" .NL)
+        ->("if (this.eflag) return ;" .NL)  |
+      "(" TX1 ")"  ;
+
+// character expressions             
+CX1 = ->("this.pflag = " .LM+ .NL)
+      CX2 $("!" ->(" ||" .NL) CX2)
+      ->(.LM- " ;" .NL) ;
+CX2 = CX3 (":" ->("((this.inbuf.charCodeAt(this.inp) >= " * ") &&" .NL)
+               CX3
+               ->(" (this.inbuf.charCodeAt(this.inp) <= " * ")  )" ) |
+           .EMPTY ->("(this.inbuf.charCodeAt(this.inp) == " * ") " )  ) ;
+CX3 = NUMBER | SQUOTE .LITCHR ;
+
+.CODE
+
+[define x 5]
+
+.TOKENS
+
+PREFIX : $.ANY(32!9!13!10) ;
+ID     : PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK ;
+NUMBER : PREFIX .TOKEN DIGIT $DIGIT .DELTOK ;
+STRING : PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34) ;
+RAWSTRING : PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+ALPHA  : .ANY('A:'Z!'a:'z!'_) ;
+DIGIT  : .ANY('0:'9) ;
+SQUOTE : PREFIX .ANY('') ;
+CMLINE : .TOKEN $.ANYBUT(10!13) .DELTOK ;
+
+.END

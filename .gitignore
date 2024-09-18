@@ -5,3 +5,5 @@ tests/tmp
 
 # Artifact folder for github actions tests
 artifacts
+
+node_modules
