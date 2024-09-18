@@ -50,76 +50,59 @@ BREAK = "break"
 
 ARITHMETIC = ("+" BINOP_ARGS
 		->("add eax, ebx")
-		->("push eax")
 	| "-" BINOP_ARGS
 		->("sub eax, ebx")
-		->("push eax")
 	| "*" BINOP_ARGS
 		->("imul eax, ebx")
-		->("push eax")
 	| "/" BINOP_ARGS
 		->("xor edx, edx")
 		->("div ebx")
-		->("push eax")
 	// Modulo
 	| "%" BINOP_ARGS
 		->("xor edx, edx")
 		->("div ebx")
 		->("mov eax, edx")
-		->("push eax")
 	| "and" BINOP_ARGS
 		->("and eax, ebx")
-		->("push eax")
 	| "or" BINOP_ARGS
 		->("or eax, ebx")
-		->("push eax")
 	| "not" BINOP_ARGS
 		->("not eax")
-		->("push eax")
 	| "<=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setle al")
-		->("push eax")
 	| ">=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setge al")
-		->("push eax")
 	| "==" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("sete al")
-		->("push eax")
 	| "!=" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setne al")
-		->("push eax")
 	// Bitwise left-shift
 	| "<<" BINOP_ARGS
 		->("mov ecx, ebx")
 		->("shl eax, cl")
-		->("push eax")
 	// Bitwise right-shift
 	| ">>" BINOP_ARGS
 		->("mov ecx, ebx")
 		->("shr eax, cl")
-		->("push eax")
 	// Xor
 	| "^" BINOP_ARGS
 		->("xor eax, ebx")
-		->("push eax")
 	| "<" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
 		->("setl al")
-		->("push eax")
 	| ">" BINOP_ARGS
 		->("cmp eax, ebx")
 		->("mov eax, 0")
-		->("setg al")
-		->("push eax"));
+		->("setg al"));
 
 // --------------------------------- return ------------------------------------
 
@@ -132,7 +115,7 @@ RETURN = "return" BINOP_ARGS
 
 WHILE = "while" "["
 	.LABEL(*2 ":")
-		(FUNC_CALL | ARITHMETIC)
+		(BUILTINS | FUNC_CALL | ARITHMETIC)
 	->("cmp eax, 1") 
 	->("jne " *1) "]"
 		$(BODY)
@@ -141,14 +124,14 @@ WHILE = "while" "["
 
 // ----------------------------------- if --------------------------------------
 
-IF = "if" "[" (FUNC_CALL | ARITHMETIC)
+IF = "if" "[" (BUILTINS | FUNC_CALL | ARITHMETIC)
 	->("cmp eax, 1")
 	->("jne " *1) "]" $BODY
 	.LABEL(*1 ":");
 
 // --------------------------------- if/else -----------------------------------
 
-IF_ELSE = "if/else" "[" (FUNC_CALL | ARITHMETIC)
+IF_ELSE = "if/else" "[" (BUILTINS | FUNC_CALL | ARITHMETIC)
 	->("cmp eax, 1")
 	->("jne " *1) "]"
 	BODY
@@ -175,12 +158,19 @@ ASMMACRO = "asmmacro" "[" ID
 ASM = "asm" RAW ->(*);
 
 MOV = "mov" ID % (
-	(SYMBOL_TABLE_ID | "[" (FUNC_CALL | ARITHMETIC) "]")
+	(SYMBOL_TABLE_ID | "[" (BUILTINS | FUNC_CALL | ARITHMETIC) "]")
 		->("mov " % ", eax")
 	| NUMBER
 		->("mov " % ", " *));
 
-BUILTINS = "syscall" NUMBER ->("int " *);
+BUILTINS = 
+	("syscall" NUMBER 
+		->("int " *)) 
+	|	("resb" NUMBER
+	.LABEL("section .bss")
+		->(*3 " resb " *)
+	.LABEL("section .text")
+		->("mov eax, " *3));
 
 // --------------------------------- define ------------------------------------
 
@@ -211,7 +201,7 @@ DEFINE = "define" ID % %
 		MOV_INTO ->(*3 " ; define " %))
 	| (SYMBOL_TABLE_ID
 		MOV_INTO ->("eax ; define " %))
-	| ("[" (FUNC_CALL | ARITHMETIC) "]"
+	| ("[" (BUILTINS | FUNC_CALL | ARITHMETIC) "]"
 		MOV_INTO ->("eax ; define " %))
 ) // subtract 4 from the stack pointer so we don't accidentally overwrite the variable
 	.DIRECT("cmp byte [is_global], 1")
@@ -246,7 +236,7 @@ MOV_INTO =
 	.DIRECT("mov_end:");
 
 // ----------------------------------- set -------------------------------------
-SET = "set!" ID %<"" *> %<"" *> (
+SET = "set!" ID % % (
 	(NUMBER 
 		SET_INTO ->(* " ; set "))
 	| (STRING 
@@ -256,7 +246,7 @@ SET = "set!" ID %<"" *> %<"" *> (
 		SET_INTO ->(*3 " ; set "))
 	| (SYMBOL_TABLE_ID 
 		SET_INTO ->("eax ; set "))
-	| ("[" (FUNC_CALL | ARITHMETIC) "]"
+	| ("[" (BUILTINS | FUNC_CALL | ARITHMETIC) "]"
 		SET_INTO ->("eax ; set "))
 );
 
@@ -319,6 +309,21 @@ DEFUNC = "defunc"
 	.DIRECT("mov byte [is_global], 1");
 
 
+// Type annotations can either be builtins like i32 or struct defined types.
+// They can also be generics like Array<i32> or built in array types like i32[]
+// They can also be pointers (*i32)
+// TODO: Implement
+TYPE = ARRAY_TYPE | GENERIC_TYPE | POINTER_TYPE | BUILTIN_TYPE | STRUCT_TYPE;
+
+GENERIC_TYPE = TYPE "<" TYPE ">";
+
+ARRAY_TYPE = TYPE "[" (("," NUMBER) | (NUMBER ("," | .EMPTY))) "]";
+
+BUILTIN_TYPE = "i8" | "i16" | "i32" | "i64" | "u8" | "u16" | "u32" | "u64" | "f32" | "f64" | "bool" | "char" | "void";
+
+POINTER_TYPE = "*" TYPE;
+
+STRUCT_TYPE = ID;
 
 // ------------------------------ Function Call --------------------------------
 
@@ -336,15 +341,14 @@ FUNC_CALL = ID %
 	.DIRECT("call inttostr")
 	.DIRECT("add dword [outbuff_offset], eax")
 	.DIRECT("mov dword [used_arg_count], 0")
-	.UF(.NL .TB)
-	.UF("push eax" .NL .TB);
+	.UF(.NL .TB);
 
 // ------------------------- Function Call Arguments ---------------------------
 
 CALL_ARGS = $((
 			NUMBER %<"push " *>
-		| "[" .DIRECT("push dword [used_arg_count]") (FUNC_CALL | ARITHMETIC) .DIRECT("pop dword [used_arg_count]") "]"
-			%<"">
+		| "[" .DIRECT("push dword [used_arg_count]") (BUILTINS | FUNC_CALL | ARITHMETIC) .DIRECT("pop dword [used_arg_count]") "]"
+			%<"push eax">
 		| SYMBOL_TABLE_PUSH_BUFFER
 		| STRING_ARG)
 		.DIRECT("inc dword [used_arg_count]"))
@@ -410,16 +414,16 @@ STRING_ARG = STRING
 			.LABEL("section .data")
 				->(*3 " db " * ", 0x00")
 			.LABEL("section .text")
-				%<"">
-				// TODO: Convert to stack push %<"push " *3>
-				->("push " *3);
+				%<"push " *3>;
 
 
 BINOP_ARGS = $((NUMBER ->("push " *)
-	| ("[" (FUNC_CALL | ARITHMETIC) "]")
+	| ("[" (BUILTINS | FUNC_CALL | ARITHMETIC) "]")
+		->("push eax")
 	| SYMBOL_TABLE_PUSH) $((
 			NUMBER ->("push " *)
-		| ("[" (FUNC_CALL | ARITHMETIC) "]")
+		| ("[" (BUILTINS | FUNC_CALL | ARITHMETIC) "]")
+			->("push eax")
 		| SYMBOL_TABLE_PUSH)
 		->("pop ebx"))
 	->("pop eax"));

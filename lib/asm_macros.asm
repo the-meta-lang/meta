@@ -65,9 +65,11 @@ section .text
 		push ecx
 		push edx
 		push edi
+		push esi
 %endmacro
 
 %macro restore_machine_state 0
+		pop esi
 		pop edi
 		pop edx
 		pop ecx

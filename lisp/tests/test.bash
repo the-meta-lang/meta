@@ -65,6 +65,12 @@ function test_control_flow() {
 	assert_equals 10 $? "WHILE"
 }
 
+function test_globals() {
+	GLOBALS=$($(compile "$SCRIPT_DIR/globals/globals.mlisp" "$TMP_DIR/globals.asm"));
+	assert_equals 2 $? "GLOBALS"
+
+}
+
 function tear_down_after_script() {
 	if [[ _TESTS_FAILED -eq 0 ]]; then
 		rm -rf $TMP_DIR

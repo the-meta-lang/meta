@@ -1,4 +1,5 @@
 section .data
+		gn0_number dd 0x00
 		gn1_number dd 0x00
 		gn2_number dd 0x00
 		gn3_number dd 0x00
@@ -200,6 +201,29 @@ gn1:
 			add dword [gn1_number], 1
 			mov eax, [gn1_number]
 			jmp .generate_label
+
+	.end:
+			restore_machine_state ; Restore the flags register
+			mov eax, .out ; return .out
+			ret
+
+; Generates a new number every time it is invoked.
+gn0:
+	section .bss
+		.out resb 32
+	section .text
+		save_machine_state ; Save the flags register
+		add dword [gn0_number], 1
+		mov eax, dword [gn0_number]
+		jmp .generate_label
+
+	.generate_label:
+			mov esi, eax
+			mov edi, .out
+			call inttostr
+			mov ebx, .out
+			add ebx, eax ; .out + length
+			mov byte [ebx], 0x00 ; null terminate the string
 
 	.end:
 			restore_machine_state ; Restore the flags register

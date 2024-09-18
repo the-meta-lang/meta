@@ -1,8 +1,8 @@
 .SYNTAX PROGRAM
 
-PROGRAM = ID_REF<"id">;
+PROGRAM = ID_REF;
 
-ID_REF<name> = ID %("This is my " *name ": " *) ->(%);
+ID_REF = ID %<"This is my: " *4 "What up?" *> ->(%);
 
 .TOKENS
 

@@ -1,0 +1,7 @@
+[define globalVar 1]
+
+[defunc [main]
+	[set! globalVar 2]
+	[return globalVar]]
+
+[main]

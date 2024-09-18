@@ -1,7 +1,115 @@
-[defunc [getptr str i]
-	[+ str i]]
+[defunc [derefb ptr]
+	[asm "mov eax, [ebp+8]"]
+	[asm "mov bl, byte [eax]"]
+	[asm "xor eax, eax"]
+	[asm "mov al, bl"]]
+
+[defunc [write fd buf count]
+	[asm "mov eax, 4"]
+	[asm "mov ebx, [ebp+8]"]
+	[asm "mov ecx, [ebp+12]"]
+	[asm "mov edx, [ebp+16]"]
+	[syscall 128]]
+
+[defunc [exit status]
+	[asm "mov eax, 1"]
+	[asm "mov ebx, [ebp+8]"]
+	[syscall 128]]
+
+[defunc [strlen s]
+	[define len 0]
+	[while [!= [derefb [+ s len]] 0]
+		[set! len [+ len 1]]]
+	[return len]]
+
+[defunc [fopen filename mode]
+	[asm "mov eax, 5"]
+	[asm "mov ebx, [ebp+8]"]
+	[asm "mov ecx, [ebp+12]"]
+	[syscall 128]]
+
+[defunc [fclose stream]
+	[asm "mov eax, 6"]
+	[asm "mov ebx, [ebp+8]"]
+	[syscall 128]]
+
+[defunc [fwrite ptr size nmemb stream]
+	[define writesize [* size nmemb]]
+	[asm "mov eax, 4"]
+	[asm "mov ebx, [ebp+20]"] // stream
+	[asm "mov ecx, [ebp+8]"] // ptr
+	[asm "mov edx, [ebp-4]"] // writesize
+	[syscall 128]]
+
+// size_t fread(void *ptr, size_t size, size_t nmemb, FILE *stream);
+// ptr - The array where the elements will be stored.
+// size - The size of each element in bytes.
+// nmemb - The number of elements to read.
+// stream - The stream to read.
+[defunc [fread ptr size nmemb stream]
+	[define readsize [* size nmemb]]
+	[asm "mov eax, 3"]
+	[asm "mov ebx, [ebp+20]"] // stream
+	[asm "mov ecx, [ebp+8]"] // ptr
+	[asm "mov edx, [ebp-4]"] // readsize
+	[syscall 128]]
+
+[defunc [memset ptr value num]
+	[define set 0]
+	[define memptr 0]
+	[while [!= set num]
+		[set! memptr [derefb [+ ptr set]]]
+		[asm "mov eax, [ebp+12]"]
+		[asm "mov byte [ebp-8], al"]
+		[set! set [+ set 1]]]
+	[return ptr]]
+
+[defunc [memcpy destination source num]
+	[define copied 0]
+	[define memptr 0]
+	[define value 0]
+	[while [!= copied num]
+		[set! memptr [derefb [+ destination copied]]]
+		[set! value [derefb [+ source copied]]]
+		[asm "mov eax, [ebp-12]"]
+		[asm "mov byte [ebp-8], al"]
+		[set! copied [+ copied 1]]]
+	[return destination]]
+
+[define ptr_wilderness [resb 4]]
+[define ptr_bss_end [resb 4]]
+[define fbin [resb 4]]
+
+[defunc [premalloc size]
+	[set! ptr_wilderness [+ fbin 8]]
+	[set! ptr_bss_end [+ fbin 8]]
+	[mov ebx [+ size ptr_bss_end]]
+	[mov eax 45]
+	[syscall 128]
+	[set! ptr_bss_end [+ ptr_bss_end size]]]
+
+[defunc [malloc size]
+	// Ensure wilderness pointer is set
+	[if [== ptr_wilderness 0]
+		[return 0]]
+	// Add 8 bytes for metadata
+	[set! size [+ size 8]]
+]
+
+[defunc [free ptr]
+		[mov eax [- ptr 4]]
+		[mov ebx fbin]
+		[asm "mov [eax], ebx"]
+		[set! fbin ptr]]
+
 
 [defunc [main]
-	[getptr "Hello, World!" 2]]
+	[define fd [fopen "test.txt" 2]]
+	[define buf [resb 1024]]
+	[define readsize [fread buf 1 1024 fd]]
+	[write 1 buf readsize]
+	[fwrite "Hello, World!\n" 1 13 fd]
+	[fclose fd]
+	[exit 0]]
 
 [main]

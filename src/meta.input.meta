@@ -44,7 +44,15 @@ IMPORT_STATEMENT = "import" RAW ";"
 
 // --------------------------------- Output ------------------------------------
 
-OUT1 = "*1" 
+OUT1 = 
+	"*0" 
+		->("call gn0")
+		->("mov esi, eax")
+		->("mov edi, outbuff")
+		->("add edi, [outbuff_offset]")
+		->("call strcpy")
+		->("add dword [outbuff_offset], eax")
+	| "*1" 
 		->("call gn1")
 		->("mov esi, eax")
 		->("mov edi, outbuff")
@@ -159,6 +167,59 @@ OUTPUT = ("->" "(" $(OUT1) ")"
 		| ".RS" "(" $(OUT1) ")")
 		| ".DIRECT" "(" $ OUT_IMMEDIATE ")";
 
+// Allocates a data section containing a string that was passed inside the last match operator.
+STRING_GENERATOR = STRING .LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				->("mov esi, " *3);
+
+STRING_GENERATOR_EDI = STRING .LABEL("section .data")
+				->(*3 " db " * ", 0x00")
+			.LABEL("section .text")
+				->("mov edi, " *3);
+
+// TODO: Implement all other output possiblities and combine them.
+STACK_OUTPUT = "%" (("<"
+		(STRING_GENERATOR
+		| "*1"
+			->("call gn1")
+			->("mov esi, eax")
+		| "*2"
+			->("call gn2")
+			->("mov esi, eax")
+		| "*3"
+			->("call gn3")
+			->("mov esi, eax")
+		| "*4"
+			->("call gn4")
+			->("mov esi, eax")
+		| "*"
+			->("mov esi, last_match"))
+			$((STRING_GENERATOR_EDI
+				| "*1"
+					->("call gn1")
+					->("mov edi, eax")
+				| "*2"
+					->("call gn2")
+					->("mov edi, eax")
+				| "*3"
+					->("call gn3")
+					->("mov edi, eax")
+				| "*4"
+					->("call gn4")
+					->("mov edi, eax")
+				| "*"
+					->("mov edi, last_match"))
+			// ---
+			->("call strcat")
+			->("mov esi, eax"))
+		">") | 
+	.EMPTY
+		->("mov esi, last_match"))
+	// ---
+	->("mov edi, str_vector_8192")
+	->("call vector_push_string_mm32");
+
 EX3 = ID %
 		// Store call information for error handling
 			->("error_store '" * "'")
@@ -174,30 +235,7 @@ EX3 = ID %
 	// Having to do %(*) every time the next character is an open parenthesis is just bad...
 	// You should be able to do % without anything.
 	// TODO: Change to "%(" and % to do pushing separately
-	| "%" ("<" $(STRING
-			.LABEL("section .data")
-				->(*3 " db " * ", 0x00")
-			.LABEL("section .text")
-				->("mov esi, " *3)
-			// TODO: I'm not even gonna pretend like this isn't a terrible solution...
-			// This is no extensible at all...
-			// It's gonna break as soon as you pass something like %(* "Hello") cause then
-			// strcat will completely fuck itself...
-			|	("*" (
-					RESOLVE_ARGUMENT
-					->("mov edi, outbuff")
-					->("add edi, [outbuff_offset]")
-					->("call strcpy")
-					->("add dword [outbuff_offset], eax")
-				| .EMPTY
-					->("mov edi, last_match")
-			)
-				->("call strcat")
-				->("mov esi, eax"))) ">"
-		| .EMPTY
-			->("mov esi, last_match"))
-		->("mov edi, str_vector_8192")
-		->("call vector_push_string_mm32")
+	| STACK_OUTPUT
 	| "(" EX1 ")"
 	| ".EMPTY" ->("mov byte [eswitch], 0")
 	| "$<" NUMBER 
