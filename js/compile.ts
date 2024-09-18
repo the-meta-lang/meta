@@ -1,4 +1,5 @@
 import { readFileSync, writeFileSync } from "fs";
+import { formatError, getLineAndColumnFromLoc } from "./error-formatter";
 
 const args = process.argv.slice(2);
 
@@ -18,27 +19,23 @@ async function testCompiler(file: string, i = 0) {
 
 	return new Promise((resolve, reject) => {
 		import(file).then(async (module) => {
-			const Compiler = module.Compiler;
 			console.log(`Running compiled program (${i + 1})...`);
-			const error = Compiler.compile(meta)
-			const result = Compiler.outbuf;
+			const { outbuf: result, eflag: error, inbuf: input, inp: loc} = module.compile(meta)
 
 			if (error) {
 					console.error("Compilation failed: " + file);
 					// Highlight the line where it failed
-					const input = Compiler.inbuf as string;
-					const loc = Compiler.inp as number;
 
-					const start = Math.max(0, loc - 25);
-					const end = Math.min(input.length, loc + 25);
-
-					console.error(input.slice(start, end));
-					console.error(" ".repeat(loc - start) + "^");
+					formatError(input.split("\n"), getLineAndColumnFromLoc(loc, input), process.stdout.getWindowSize()[0])
 					
 					process.exit(1)
 			}
 
 			console.log("Compiled successfully");
+			console.log("Generated Parse Tree:");
+			console.log(JSON.stringify(module.parsetree, null, 2));
+			
+			
 			writeFileSync(__dirname + "/out.js", result, "utf-8");
 			await testCompiler(__dirname + "/out.js", i + 1);
 			resolve(true)
