@@ -45,7 +45,7 @@ export function formatError(
 
   // Calculate the column position relative to the truncated line
   const truncatedColumn = column - start;
-  const indicatorLine = ' '.repeat(truncatedColumn) + '^'; // Position the caret
+  const indicatorLine = '\t'.repeat(truncatedColumn) + '^'; // Position the caret
 
   // Print the error context with the line number and the indicator
   console.log(`Error occurred at line ${line + 1}, column ${column + 1}:\n`);
@@ -80,4 +80,24 @@ export function getLineAndColumnFromLoc(loc: number, text: string): CursorPositi
   }
 
 	return { line, column }
+}
+
+// Callstack structure: [generated label, called rule name, left margin, input position, output position]
+export function unravelCallstack(callstack: (string | number)[]) {
+	let calls: { name: string, position: number }[] = [];
+	for (let i = 0; i < callstack.length; i += 6) {
+		const label = callstack[i] as string;
+		const rule = callstack[i + 1] as string;
+		const margin = callstack[i + 2] as number;
+		const pos = callstack[i + 3] as number;
+		const outpos = callstack[i + 4] as number;
+
+		calls.push({ name: rule || "", position: pos })
+	}
+
+	let longestCallName = calls.reduce((acc, call) => call.name.length > acc ? call.name.length : acc, 0)
+	for (let i = 0; i < calls.length; i++) {
+		const call = calls[i];
+		console.log(`${call.name.padEnd(longestCallName)} | ${call.position}`)
+	}
 }

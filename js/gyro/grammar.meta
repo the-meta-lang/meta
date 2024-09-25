@@ -1,0 +1,72 @@
+.INCLUDE("../types.ts")
+
+[define identifier 0]
+
+
+.SYNTAX GYRO
+
+GYRO = $BODY;
+
+BODY = FUNCTION_DECLARATION | DECORATOR_ANNOTATION;
+
+// -------------------------------- Functions ----------------------------------
+
+FUNCTION_DECLARATION = "function" ID ::Literal ~ &identifier  "(" FUNCTION_ARGUMENT_LIST ")" (":" TYPE | .EMPTY) "{" FUNCTION_BODY "}" :FunctionDeclaration<id = &identifier>[1];
+
+FUNCTION_ARGUMENT_LIST = FUNCTION_ARGUMENT $("," FUNCTION_ARGUMENT) | .EMPTY;
+
+FUNCTION_ARGUMENT = ID ((":" TYPE) | .EMPTY);
+
+FUNCTION_BODY = RETURN_STATEMENT :BlockStatement[1];
+
+// ------------------------------- Decorators ----------------------------------
+
+DECORATOR = "@" ID ::Decorator;
+
+DECORATOR_ANNOTATION = DECORATOR (FUNCTION_DECLARATION :DecoratedFunctionDeclaration[2] | "{" $BODY "}" :DecoratedBlockStatement[2]);
+
+// ---------------------------------- Types ------------------------------------
+
+TYPE = {PRIMITIVE_TYPE / STRUCT_TYPE / COMPLEX_TYPE / UNION_TYPE};
+
+PRIMITIVE_TYPE = "u8" | "u16" | "u32" | "i8" | "i16" | "i32";
+
+COMPLEX_TYPE = ARRAY_TYPE | OBJECT_TYPE | GENERIC_TYPE;
+
+// A type based on a previously defined struct
+// @example Tree
+STRUCT_TYPE = ID;
+
+// A union of two different types
+// @example u32 | i32
+UNION_TYPE = TYPE "|" TYPE;
+
+// An array type is any primitive followed by a pair of square brackets
+// The length may be specified within.
+// @example i32[]
+// @example u8[5]
+ARRAY_TYPE = PRIMITIVE_TYPE "[" (NUMBER | .EMPTY) "]";
+
+// @example { x: i32, y: Array<u8> }
+OBJECT_TYPE = "{" (OBJECT_TYPE_ENTRY $("," OBJECT_TYPE_ENTRY) | .EMPTY) "}";
+
+OBJECT_TYPE_ENTRY = ID ":" TYPE;
+
+// @example Array<int[]>
+GENERIC_TYPE = ID "<" (TYPE $("," TYPE) | .EMPTY) ">";
+
+// ------------------------------- Statements ----------------------------------
+
+RETURN_STATEMENT = "return" LITERAL :ReturnStatement[1];
+
+LITERAL = NUMBER ::Literal;
+
+.TOKENS
+
+PREFIX : $.ANY(32!9!13!10);
+ID     : PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK;
+NUMBER : PREFIX .TOKEN $.ANY('-) DIGIT $DIGIT .DELTOK;
+ALPHA  : .ANY('A:'Z!'a:'z!'_);
+DIGIT  : .ANY('0:'9);
+
+.END

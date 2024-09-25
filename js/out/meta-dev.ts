@@ -1,8 +1,16 @@
+//  @author Letsmoe
+//  @email moritz.utcke@gmx.de
+//  @create date 2024-09-25 16:14:01
+//  @modify date 2024-09-25 16:14:01
+//  @desc The syntax definition of the META Compiler writing language.
+//  - pflag: Indicates if the last parse rule succeeded.
+//  - eflag: Indicates if the last parse rule encountered an error.
 // PROGRAM compiler
 import * as fs from "fs";
-export function compile(input) {
+import { join } from "path";
+export function compile(input: string) {
   // initialize compiler variables
-  inbuf = new ReadBuffer(input);
+  inbuf = input;
   stdin = inbuf;
   initialize() ;
   // call the first rule
@@ -13,27 +21,308 @@ export function compile(input) {
   if ((!eflag) && (!pflag)) {
     eflag = true ;
     erule = "PROGRAM" ;
-    einput = inp ; } ;
-  return { outbuf, eflag, inp, inbuf, parsetree };
+    einput = __SCOPE__.__CURSOR__ ; } ;
+  return { outbuf, eflag, inp: __SCOPE__.__CURSOR__, erule, stack, inbuf, parsetree, __SCOPE__ };
 }
 
+import { Writable } from "stream";
+
+interface Node extends Location {
+	raw: string;
+	[key: string]: any;
+}
+
+abstract class Location {
+	constructor(public __START__: number, public __END__: number) {}
+}
+
+class Scope extends Location {
+	// The last captured match
+	__MATCH__?: string;
+	// A list of all matches that occured up till now
+	__MATCHES__: string[] = [];
+	// The current offset for the stdin
+	__CURSOR__: number = 0;
+	__STDOUT__?: Writable;
+	__STDERR__?: Writable;
+	__STDIN__?: string;
+	// A flat list of all captured nodes
+	__NODES__: Node[] = [];
+	// The last captured node
+	__NODE__?: Node;
+
+	constructor(__START__: number, __END__: number) {
+		super(__START__, __END__);
+	}
+}
+
+class PipedBuffer extends Writable {
+	public buffer: string;
+
+	constructor() {
+		super();
+		this.buffer = ""; // Initialize an empty buffer
+	}
+
+	_write(
+		chunk: Buffer,
+		encoding: string,
+		callback: (error?: Error | null) => void
+	): void {
+		// Append the chunk to the buffer
+		this.buffer += chunk;
+
+		// Log the chunk to stdout
+		process.stdout.write(chunk);
+
+		// Signal that writing is complete
+		callback();
+	}
+
+	get length(): number {
+		return this.buffer.length;
+	}
+}
+
+class WriteBuffer {
+	public buffer: string;
+	private captures: string[];
+
+	constructor() {
+		this.buffer = "";
+		this.captures = [];
+	}
+	write(s: string) {
+		this.buffer += s;
+	}
+	writeln(s: string) {
+		this.buffer += s + "\n";
+	}
+	toString() {
+		return this.buffer;
+	}
+	get length() {
+		return this.buffer.length;
+	}
+}
+
+class ReadBuffer {
+	constructor(public buffer: string) {}
+	charAt(pos: number) {
+		return this.buffer.charAt(pos);
+	}
+	charCodeAt(pos: number) {
+		return this.buffer.charCodeAt(pos);
+	}
+	toString() {
+		return this.buffer;
+	}
+	get length() {
+		return this.buffer.length;
+	}
+}
+
+// runtime variables
+let pflag = false;
+let tflag = false;
+let eflag = false;
+let inbuf = "";
+let stdin = inbuf;
+let outbuf = new WriteBuffer();
+let stdout = outbuf;
+let __SCOPE__ = new Scope(0, 0);
+let __STACK__ = [];
+let erule = "";
+let einput = 0;
+let labelcount = 0;
+let stackframesize = 6;
+let stackframe = 0;
+let stos = -1;
+let parsetree = { type: "", children: [] };
+let __TREE__ = parsetree;
+let __NODES__ = [];
+let __NODE__ = null;
+let stack: any[] = [];
+
+function combineParseTreeChildren(type: string, obj: Object, count: number) {
+	let children = __TREE__.children.slice(-count);
+	__TREE__.children = __TREE__.children.slice(0, -count);
+	__TREE__.children.push({
+		type,
+		...obj,
+		start: stack[stackframe + 3],
+		end: __SCOPE__.__CURSOR__,
+		children,
+	});
+}
+
+export function initialize() {
+	// initialize for another compile
+	pflag = false;
+	tflag = false;
+	eflag = false;
+	outbuf = new WriteBuffer();
+	stdout = outbuf;
+	erule = "";
+	einput = 0;
+	parsetree = { type: "Program", children: [] };
+	__TREE__ = parsetree;
+	labelcount = 1;
+	stackframe = -1;
+	stos = -1;
+	stack = [];
+}
+
+function ctxpush(rulename: string) {
+	// push and initialize a new stackframe
+	var LM;
+	// new context inherits current context left margin
+	LM = 0;
+	if (stackframe >= 0) LM = stack[stackframe + 2];
+	stos++;
+	stackframe = stos * stackframesize;
+	// stackframe definition
+	stack[stackframe + 0] = 0; // generated label
+	stack[stackframe + 1] = rulename; // called rule name
+	stack[stackframe + 2] = LM; // left margin
+	stack[stackframe + 3] = __SCOPE__.__CURSOR__; // left margin
+	// clear additional stackframe backtracking entries
+	bkclear();
+}
+
+function ctxpop() {
+	// pop and possibly deallocate old stackframe
+	stos--; // pop stackframe
+	stackframe = stos * stackframesize;
+}
+
+function out(s: string) {
+	// output string
+	var i;
+	// if newline last output, add left margin before string
+	if (outbuf.buffer.charAt(outbuf.length - 1) == "\n") {
+		i = stack[stackframe + 2];
+		while (i > 0) {
+			outbuf.write(" ");
+			i--;
+		}
+	}
+	outbuf.write(s);
+}
+
+function eol() {
+	// output end of line
+	outbuf.write("\n");
+}
+
+function test(s: string) {
+	// test for a string in the input
+	var i;
+	// delete whitespace
+	while (
+		inbuf.charAt(__SCOPE__.__CURSOR__) == " " ||
+		inbuf.charAt(__SCOPE__.__CURSOR__) == "\n" ||
+		inbuf.charAt(__SCOPE__.__CURSOR__) == "\r" ||
+		inbuf.charAt(__SCOPE__.__CURSOR__) == "\t"
+	)
+		__SCOPE__.__CURSOR__++;
+	// test string case insensitive
+	pflag = true;
+	i = 0;
+	while (pflag && i < s.length && __SCOPE__.__CURSOR__ + i < inbuf.length) {
+		pflag =
+			s.charAt(i).toUpperCase() ==
+			inbuf.charAt(__SCOPE__.__CURSOR__ + i).toUpperCase();
+		i++;
+	}
+	pflag = pflag && i == s.length;
+	// advance input if found
+	if (pflag) __SCOPE__.__CURSOR__ += s.length;
+}
+
+function bkerr() {
+	// compilation error, provide error indication and context
+	eflag = true;
+	erule = stack[stackframe + 1];
+	einput = __SCOPE__.__CURSOR__;
+}
+
+function bkset() {
+	// set backtrack context on stack
+	stack[stackframe + 4] = __SCOPE__.__CURSOR__; // input position
+	stack[stackframe + 5] = outbuf.length; // output position
+	stack[stackframe + 6] = __SCOPE__.__MATCH__; // current token
+}
+
+function bkclear() {
+	// clear backtrack context on stack
+	stack[stackframe + 4] = -1; // input position
+	stack[stackframe + 5] = -1; // output position
+	stack[stackframe + 6] = ""; // current token
+}
+
+function bkrestore() {
+	// restore context for backtracking
+	eflag = false;
+	__SCOPE__.__CURSOR__ = stack[stackframe + 4]; // input position
+	outbuf.buffer = outbuf.buffer.substring(0, stack[stackframe + 5]); // output position
+	__SCOPE__.__MATCH__ = stack[stackframe + 6]; // current token
+	__SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
+}
 // body of compiler definition 
 function rulePROGRAM(){
-  test(".SYNTAX");
+  pflag = true ;
+  while (pflag && !eflag) {
+    ctxpush("COMMENT") ;
+    ruleCOMMENT();
+    ctxpop() ;
+    if (pflag) {
+      while (!eflag) {
+        break }
+    } ;
+    if ((!pflag) && (!eflag)) {
+      ctxpush("CODE_RULE") ;
+      ruleCODE_RULE();
+      ctxpop() ;
+      if (pflag) {
+        while (!eflag) {
+          break }
+      } ;
+    } ;
+    if ((!pflag) && (!eflag)) {
+      ctxpush("INCLUDE_STATEMENT") ;
+      ruleINCLUDE_STATEMENT();
+      ctxpop() ;
+      if (pflag) {
+        while (!eflag) {
+          break }
+      } ;
+    } ;
+  } ;
+  pflag = !eflag ;
   if (pflag) {
     while (!eflag) {
+      test(".SYNTAX");
+      if (!pflag) bkerr();
+      if (eflag) break ;
       ctxpush("ID") ;
       ruleID();
       ctxpop() ;
       if (!pflag) bkerr();
       if (eflag) break ;
       out("// ") ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(" compiler") ;
       eol() ;
       out("import * as fs from ") ;
       out(String.fromCharCode(34)) ;
       out("fs") ;
+      out(String.fromCharCode(34)) ;
+      out(";") ;
+      eol() ;
+      out("import { join } from ") ;
+      out(String.fromCharCode(34)) ;
+      out("path") ;
       out(String.fromCharCode(34)) ;
       out(";") ;
       eol() ;
@@ -43,13 +332,22 @@ function rulePROGRAM(){
       if (!pflag) bkerr();
       if (eflag) break ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("PR") ;
         rulePR();
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
             break }
+        } ;
+        if ((!pflag) && (!eflag)) {
+          ctxpush("INCLUDE_STATEMENT") ;
+          ruleINCLUDE_STATEMENT();
+          ctxpop() ;
+          if (pflag) {
+            while (!eflag) {
+              break }
+          } ;
         } ;
         if ((!pflag) && (!eflag)) {
           ctxpush("CODE_RULE") ;
@@ -77,7 +375,7 @@ function rulePROGRAM(){
       if (pflag) {
         while (!eflag) {
           pflag = true ;
-          while (pflag & !eflag) {
+          while (pflag && !eflag) {
             ctxpush("TR") ;
             ruleTR();
             ctxpop() ;
@@ -116,25 +414,20 @@ function rulePROGRAM(){
       test(".END");
       if (!pflag) bkerr();
       if (eflag) break ;
-      ctxpush("POSTAMBLE") ;
-      rulePOSTAMBLE();
-      ctxpop() ;
-      if (!pflag) bkerr();
-      if (eflag) break ;
       break }
   } ;
 }
 
 // object definition preamble 
 function rulePREAMBLE(){
-  out("export function compile(input) {") ;
+  out("export function compile(input: string) {") ;
   stack[stackframe + 2] += 2 ;
   eol() ;
   if (true) {
     while (!eflag) {
       out("// initialize compiler variables") ;
       eol() ;
-      out("inbuf = new ReadBuffer(input);") ;
+      out("inbuf = input;") ;
       eol() ;
       out("stdin = inbuf;") ;
       eol() ;
@@ -144,12 +437,12 @@ function rulePREAMBLE(){
       eol() ;
       out("ctxpush(") ;
       out(String.fromCharCode(34)) ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(String.fromCharCode(34)) ;
       out(") ;") ;
       eol() ;
       out("rule") ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out("() ;") ;
       eol() ;
       out("ctxpop() ;") ;
@@ -163,453 +456,12 @@ function rulePREAMBLE(){
       eol() ;
       out("erule = ") ;
       out(String.fromCharCode(34)) ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(String.fromCharCode(34)) ;
-      out(" ;") ;
-      eol() ;
-      out("einput = inp ; } ;") ;
+      out(";};") ;
       stack[stackframe + 2] -= 2 ;
       eol() ;
-      out("return { outbuf, eflag, inp, inbuf, parsetree };") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      break }
-  } ;
-}
-
-// runtime and object definition postamble  
-function rulePOSTAMBLE(){
-  out("class WriteBuffer {") ;
-  stack[stackframe + 2] += 2 ;
-  eol() ;
-  if (true) {
-    while (!eflag) {
-      out("constructor() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("this.buffer = '';") ;
-      eol() ;
-      out("this.captures = [];") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("write(s) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("this.buffer += s;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("writeln(s) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("this.buffer += s + ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("n") ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("toString() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("return this.buffer;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("get length() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("return this.buffer.length;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("class ReadBuffer {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("constructor(value) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("this.buffer = value;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("charAt(pos) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("return this.buffer.charAt(pos);") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("charCodeAt(pos) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("return this.buffer.charCodeAt(pos);") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("toString() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("return this.buffer;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("get length() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("return this.buffer.length;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      out("// runtime variables") ;
-      eol() ;
-      out("let pflag = false") ;
-      eol() ;
-      out("let tflag = false") ;
-      eol() ;
-      out("let eflag = false") ;
-      eol() ;
-      out("let inp = 0") ;
-      eol() ;
-      out("let inbuf = new ReadBuffer(") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(")") ;
-      eol() ;
-      out("let stdin = inbuf;") ;
-      eol() ;
-      out("let outbuf = new WriteBuffer()") ;
-      eol() ;
-      out("let stdout = outbuf;") ;
-      eol() ;
-      out("let erule =  ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out("") ;
-      eol() ;
-      out("let einput = 0") ;
-      eol() ;
-      out("let token = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out("") ;
-      eol() ;
-      out("let labelcount = 0") ;
-      eol() ;
-      out("let stackframesize = 6") ;
-      eol() ;
-      out("let stackframe = 0") ;
-      eol() ;
-      out("let parsetreestart = 0") ;
-      eol() ;
-      out("let stos = -1") ;
-      eol() ;
-      out("let parsetree = {type:") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(", children: []}") ;
-      eol() ;
-      out("let currentparsetree = parsetree") ;
-      eol() ;
-      out("let stack = []") ;
-      eol() ;
-      eol() ;
-      out("function combineParseTreeChildren(type, obj, count) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("let children = currentparsetree.children.slice(-count);") ;
-      eol() ;
-      out("currentparsetree.children = currentparsetree.children.slice(0, -count);") ;
-      eol() ;
-      out("currentparsetree.children.push({ type, ...obj, start: parsetreestart, end: inp, children });") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("export function initialize() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// initialize for another compile") ;
-      eol() ;
-      out("pflag = false ;") ;
-      eol() ;
-      out("tflag = false ;") ;
-      eol() ;
-      out("eflag = false ;") ;
-      eol() ;
-      out("inp = 0 ;") ;
-      eol() ;
-      out("outbuf = new WriteBuffer();") ;
-      eol() ;
-      out("stdout = outbuf;") ;
-      eol() ;
-      out("erule = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(" ;") ;
-      eol() ;
-      out("einput = 0 ;") ;
-      eol() ;
-      out("token = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(" ;") ;
-      eol() ;
-      out("parsetree = {type: ") ;
-      out(String.fromCharCode(34)) ;
-      out("Program") ;
-      out(String.fromCharCode(34)) ;
-      out(", children: []};") ;
-      eol() ;
-      out("currentparsetree = parsetree;") ;
-      eol() ;
-      out("parsetreestart = 0;") ;
-      eol() ;
-      out("labelcount = 1 ;") ;
-      eol() ;
-      out("stackframe = -1 ;") ;
-      eol() ;
-      out("stos = -1 ;") ;
-      eol() ;
-      out("stack = [] ;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function ctxpush(rulename) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// push and initialize a new stackframe") ;
-      eol() ;
-      out("var LM ;") ;
-      eol() ;
-      out("// new context inherits current context left margin") ;
-      eol() ;
-      out("LM = 0; if (stackframe >= 0) LM = stack[stackframe + 2] ;") ;
-      eol() ;
-      out("stos++ ;") ;
-      eol() ;
-      out("stackframe = stos * stackframesize ;") ;
-      eol() ;
-      out("// stackframe definition") ;
-      eol() ;
-      out("stack[stackframe + 0] = 0 ;        // generated label") ;
-      eol() ;
-      out("stack[stackframe + 1] = rulename ; // called rule name") ;
-      eol() ;
-      out("stack[stackframe + 2] = LM ;       // left margin") ;
-      eol() ;
-      out("// clear additional stackframe backtracking entries") ;
-      eol() ;
-      out("bkclear() ;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function ctxpop(){") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// pop and possibly deallocate old stackframe") ;
-      eol() ;
-      out("stos-- ; // pop stackframe") ;
-      eol() ;
-      out("stackframe = stos * stackframesize ;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function out(s){") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// output string") ;
-      eol() ;
-      out("var i ;") ;
-      eol() ;
-      out("// if newline last output, add left margin before string") ;
-      eol() ;
-      out("if (outbuf.buffer.charAt(outbuf.length - 1) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("n") ;
-      out(String.fromCharCode(34)) ;
-      out(") {") ;
-      eol() ;
-      out("  i = stack[stackframe + 2] ;") ;
-      eol() ;
-      out("  while (i>0) { outbuf.write(") ;
-      out(String.fromCharCode(34)) ;
-      out(" ") ;
-      out(String.fromCharCode(34)) ;
-      out("); i-- } ; } ;") ;
-      eol() ;
-      out("outbuf.write(s);") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function eol(){") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// output end of line") ;
-      eol() ;
-      out("outbuf.write(") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("n") ;
-      out(String.fromCharCode(34)) ;
-      out(");") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function test(s) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// test for a string in the input") ;
-      eol() ;
-      out("var i ;") ;
-      eol() ;
-      out("// delete whitespace") ;
-      eol() ;
-      out("while ((inbuf.charAt(inp) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(" ") ;
-      out(String.fromCharCode(34)) ;
-      out(")  ||") ;
-      eol() ;
-      out("       (inbuf.charAt(inp) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("n") ;
-      out(String.fromCharCode(34)) ;
-      out(") ||") ;
-      eol() ;
-      out("       (inbuf.charAt(inp) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("r") ;
-      out(String.fromCharCode(34)) ;
-      out(") ||") ;
-      eol() ;
-      out("       (inbuf.charAt(inp) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("t") ;
-      out(String.fromCharCode(34)) ;
-      out(") ) inp++ ;") ;
-      eol() ;
-      out("// test string case insensitive") ;
-      eol() ;
-      out("pflag = true ; i = 0 ;") ;
-      eol() ;
-      out("while (pflag && (i < s.length) && ((inp+i) < inbuf.length) )") ;
-      eol() ;
-      out("{ pflag = (s.charAt(i).toUpperCase() ==") ;
-      eol() ;
-      out("                inbuf.charAt(inp+i).toUpperCase()) ;") ;
-      eol() ;
-      out("  i++ ; } ;") ;
-      eol() ;
-      out("pflag = pflag && (i == s.length) ;") ;
-      eol() ;
-      out("// advance input if found") ;
-      eol() ;
-      out("if (pflag) inp = inp + s.length ;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function bkerr() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// compilation error, provide error indication and context") ;
-      eol() ;
-      out("eflag = true ;") ;
-      eol() ;
-      out("erule = stack[stackframe + 1] ;") ;
-      eol() ;
-      out("einput = inp ;") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function bkset() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// set backtrack context on stack") ;
-      eol() ;
-      out("stack[stackframe + 3] = inp ;           // input position") ;
-      eol() ;
-      out("stack[stackframe + 4] = outbuf.length ; // output position") ;
-      eol() ;
-      out("stack[stackframe + 5] = token ;         // current token") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function bkclear() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// clear backtrack context on stack") ;
-      eol() ;
-      out("stack[stackframe + 3] = -1 ; // input position") ;
-      eol() ;
-      out("stack[stackframe + 4] = -1 ; // output position") ;
-      eol() ;
-      out("stack[stackframe + 5] = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(" ; // current token") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      out("function bkrestore() {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// restore context for backtracking") ;
-      eol() ;
-      out("eflag = false ;") ;
-      eol() ;
-      out("inp = stack[stackframe + 3] ;           // input position") ;
-      eol() ;
-      out("outbuf.buffer = outbuf.buffer.substring(0,stack[stackframe + 4]) ; // output position") ;
-      eol() ;
-      out("token = stack[stackframe + 5] ;         // current token") ;
-      eol() ;
-      out("outbuf.captures.push(token);") ;
+      out("return { outbuf, eflag, inp: __SCOPE__.__CURSOR__, erule, stack, inbuf, parsetree, __SCOPE__ };") ;
       eol() ;
       stack[stackframe + 2] -= 2 ;
       out("}") ;
@@ -628,7 +480,7 @@ function rulePR(){
   if (pflag) {
     while (!eflag) {
       out("function rule") ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       test("<");
       if (pflag) {
         while (!eflag) {
@@ -692,7 +544,7 @@ function ruleTR(){
   if (pflag) {
     while (!eflag) {
       out("function rule") ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out("() {") ;
       stack[stackframe + 2] += 2 ;
       eol() ;
@@ -726,41 +578,16 @@ function ruleCOMMENT(){
       if (!pflag) bkerr();
       if (eflag) break ;
       out("//") ;
-      out(token) ;
-      eol() ;
-      break }
-  } ;
-}
-
-// --------------------------------- Imports -----------------------------------
-// TODO: Implement import command
-function ruleIMPORT_COMMAND(){
-  test(".IMPORT");
-  if (pflag) {
-    while (!eflag) {
-      test("(");
-      if (!pflag) bkerr();
-      if (eflag) break ;
-      ctxpush("STRING") ;
-      ruleSTRING();
-      ctxpop() ;
-      if (!pflag) bkerr();
-      if (eflag) break ;
-      test(")");
-      if (!pflag) bkerr();
-      if (eflag) break ;
-      out("inbuf = new ReadBuffer(fs.readFileSync(import.meta.dirname + ") ;
-      out(String.fromCharCode(34)) ;
-      out("/") ;
-      out(token) ;
-      out(String.fromCharCode(34)) ;
-      out(", 'utf8'));") ;
+      out(__SCOPE__.__MATCH__) ;
       eol() ;
       break }
   } ;
 }
 
 // -------------------------- Parse Tree Operators -----------------------------
+// Captures a node for the current parse tree
+// @example (ID :Identifier);
+// @example @(ID :Identifier) ~ &scope :Block<id = &scope["__NODES__"][0]>[0];
 function ruleCAPTURE_SINGLE_NODE(){
   test("::");
   if (pflag) {
@@ -770,7 +597,11 @@ function ruleCAPTURE_SINGLE_NODE(){
       ctxpop() ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      out("currentparsetree.children.push({") ;
+      out("__NODE__ = { type: ") ;
+      out(String.fromCharCode(34)) ;
+      out(__SCOPE__.__MATCH__) ;
+      out(String.fromCharCode(34)) ;
+      out(", start: stack[stackframe + 3], end: __SCOPE__.__CURSOR__, raw: __SCOPE__.__MATCH__,") ;
       test("<");
       if (pflag) {
         while (!eflag) {
@@ -780,7 +611,7 @@ function ruleCAPTURE_SINGLE_NODE(){
           if (!pflag) bkerr();
           if (eflag) break ;
           pflag = true ;
-          while (pflag & !eflag) {
+          while (pflag && !eflag) {
             test(",");
             if (pflag) {
               while (!eflag) {
@@ -810,11 +641,11 @@ function ruleCAPTURE_SINGLE_NODE(){
       } ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      out("name: ") ;
-      out(String.fromCharCode(34)) ;
-      out(token) ;
-      out(String.fromCharCode(34)) ;
-      out(", start: parsetreestart, end: inp, value: token});") ;
+      out("};") ;
+      eol() ;
+      out("__STACK__.push(__NODE__);") ;
+      eol() ;
+      out("__NODES__.push(__NODE__);") ;
       eol() ;
       break }
   } ;
@@ -831,7 +662,7 @@ function ruleCAPTURE_LAST_NODES(){
       if (eflag) break ;
       out("combineParseTreeChildren(") ;
       out(String.fromCharCode(34)) ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(String.fromCharCode(34)) ;
       out(",") ;
       out("{") ;
@@ -844,7 +675,7 @@ function ruleCAPTURE_LAST_NODES(){
           if (!pflag) bkerr();
           if (eflag) break ;
           pflag = true ;
-          while (pflag & !eflag) {
+          while (pflag && !eflag) {
             test(",");
             if (pflag) {
               while (!eflag) {
@@ -889,7 +720,7 @@ function ruleCAPTURE_LAST_NODES(){
       test("]");
       if (!pflag) bkerr();
       if (eflag) break ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(");") ;
       eol() ;
       break }
@@ -902,7 +733,7 @@ function ruleFULL_ARGUMENT(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(": ") ;
       test("=");
       if (!pflag) bkerr();
@@ -945,7 +776,7 @@ function ruleARGUMENT(){
   } ;
   if (pflag) {
     while (!eflag) {
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       break }
   } ;
   if ((!pflag) && (!eflag)) {
@@ -973,8 +804,8 @@ function ruleARGUMENT(){
         } ;
         if (!pflag) bkerr();
         if (eflag) break ;
-        out("outbuf.captures.at(") ;
-        out(token) ;
+        out("__SCOPE__.__MATCHES__.at(") ;
+        out(__SCOPE__.__MATCH__) ;
         out(")") ;
         test("]");
         if (!pflag) bkerr();
@@ -995,7 +826,7 @@ function ruleARGUMENT(){
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             out(".toString()") ;
             break }
         } ;
@@ -1012,8 +843,90 @@ function ruleARGUMENT(){
         break }
     } ;
   } ;
+  if ((!pflag) && (!eflag)) {
+    test("&");
+    if (pflag) {
+      while (!eflag) {
+        ctxpush("ID") ;
+        ruleID();
+        ctxpop() ;
+        if (!pflag) bkerr();
+        if (eflag) break ;
+        ctxpush("OBJECT_ACCESSOR") ;
+        ruleOBJECT_ACCESSOR();
+        ctxpop() ;
+        if (pflag) {
+          while (!eflag) {
+            pflag = true ;
+            while (pflag && !eflag) {
+              ctxpush("OBJECT_ACCESSOR") ;
+              ruleOBJECT_ACCESSOR();
+              ctxpop() ;
+              if (pflag) {
+                while (!eflag) {
+                  break }
+              } ;
+            } ;
+            pflag = !eflag ;
+            if (!pflag) bkerr();
+            if (eflag) break ;
+            break }
+        } ;
+        if ((!pflag) && (!eflag)) {
+          pflag = true ;
+          if (pflag) {
+            while (!eflag) {
+              out(__SCOPE__.__MATCH__) ;
+              break }
+          } ;
+        } ;
+        if (!pflag) bkerr();
+        if (eflag) break ;
+        break }
+    } ;
+  } ;
+}
+
+function ruleOBJECT_ACCESSOR(){
+  test("[");
   if (pflag) {
     while (!eflag) {
+      ctxpush("RAWSTRING") ;
+      ruleRAWSTRING();
+      ctxpop() ;
+      if (pflag) {
+        while (!eflag) {
+          break }
+      } ;
+      if ((!pflag) && (!eflag)) {
+        ctxpush("NUMBER") ;
+        ruleNUMBER();
+        ctxpop() ;
+        if (pflag) {
+          while (!eflag) {
+            break }
+        } ;
+      } ;
+      if ((!pflag) && (!eflag)) {
+        test("&");
+        if (pflag) {
+          while (!eflag) {
+            ctxpush("ID") ;
+            ruleID();
+            ctxpop() ;
+            if (!pflag) bkerr();
+            if (eflag) break ;
+            break }
+        } ;
+      } ;
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      test("]");
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      out("[") ;
+      out(__SCOPE__.__MATCH__) ;
+      out("]") ;
       break }
   } ;
 }
@@ -1067,7 +980,7 @@ function ruleLISPARG(output = false){
     } ;
     if (pflag) {
       while (!eflag) {
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         break }
     } ;
     if (pflag) {
@@ -1119,7 +1032,7 @@ function ruleLISP_KEY(){
     ctxpop() ;
     if (pflag) {
       while (!eflag) {
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         break }
     } ;
   } ;
@@ -1145,9 +1058,9 @@ function ruleLISP_OBJECT_ACCESSOR(){
       ctxpop() ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      out(outbuf.captures.at(-2));
+      out(__SCOPE__.__MATCHES__.at(-2));
       out(".") ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       break }
   } ;
 }
@@ -1158,7 +1071,7 @@ function ruleLISP_ARRAY(){
     while (!eflag) {
       out("[") ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("LISPARG") ;
         ruleLISPARG();
         ctxpop() ;
@@ -1183,13 +1096,13 @@ function ruleLISP_OBJECT(){
     while (!eflag) {
       out("{") ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("ID") ;
         ruleID();
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             out(": ") ;
             test(":");
             if (!pflag) bkerr();
@@ -1225,7 +1138,7 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
       if (!pflag) bkerr();
       if (eflag) break ;
       out("while (") ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(") {") ;
       stack[stackframe + 2] += 2 ;
       eol() ;
@@ -1318,7 +1231,7 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
         if (!pflag) bkerr();
         if (eflag) break ;
         out("function ") ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out("(") ;
         test("[");
         if (!pflag) bkerr();
@@ -1328,7 +1241,7 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             break }
         } ;
         if ((!pflag) && (!eflag)) {
@@ -1341,14 +1254,14 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
         if (!pflag) bkerr();
         if (eflag) break ;
         pflag = true ;
-        while (pflag & !eflag) {
+        while (pflag && !eflag) {
           ctxpush("ID") ;
           ruleID();
           ctxpop() ;
           if (pflag) {
             while (!eflag) {
               out(", ") ;
-              out(token) ;
+              out(__SCOPE__.__MATCH__) ;
               break }
           } ;
         } ;
@@ -1362,7 +1275,7 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
         stack[stackframe + 2] += 2 ;
         eol() ;
         pflag = true ;
-        while (pflag & !eflag) {
+        while (pflag && !eflag) {
           ctxpush("LISP") ;
           ruleLISP();
           ctxpop() ;
@@ -1394,7 +1307,7 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
         if (pflag) {
           while (!eflag) {
             out("let ") ;
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             out(" = ") ;
             break }
         } ;
@@ -1412,7 +1325,7 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
               if (!pflag) bkerr();
               if (eflag) break ;
               out("let ") ;
-              out(token) ;
+              out(__SCOPE__.__MATCH__) ;
               out(" = ") ;
               ctxpush("TYPE") ;
               ruleTYPE();
@@ -1450,7 +1363,7 @@ function ruleLISP_LANGUAGE_CONSTRUCTS(){
     if (pflag) {
       while (!eflag) {
         pflag = true ;
-        while (pflag & !eflag) {
+        while (pflag && !eflag) {
           out("out(") ;
           if (true) {
             while (!eflag) {
@@ -1628,14 +1541,14 @@ function ruleLISP_FUNCTION_CALL(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out("(") ;
       ctxpush("LISPARG") ;
       ruleLISPARG();
       ctxpop() ;
       if (pflag) {
         while (!eflag) {
-          out(token) ;
+          out(__SCOPE__.__MATCH__) ;
           break }
       } ;
       if (pflag) {
@@ -1661,14 +1574,14 @@ function ruleLISP_FUNCTION_CALL(){
       if (!pflag) bkerr();
       if (eflag) break ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("LISPARG") ;
         ruleLISPARG();
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
             out(", ") ;
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             break }
         } ;
         if (pflag) {
@@ -1721,15 +1634,14 @@ function ruleLISP_OPERATOR_METHOD(Operator){
       if (!pflag) bkerr();
       if (eflag) break ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         // We need to reorder the arguments for the operator to work.
         if (pflag) {
           while (!eflag) {
             // We create a temporary buffer and copy the operator before the arguments
             if (!pflag) bkerr();
             if (eflag) break ;
-            let TempBuffer = new WriteBuffer();
-            outbuf = TempBuffer
+            outbuf = new WriteBuffer();
             ctxpush("LISPARG") ;
             ruleLISPARG(true);
             ctxpop() ;
@@ -1737,9 +1649,11 @@ function ruleLISP_OPERATOR_METHOD(Operator){
               while (!eflag) {
                 break }
             } ;
+            __STACK__.push(outbuf);
+            outbuf = stdout;
             if (pflag) {
               while (!eflag) {
-                outbuf = stdout;
+                TempBuffer = __STACK__.pop();
                 if (!pflag) bkerr();
                 if (eflag) break ;
                 out(Operator);
@@ -1767,9 +1681,6 @@ function ruleLISP_OPERATOR_METHOD(Operator){
         } ;
       } ;
       pflag = !eflag ;
-      if (!pflag) bkerr();
-      if (eflag) break ;
-      outbuf = stdout;
       if (!pflag) bkerr();
       if (eflag) break ;
       eol() ;
@@ -1837,7 +1748,7 @@ function ruleEX1(){
   if (pflag) {
     while (!eflag) {
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         test("|");
         if (pflag) {
           while (!eflag) {
@@ -1885,13 +1796,31 @@ function ruleEX2(){
         break }
     } ;
   } ;
+  if ((!pflag) && (!eflag)) {
+    ctxpush("INCLUDE_STATEMENT") ;
+    ruleINCLUDE_STATEMENT();
+    ctxpop() ;
+    if (pflag) {
+      while (!eflag) {
+        break }
+    } ;
+  } ;
+  if ((!pflag) && (!eflag)) {
+    ctxpush("DIRECT_OUTPUT") ;
+    ruleDIRECT_OUTPUT();
+    ctxpop() ;
+    if (pflag) {
+      while (!eflag) {
+        break }
+    } ;
+  } ;
   if (pflag) {
     while (!eflag) {
       out("while (!eflag) {") ;
       stack[stackframe + 2] += 2 ;
       eol() ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("EX3") ;
         ruleEX3();
         ctxpop() ;
@@ -1912,6 +1841,24 @@ function ruleEX2(){
               break }
           } ;
         } ;
+        if ((!pflag) && (!eflag)) {
+          ctxpush("INCLUDE_STATEMENT") ;
+          ruleINCLUDE_STATEMENT();
+          ctxpop() ;
+          if (pflag) {
+            while (!eflag) {
+              break }
+          } ;
+        } ;
+        if ((!pflag) && (!eflag)) {
+          ctxpush("DIRECT_OUTPUT") ;
+          ruleDIRECT_OUTPUT();
+          ctxpop() ;
+          if (pflag) {
+            while (!eflag) {
+              break }
+          } ;
+        } ;
       } ;
       pflag = !eflag ;
       if (!pflag) bkerr();
@@ -1926,6 +1873,81 @@ function ruleEX2(){
   } ;
 }
 
+function ruleINCLUDE_STATEMENT(){
+  test(".INCLUDE");
+  if (pflag) {
+    while (!eflag) {
+      test("(");
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      ctxpush("STRING") ;
+      ruleSTRING();
+      ctxpop() ;
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      test(")");
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      out(fs.readFileSync(join(import.meta.dirname, __SCOPE__.__MATCH__), 'utf-8'));break }
+  } ;
+}
+
+function ruleDIRECT_OUTPUT(){
+  test(".DIRECT");
+  if (pflag) {
+    while (!eflag) {
+      test("(");
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      pflag = true ;
+      while (pflag && !eflag) {
+        ctxpush("STRING") ;
+        ruleSTRING();
+        ctxpop() ;
+        if (pflag) {
+          while (!eflag) {
+            out(__SCOPE__.__MATCH__) ;
+            break }
+        } ;
+        if ((!pflag) && (!eflag)) {
+          ctxpush("NUMBER") ;
+          ruleNUMBER();
+          ctxpop() ;
+          if (pflag) {
+            while (!eflag) {
+              out(__SCOPE__.__MATCH__) ;
+              break }
+          } ;
+        } ;
+        if ((!pflag) && (!eflag)) {
+          ctxpush("ID") ;
+          ruleID();
+          ctxpop() ;
+          if (pflag) {
+            while (!eflag) {
+              out(__SCOPE__.__MATCH__) ;
+              break }
+          } ;
+        } ;
+        if ((!pflag) && (!eflag)) {
+          test("*");
+          if (pflag) {
+            while (!eflag) {
+              out("__SCOPE__.__MATCH__") ;
+              break }
+          } ;
+        } ;
+      } ;
+      pflag = !eflag ;
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      test(")");
+      if (!pflag) bkerr();
+      if (eflag) break ;
+      break }
+  } ;
+}
+
 function ruleEX3(){
   ctxpush("ID") ;
   ruleID();
@@ -1934,12 +1956,12 @@ function ruleEX3(){
     while (!eflag) {
       out("ctxpush(") ;
       out(String.fromCharCode(34)) ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out(String.fromCharCode(34)) ;
       out(") ;") ;
       eol() ;
       out("rule") ;
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       out("(") ;
       test("<");
       if (pflag) {
@@ -1981,7 +2003,7 @@ function ruleEX3(){
       while (!eflag) {
         out("test(") ;
         out(String.fromCharCode(34)) ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out(String.fromCharCode(34)) ;
         out(");") ;
         eol() ;
@@ -2016,11 +2038,11 @@ function ruleEX3(){
     test(".LITCHR");
     if (pflag) {
       while (!eflag) {
-        out("token = inbuf.charCodeAt(inp) ;") ;
+        out("__SCOPE__.__MATCH__ = inbuf.charCodeAt(__SCOPE__.__CURSOR__) ;") ;
         eol() ;
-        out("outbuf.captures.push(token);") ;
+        out("__SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);") ;
         eol() ;
-        out("inp++ ;") ;
+        out("__SCOPE__.__CURSOR__++ ;") ;
         eol() ;
         break }
     } ;
@@ -2029,7 +2051,7 @@ function ruleEX3(){
     test(".PASS");
     if (pflag) {
       while (!eflag) {
-        out("inp = 0 ;") ;
+        out("__SCOPE__.__CURSOR__ = 0 ;") ;
         eol() ;
         break }
     } ;
@@ -2040,7 +2062,7 @@ function ruleEX3(){
       while (!eflag) {
         out("pflag = true ;") ;
         eol() ;
-        out("while (pflag & !eflag) {") ;
+        out("while (pflag && !eflag) {") ;
         stack[stackframe + 2] += 2 ;
         eol() ;
         ctxpush("EX3") ;
@@ -2068,7 +2090,7 @@ function ruleEX3(){
         if (!pflag) bkerr();
         if (eflag) break ;
         pflag = true ;
-        while (pflag & !eflag) {
+        while (pflag && !eflag) {
           test("/");
           if (pflag) {
             while (!eflag) {
@@ -2111,7 +2133,7 @@ function ruleEX3(){
         if (!pflag) bkerr();
         if (eflag) break ;
         out("test(") ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out(");") ;
         eol() ;
         break }
@@ -2127,20 +2149,8 @@ function ruleEX3(){
         if (!pflag) bkerr();
         if (eflag) break ;
         out("eflag = ") ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out(" ? false : true;") ;
-        eol() ;
-        // Redirects the output back to the standard buffer
-        if (!pflag) bkerr();
-        if (eflag) break ;
-        break }
-    } ;
-  } ;
-  if ((!pflag) && (!eflag)) {
-    test("@@");
-    if (pflag) {
-      while (!eflag) {
-        out("outbuf = stdout;") ;
         eol() ;
         // Capture all following matches into a different buffer
         if (!pflag) bkerr();
@@ -2155,35 +2165,8 @@ function ruleEX3(){
     test("@");
     if (pflag) {
       while (!eflag) {
-        ctxpush("ID") ;
-        ruleID();
-        ctxpop() ;
-        if (pflag) {
-          while (!eflag) {
-            out("let ") ;
-            out(token) ;
-            out(" = new WriteBuffer();") ;
-            eol() ;
-            out("outbuf = ") ;
-            out(token) ;
-            eol() ;
-            break }
-        } ;
-        if (pflag) {
-          while (!eflag) {
-            break }
-        } ;
-        if ((!pflag) && (!eflag)) {
-          pflag = true ;
-          if (pflag) {
-            while (!eflag) {
-              out("outbuf = new WriteBuffer();") ;
-              eol() ;
-              break }
-          } ;
-        } ;
-        if (!pflag) bkerr();
-        if (eflag) break ;
+        out("outbuf = new WriteBuffer();") ;
+        eol() ;
         test("(");
         if (!pflag) bkerr();
         if (eflag) break ;
@@ -2195,15 +2178,44 @@ function ruleEX3(){
         test(")");
         if (!pflag) bkerr();
         if (eflag) break ;
+        // Store the buffer into the stack where it can be collected later.
+        if (!pflag) bkerr();
+        if (eflag) break ;
+        out("__STACK__.push(outbuf);") ;
+        eol() ;
+        // Revert the output buffer back to the standard buffer
+        if (!pflag) bkerr();
+        if (eflag) break ;
+        out("outbuf = stdout;") ;
+        eol() ;
+        // Collect the last value on the stack
+        if (!pflag) bkerr();
+        if (eflag) break ;
+        // @example @(ID) ~ &id
+        if (!pflag) bkerr();
+        if (eflag) break ;
         break }
     } ;
   } ;
   if ((!pflag) && (!eflag)) {
-    ctxpush("IMPORT_COMMAND") ;
-    ruleIMPORT_COMMAND();
-    ctxpop() ;
+    test("~");
     if (pflag) {
       while (!eflag) {
+        test("&");
+        if (pflag) {
+          while (!eflag) {
+            ctxpush("ID") ;
+            ruleID();
+            ctxpop() ;
+            if (!pflag) bkerr();
+            if (eflag) break ;
+            out(__SCOPE__.__MATCH__) ;
+            out(" = __STACK__.pop();") ;
+            eol() ;
+            break }
+        } ;
+        if (!pflag) bkerr();
+        if (eflag) break ;
         break }
     } ;
   } ;
@@ -2222,67 +2234,6 @@ function ruleEX3(){
     ctxpop() ;
     if (pflag) {
       while (!eflag) {
-        break }
-    } ;
-  } ;
-  if ((!pflag) && (!eflag)) {
-    test(".DIRECT");
-    if (pflag) {
-      while (!eflag) {
-        test("(");
-        if (!pflag) bkerr();
-        if (eflag) break ;
-        pflag = true ;
-        while (pflag & !eflag) {
-          ctxpush("STRING") ;
-          ruleSTRING();
-          ctxpop() ;
-          if (pflag) {
-            while (!eflag) {
-              out(token) ;
-              break }
-          } ;
-          if ((!pflag) && (!eflag)) {
-            ctxpush("NUMBER") ;
-            ruleNUMBER();
-            ctxpop() ;
-            if (pflag) {
-              while (!eflag) {
-                out(token) ;
-                break }
-            } ;
-          } ;
-          if ((!pflag) && (!eflag)) {
-            ctxpush("ID") ;
-            ruleID();
-            ctxpop() ;
-            if (pflag) {
-              while (!eflag) {
-                out(token) ;
-                break }
-            } ;
-          } ;
-        } ;
-        pflag = !eflag ;
-        if (!pflag) bkerr();
-        if (eflag) break ;
-        test(")");
-        if (!pflag) bkerr();
-        if (eflag) break ;
-        // Set the start of a parse tree block
-        if (!pflag) bkerr();
-        if (eflag) break ;
-        break }
-    } ;
-  } ;
-  if ((!pflag) && (!eflag)) {
-    test(".PSTART");
-    if (pflag) {
-      while (!eflag) {
-        out("parsetreestart = inp;") ;
-        eol() ;
-        out("pflag = true;") ;
-        eol() ;
         break }
     } ;
   } ;
@@ -2313,16 +2264,16 @@ function rulePARSE_RULE_ARGUMENT_LIST(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("PARSE_RULE_ARGUMENT") ;
         rulePARSE_RULE_ARGUMENT();
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
             out(", ") ;
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             break }
         } ;
       } ;
@@ -2372,7 +2323,7 @@ function rulePARSE_RULE_ARGUMENT_DEFINITION(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      out(token) ;
+      out(__SCOPE__.__MATCH__) ;
       test(":");
       if (pflag) {
         while (!eflag) {
@@ -2383,7 +2334,7 @@ function rulePARSE_RULE_ARGUMENT_DEFINITION(){
           if (eflag) break ;
           out("/*") ;
           out(":") ;
-          out(token) ;
+          out(__SCOPE__.__MATCH__) ;
           out("*/") ;
           break }
       } ;
@@ -2431,7 +2382,7 @@ function rulePARSE_RULE_ARGUMENT_DEFINITION(){
           if (!pflag) bkerr();
           if (eflag) break ;
           out(" = ") ;
-          out(token) ;
+          out(__SCOPE__.__MATCH__) ;
           break }
       } ;
       if (pflag) {
@@ -2458,7 +2409,7 @@ function rulePARSE_RULE_ARGUMENT_DEFINITION_LIST(){
   if (pflag) {
     while (!eflag) {
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("PARSE_RULE_ARGUMENT_DEFINITION") ;
         rulePARSE_RULE_ARGUMENT_DEFINITION();
         ctxpop() ;
@@ -2483,7 +2434,7 @@ function ruleOUTPUT(){
       if (!pflag) bkerr();
       if (eflag) break ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("OUT1") ;
         ruleOUT1();
         ctxpop() ;
@@ -2523,8 +2474,8 @@ function ruleOUT1(){
       } ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      out("out(outbuf.captures.at(") ;
-      out(token) ;
+      out("out(__SCOPE__.__MATCHES__.at(") ;
+      out(__SCOPE__.__MATCH__) ;
       out("));") ;
       eol() ;
       test("]");
@@ -2542,7 +2493,7 @@ function ruleOUT1(){
         if (pflag) {
           while (!eflag) {
             out("out(") ;
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             out(");") ;
             eol() ;
             break }
@@ -2555,7 +2506,7 @@ function ruleOUT1(){
           pflag = true ;
           if (pflag) {
             while (!eflag) {
-              out("out(token) ;") ;
+              out("out(__SCOPE__.__MATCH__) ;") ;
               eol() ;
               break }
           } ;
@@ -2577,7 +2528,7 @@ function ruleOUT1(){
       while (!eflag) {
         out("out(") ;
         out(String.fromCharCode(34)) ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out(String.fromCharCode(34)) ;
         out(") ;") ;
         eol() ;
@@ -2591,7 +2542,7 @@ function ruleOUT1(){
     if (pflag) {
       while (!eflag) {
         out("out(String.fromCharCode(") ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out(")) ;") ;
         eol() ;
         break }
@@ -2620,13 +2571,6 @@ function ruleOUT1(){
       while (!eflag) {
         out("eol() ;") ;
         eol() ;
-        break }
-    } ;
-  } ;
-  if ((!pflag) && (!eflag)) {
-    test(".LB");
-    if (pflag) {
-      while (!eflag) {
         break }
     } ;
   } ;
@@ -2672,7 +2616,7 @@ function ruleOUT1(){
         if (pflag) {
           while (!eflag) {
             out("outbuf.write(") ;
-            out(token) ;
+            out(__SCOPE__.__MATCH__) ;
             out(".toString());") ;
             eol() ;
             break }
@@ -2701,7 +2645,7 @@ function ruleTX1(){
   if (pflag) {
     while (!eflag) {
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         test("/");
         if (pflag) {
           while (!eflag) {
@@ -2736,7 +2680,7 @@ function ruleTX2(){
       stack[stackframe + 2] += 2 ;
       eol() ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         ctxpush("TX3") ;
         ruleTX3();
         ctxpop() ;
@@ -2763,7 +2707,7 @@ function ruleTX3(){
     while (!eflag) {
       out("tflag = true ; ") ;
       eol() ;
-      out("token = ") ;
+      out("__SCOPE__.__MATCH__ = ") ;
       out(String.fromCharCode(34)) ;
       out(String.fromCharCode(34)) ;
       out(" ;") ;
@@ -2776,7 +2720,7 @@ function ruleTX3(){
       while (!eflag) {
         out("tflag = false ;") ;
         eol() ;
-        out("outbuf.captures.push(token);") ;
+        out("__SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);") ;
         eol() ;
         break }
     } ;
@@ -2824,9 +2768,9 @@ function ruleTX3(){
         out("if (pflag) {") ;
         stack[stackframe + 2] += 2 ;
         eol() ;
-        out("if (tflag) token += inbuf.charAt(inp) ;") ;
+        out("if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;") ;
         eol() ;
-        out("inp++ } ;") ;
+        out("__SCOPE__.__CURSOR__++ } ;") ;
         stack[stackframe + 2] -= 2 ;
         eol() ;
         break }
@@ -2847,9 +2791,9 @@ function ruleTX3(){
         out("if (pflag) {") ;
         stack[stackframe + 2] += 2 ;
         eol() ;
-        out("if (tflag) token += inbuf.charAt(inp) ;") ;
+        out("if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;") ;
         eol() ;
-        out("inp++ } ;") ;
+        out("__SCOPE__.__CURSOR__++ } ;") ;
         stack[stackframe + 2] -= 2 ;
         eol() ;
         break }
@@ -2863,12 +2807,12 @@ function ruleTX3(){
       while (!eflag) {
         out("ctxpush(") ;
         out(String.fromCharCode(34)) ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out(String.fromCharCode(34)) ;
         out(") ;") ;
         eol() ;
         out("rule") ;
-        out(token) ;
+        out(__SCOPE__.__MATCH__) ;
         out("() ;") ;
         eol() ;
         out("ctxpop() ;") ;
@@ -2908,7 +2852,7 @@ function ruleCX1(){
       if (!pflag) bkerr();
       if (eflag) break ;
       pflag = true ;
-      while (pflag & !eflag) {
+      while (pflag && !eflag) {
         test("!");
         if (pflag) {
           while (!eflag) {
@@ -2941,8 +2885,8 @@ function ruleCX2(){
       test(":");
       if (pflag) {
         while (!eflag) {
-          out("((inbuf.charCodeAt(inp) >= ") ;
-          out(token) ;
+          out("((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= ") ;
+          out(__SCOPE__.__MATCH__) ;
           out(") &&") ;
           eol() ;
           ctxpush("CX3") ;
@@ -2950,8 +2894,8 @@ function ruleCX2(){
           ctxpop() ;
           if (!pflag) bkerr();
           if (eflag) break ;
-          out(" (inbuf.charCodeAt(inp) <= ") ;
-          out(token) ;
+          out(" (inbuf.charCodeAt(__SCOPE__.__CURSOR__) <= ") ;
+          out(__SCOPE__.__MATCH__) ;
           out(")  )") ;
           break }
       } ;
@@ -2959,8 +2903,8 @@ function ruleCX2(){
         pflag = true ;
         if (pflag) {
           while (!eflag) {
-            out("(inbuf.charCodeAt(inp) == ") ;
-            out(token) ;
+            out("(inbuf.charCodeAt(__SCOPE__.__CURSOR__) == ") ;
+            out(__SCOPE__.__MATCH__) ;
             out(") ") ;
             break }
         } ;
@@ -2985,9 +2929,9 @@ function ruleCX3(){
     ctxpop() ;
     if (pflag) {
       while (!eflag) {
-        token = inbuf.charCodeAt(inp) ;
-        outbuf.captures.push(token);
-        inp++ ;
+        __SCOPE__.__MATCH__ = inbuf.charCodeAt(__SCOPE__.__CURSOR__) ;
+        __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
+        __SCOPE__.__CURSOR__++ ;
         if (!pflag) bkerr();
         if (eflag) break ;
         break }
@@ -2999,13 +2943,13 @@ function rulePREFIX() {
   pflag = true ;
   while (pflag) {
     pflag = 
-      (inbuf.charCodeAt(inp) == 32)  ||
-      (inbuf.charCodeAt(inp) == 9)  ||
-      (inbuf.charCodeAt(inp) == 13)  ||
-      (inbuf.charCodeAt(inp) == 10)  ;
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 32)  ||
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 9)  ||
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 13)  ||
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 10)  ;
     if (pflag) {
-      if (tflag) token += inbuf.charAt(inp) ;
-      inp++ } ;
+      if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+      __SCOPE__.__CURSOR__++ } ;
   };
   pflag = true ;
   if (pflag) {
@@ -3019,7 +2963,7 @@ function ruleID() {
   if (eflag) return ;
   if (pflag) {
     tflag = true ; 
-    token = "" ;
+    __SCOPE__.__MATCH__ = "" ;
     pflag = true ;
     if (!pflag) return;
     ctxpush("ALPHA") ;
@@ -3047,7 +2991,7 @@ function ruleID() {
     pflag = true ;
     if (!pflag) return;
     tflag = false ;
-    outbuf.captures.push(token);
+    __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
     pflag = true ;
     if (!pflag) return;
   } ;
@@ -3060,16 +3004,16 @@ function ruleNUMBER() {
   if (eflag) return ;
   if (pflag) {
     tflag = true ; 
-    token = "" ;
+    __SCOPE__.__MATCH__ = "" ;
     pflag = true ;
     if (!pflag) return;
     pflag = true ;
     while (pflag) {
       pflag = 
-        (inbuf.charCodeAt(inp) == 45)  ;
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 45)  ;
       if (pflag) {
-        if (tflag) token += inbuf.charAt(inp) ;
-        inp++ } ;
+        if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+        __SCOPE__.__CURSOR__++ } ;
     };
     pflag = true ;
     if (!pflag) return;
@@ -3088,7 +3032,7 @@ function ruleNUMBER() {
     pflag = true ;
     if (!pflag) return;
     tflag = false ;
-    outbuf.captures.push(token);
+    __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
     pflag = true ;
     if (!pflag) return;
   } ;
@@ -3101,37 +3045,37 @@ function ruleSTRING() {
   if (eflag) return ;
   if (pflag) {
     pflag = 
-      (inbuf.charCodeAt(inp) == 34)  ;
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 34)  ;
     if (pflag) {
-      if (tflag) token += inbuf.charAt(inp) ;
-      inp++ } ;
+      if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+      __SCOPE__.__CURSOR__++ } ;
     if (!pflag) return;
     tflag = true ; 
-    token = "" ;
+    __SCOPE__.__MATCH__ = "" ;
     pflag = true ;
     if (!pflag) return;
     pflag = true ;
     while (pflag) {
       pflag = 
-        (inbuf.charCodeAt(inp) == 13)  ||
-        (inbuf.charCodeAt(inp) == 10)  ||
-        (inbuf.charCodeAt(inp) == 34)  ;
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 13)  ||
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 10)  ||
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 34)  ;
       pflag = !pflag ;
       if (pflag) {
-        if (tflag) token += inbuf.charAt(inp) ;
-        inp++ } ;
+        if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+        __SCOPE__.__CURSOR__++ } ;
     };
     pflag = true ;
     if (!pflag) return;
     tflag = false ;
-    outbuf.captures.push(token);
+    __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
     pflag = true ;
     if (!pflag) return;
     pflag = 
-      (inbuf.charCodeAt(inp) == 34)  ;
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 34)  ;
     if (pflag) {
-      if (tflag) token += inbuf.charAt(inp) ;
-      inp++ } ;
+      if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+      __SCOPE__.__CURSOR__++ } ;
     if (!pflag) return;
   } ;
 }
@@ -3143,36 +3087,36 @@ function ruleRAWSTRING() {
   if (eflag) return ;
   if (pflag) {
     tflag = true ; 
-    token = "" ;
+    __SCOPE__.__MATCH__ = "" ;
     pflag = true ;
     if (!pflag) return;
     pflag = 
-      (inbuf.charCodeAt(inp) == 34)  ;
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 34)  ;
     if (pflag) {
-      if (tflag) token += inbuf.charAt(inp) ;
-      inp++ } ;
+      if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+      __SCOPE__.__CURSOR__++ } ;
     if (!pflag) return;
     pflag = true ;
     while (pflag) {
       pflag = 
-        (inbuf.charCodeAt(inp) == 13)  ||
-        (inbuf.charCodeAt(inp) == 10)  ||
-        (inbuf.charCodeAt(inp) == 34)  ;
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 13)  ||
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 10)  ||
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 34)  ;
       pflag = !pflag ;
       if (pflag) {
-        if (tflag) token += inbuf.charAt(inp) ;
-        inp++ } ;
+        if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+        __SCOPE__.__CURSOR__++ } ;
     };
     pflag = true ;
     if (!pflag) return;
     pflag = 
-      (inbuf.charCodeAt(inp) == 34)  ;
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 34)  ;
     if (pflag) {
-      if (tflag) token += inbuf.charAt(inp) ;
-      inp++ } ;
+      if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+      __SCOPE__.__CURSOR__++ } ;
     if (!pflag) return;
     tflag = false ;
-    outbuf.captures.push(token);
+    __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
     pflag = true ;
     if (!pflag) return;
   } ;
@@ -3180,25 +3124,25 @@ function ruleRAWSTRING() {
 
 function ruleALPHA() {
   pflag = 
-    ((inbuf.charCodeAt(inp) >= 65) &&
-     (inbuf.charCodeAt(inp) <= 90)  ) ||
-    ((inbuf.charCodeAt(inp) >= 97) &&
-     (inbuf.charCodeAt(inp) <= 122)  ) ||
-    (inbuf.charCodeAt(inp) == 95)  ;
+    ((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= 65) &&
+     (inbuf.charCodeAt(__SCOPE__.__CURSOR__) <= 90)  ) ||
+    ((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= 97) &&
+     (inbuf.charCodeAt(__SCOPE__.__CURSOR__) <= 122)  ) ||
+    (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 95)  ;
   if (pflag) {
-    if (tflag) token += inbuf.charAt(inp) ;
-    inp++ } ;
+    if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+    __SCOPE__.__CURSOR__++ } ;
   if (pflag) {
   } ;
 }
 
 function ruleDIGIT() {
   pflag = 
-    ((inbuf.charCodeAt(inp) >= 48) &&
-     (inbuf.charCodeAt(inp) <= 57)  ) ;
+    ((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= 48) &&
+     (inbuf.charCodeAt(__SCOPE__.__CURSOR__) <= 57)  ) ;
   if (pflag) {
-    if (tflag) token += inbuf.charAt(inp) ;
-    inp++ } ;
+    if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+    __SCOPE__.__CURSOR__++ } ;
   if (pflag) {
   } ;
 }
@@ -3210,202 +3154,35 @@ function ruleSQUOTE() {
   if (eflag) return ;
   if (pflag) {
     pflag = 
-      (inbuf.charCodeAt(inp) == 39)  ;
+      (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 39)  ;
     if (pflag) {
-      if (tflag) token += inbuf.charAt(inp) ;
-      inp++ } ;
+      if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+      __SCOPE__.__CURSOR__++ } ;
     if (!pflag) return;
   } ;
 }
 
 function ruleCMLINE() {
   tflag = true ; 
-  token = "" ;
+  __SCOPE__.__MATCH__ = "" ;
   pflag = true ;
   if (pflag) {
     pflag = true ;
     while (pflag) {
       pflag = 
-        (inbuf.charCodeAt(inp) == 10)  ||
-        (inbuf.charCodeAt(inp) == 13)  ;
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 10)  ||
+        (inbuf.charCodeAt(__SCOPE__.__CURSOR__) == 13)  ;
       pflag = !pflag ;
       if (pflag) {
-        if (tflag) token += inbuf.charAt(inp) ;
-        inp++ } ;
+        if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;
+        __SCOPE__.__CURSOR__++ } ;
     };
     pflag = true ;
     if (!pflag) return;
     tflag = false ;
-    outbuf.captures.push(token);
+    __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
     pflag = true ;
     if (!pflag) return;
   } ;
-}
-
-class WriteBuffer {
-  constructor() {
-    this.buffer = '';
-    this.captures = [];
-  }
-  write(s) {
-    this.buffer += s;
-  }
-  writeln(s) {
-    this.buffer += s + "\n";
-  }
-  toString() {
-    return this.buffer;
-  }
-  get length() {
-    return this.buffer.length;
-  }
-}
-class ReadBuffer {
-  constructor(value) {
-    this.buffer = value;
-  }
-  charAt(pos) {
-    return this.buffer.charAt(pos);
-  }
-  charCodeAt(pos) {
-    return this.buffer.charCodeAt(pos);
-  }
-  toString() {
-    return this.buffer;
-  }
-  get length() {
-    return this.buffer.length;
-  }
-}
-// runtime variables
-let pflag = false
-let tflag = false
-let eflag = false
-let inp = 0
-let inbuf = new ReadBuffer("")
-let stdin = inbuf;
-let outbuf = new WriteBuffer()
-let stdout = outbuf;
-let erule =  ""
-let einput = 0
-let token = ""
-let labelcount = 0
-let stackframesize = 6
-let stackframe = 0
-let parsetreestart = 0
-let stos = -1
-let parsetree = {type:"", children: []}
-let currentparsetree = parsetree
-let stack = []
-
-function combineParseTreeChildren(type, obj, count) {
-  let children = currentparsetree.children.slice(-count);
-  currentparsetree.children = currentparsetree.children.slice(0, -count);
-  currentparsetree.children.push({ type, ...obj, start: parsetreestart, end: inp, children });
-}
-
-export function initialize() {
-  // initialize for another compile
-  pflag = false ;
-  tflag = false ;
-  eflag = false ;
-  inp = 0 ;
-  outbuf = new WriteBuffer();
-  stdout = outbuf;
-  erule = "" ;
-  einput = 0 ;
-  token = "" ;
-  parsetree = {type: "Program", children: []};
-  currentparsetree = parsetree;
-  parsetreestart = 0;
-  labelcount = 1 ;
-  stackframe = -1 ;
-  stos = -1 ;
-  stack = [] ;
-}
-
-function ctxpush(rulename) {
-  // push and initialize a new stackframe
-  var LM ;
-  // new context inherits current context left margin
-  LM = 0; if (stackframe >= 0) LM = stack[stackframe + 2] ;
-  stos++ ;
-  stackframe = stos * stackframesize ;
-  // stackframe definition
-  stack[stackframe + 0] = 0 ;        // generated label
-  stack[stackframe + 1] = rulename ; // called rule name
-  stack[stackframe + 2] = LM ;       // left margin
-  // clear additional stackframe backtracking entries
-  bkclear() ;
-}
-
-function ctxpop(){
-  // pop and possibly deallocate old stackframe
-  stos-- ; // pop stackframe
-  stackframe = stos * stackframesize ;
-}
-
-function out(s){
-  // output string
-  var i ;
-  // if newline last output, add left margin before string
-  if (outbuf.buffer.charAt(outbuf.length - 1) == "\n") {
-    i = stack[stackframe + 2] ;
-    while (i>0) { outbuf.write(" "); i-- } ; } ;
-  outbuf.write(s);
-}
-
-function eol(){
-  // output end of line
-  outbuf.write("\n");
-}
-
-function test(s) {
-  // test for a string in the input
-  var i ;
-  // delete whitespace
-  while ((inbuf.charAt(inp) == " ")  ||
-         (inbuf.charAt(inp) == "\n") ||
-         (inbuf.charAt(inp) == "\r") ||
-         (inbuf.charAt(inp) == "\t") ) inp++ ;
-  // test string case insensitive
-  pflag = true ; i = 0 ;
-  while (pflag && (i < s.length) && ((inp+i) < inbuf.length) )
-  { pflag = (s.charAt(i).toUpperCase() ==
-                  inbuf.charAt(inp+i).toUpperCase()) ;
-    i++ ; } ;
-  pflag = pflag && (i == s.length) ;
-  // advance input if found
-  if (pflag) inp = inp + s.length ;
-}
-
-function bkerr() {
-  // compilation error, provide error indication and context
-  eflag = true ;
-  erule = stack[stackframe + 1] ;
-  einput = inp ;
-}
-
-function bkset() {
-  // set backtrack context on stack
-  stack[stackframe + 3] = inp ;           // input position
-  stack[stackframe + 4] = outbuf.length ; // output position
-  stack[stackframe + 5] = token ;         // current token
-}
-
-function bkclear() {
-  // clear backtrack context on stack
-  stack[stackframe + 3] = -1 ; // input position
-  stack[stackframe + 4] = -1 ; // output position
-  stack[stackframe + 5] = "" ; // current token
-}
-
-function bkrestore() {
-  // restore context for backtracking
-  eflag = false ;
-  inp = stack[stackframe + 3] ;           // input position
-  outbuf.buffer = outbuf.buffer.substring(0,stack[stackframe + 4]) ; // output position
-  token = stack[stackframe + 5] ;         // current token
-  outbuf.captures.push(token);
 }
 
