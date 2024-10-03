@@ -5,24 +5,23 @@
 //  @desc The syntax definition of the META Compiler writing language.
 //  - pflag: Indicates if the last parse rule succeeded.
 //  - eflag: Indicates if the last parse rule encountered an error.
-.SYNTAX PROGRAM
+.GRAMMAR PROGRAM
 
-.INCLUDE("../types.ts")
+.INCLUDE("../../types.ts")
 
 // body of compiler definition 
-PROGRAM = $(COMMENT | CODE_RULE | INCLUDE_STATEMENT)
-					".SYNTAX" ID 
-          ->("// " * " compiler" .NL)
-          ->("import * as fs from " 34 "fs" 34 ";" .NL)
-          ->("import { join } from " 34 "path" 34 ";" .NL)
-          PREAMBLE
-          $(PR | INCLUDE_STATEMENT | CODE_RULE | COMMENT)
-					((".TOKENS"
-					$(TR | COMMENT)) | .EMPTY)
-          ".END";
+rule PROGRAM = $(
+	".GRAMMAR" ID
+		->("//" * " compiler" .NL)
+		PREAMBLE
+	| PARSE_RULE
+	| TOKEN_RULE
+	| INCLUDE_STATEMENT
+	| COMMENT
+);
 
 // object definition preamble 
-PREAMBLE = ->("export function compile(input: string) {" .LM+ .NL)
+rule PREAMBLE = ->("export function compile(input: string) {" .LM+ .NL)
            ->("// initialize compiler variables" .NL)
            ->("inbuf = input;" .NL)
            ->("stdin = inbuf;" .NL)
@@ -40,119 +39,52 @@ PREAMBLE = ->("export function compile(input: string) {" .LM+ .NL)
 
 // parsing rule definition 
 // @example PARSE_RULE<argument, argument2>
-PR = ID ->("function rule" *) (("<" ->("(") PARSE_RULE_ARGUMENT_DEFINITION_LIST ">" ->(")")) | (.EMPTY ->("()"))) ->("{" .LM+ .NL)
+rule PARSE_RULE = ID ->("function rule" *) (("<" ->("(") PARSE_RULE_ARGUMENT_DEFINITION_LIST ">" ->(")")) | (.EMPTY ->("()"))) ->("{" .LM+ .NL)
      "=" EX1 ";"
      ->(.LM- "}" .NL .NL) ;
 
 // token rule definition 
-TR = ID ->("function rule"* "() {" .LM+ .NL)
+rule TOKEN_RULE = ID ->("function rule"* "() {" .LM+ .NL)
      ":" TX1 ";"
      ->(.LM- "}" .NL .NL) ;
 
 // comment definition 
-COMMENT = "//" CMLINE ->("//" * .NL) ;
+rule COMMENT = "//" CMLINE ->("//" * .NL) ;
 
 // -------------------------- Parse Tree Operators -----------------------------
 
 // Captures a node for the current parse tree
 // @example (ID :Identifier);
 // @example @(ID :Identifier) ~ &scope :Block<id = &scope["__NODES__"][0]>[0];
-CAPTURE_SINGLE_NODE = "::" ID
+rule CAPTURE_SINGLE_NODE = "::" ID
 	->("__NODE__ = { type: " 34 * 34 ", start: stack[stackframe + 3], end: __SCOPE__.__CURSOR__, raw: __SCOPE__.__MATCH__,")
 		(("<" FULL_ARGUMENT $("," FULL_ARGUMENT)) | .EMPTY)
 	->("};" .NL)
 	->("__STACK__.push(__NODE__);" .NL)
 	->("__NODES__.push(__NODE__);" .NL);
 
-CAPTURE_LAST_NODES = ":" ID
+rule CAPTURE_LAST_NODES = ":" ID
 	->("combineParseTreeChildren(" 34 * 34 "," "{")
 	(("<" FULL_ARGUMENT $("," FULL_ARGUMENT) ">") | .EMPTY)
 	->("},") "[" NUMBER "]" ->(* ");" .NL);
 
-FULL_ARGUMENT = ID ->(* ": ") "=" ARGUMENT ->(",");
+rule FULL_ARGUMENT = ID ->(* ": ") "=" ARGUMENT ->(",");
 
-ARGUMENT = (RAWSTRING | NUMBER | ID) ->(*)
+rule ARGUMENT = (RAWSTRING | NUMBER | ID) ->(*)
 	| ("**" "[" (NUMBER | ID) ->("__SCOPE__.__MATCHES__.at(" * ")") "]")
 	| "@" (ID
 		->(* ".toString()")
 		| .EMPTY ->("outbuf.toString()"))
 	| "&" ID (OBJECT_ACCESSOR $(OBJECT_ACCESSOR) | .EMPTY ->(*));
 
-OBJECT_ACCESSOR = "::" (RAWSTRING | NUMBER | "&" ID) ->("[" * "]");
-
-// -------------------------- META Lisp Definitions ----------------------------
-
-CODE_RULE = LISP;
-
-LISPARG<output = false> = {
-	LISP_OBJECT_ACCESSOR
-	/ ((ID | NUMBER | RAWSTRING) ->(*))
-	/ LISP_OBJECT
-	/ LISP_ARRAY
-};
-
-LISP_KEY = {
-	LISP_OBJECT_ACCESSOR
-	/ ID ->(*)
-};
-
-LISP_OBJECT_ACCESSOR = ID "::" ID ->(**[-2] "." *);
-
-LISP_ARRAY = "'[" ->("[") $(LISPARG) "]";
-
-LISP_OBJECT = "'{" ->("{") $(ID ->(* ": ") ":" LISPARG ->(",")) "}" ->("};" .NL);
-
-LISP_LANGUAGE_CONSTRUCTS = 
-	("while" LISPARG ->("while (" * ") {" .LM+ .NL) LISPARG ->(.LM- "} ;" .NL))
-	| ("if" ->("if (") (LISP | LISPARG<true>) ->(") {" .LM+ .NL) LISP ->(.LM- "} ;" .NL))
-	| ("set" LISP_KEY ->(" = ") LISPARG<true> ->(";" .NL))
-	| ("defunc" ID ->("function " * "(") "[" (ID ->(*) | .EMPTY) $(ID ->(", " *)) "]" ->(") {" .LM+ .NL) $(LISP) ->("}" .LM- .NL))
-	| ("define" ((ID ->("let " * " = ")) | ("[" ID ->("let " * " = ") TYPE "]")) LISPARG<true> ->(";" .NL))
-	| ("->" $(->("out(") LISPARG<true> ->(")")) ->(";" .NL))
-	| ("throw" ->("throw new Error(") LISPARG<true> ->(");" .NL))
-	| LISP_OPERATOR_METHOD<"+=">
-	| LISP_OPERATOR_METHOD<"+">
-	| LISP_OPERATOR_METHOD<"-">
-	| LISP_OPERATOR_METHOD<"*">
-	| LISP_OPERATOR_METHOD<"/">
-	| LISP_OPERATOR_METHOD<">">
-	| LISP_OPERATOR_METHOD<"<">
-	| LISP_OPERATOR_METHOD<"==">
-	| LISP_OPERATOR_METHOD<"!=">
-	| LISP_OPERATOR_METHOD<"<=">
-	| LISP_OPERATOR_METHOD<">=">
-	| LISP_OPERATOR_METHOD<"&&">
-	| LISP_OPERATOR_METHOD<"||">
-	| LISP_FUNCTION_CALL;
-
-LISP_FUNCTION_CALL = ID ->(* "(") ((LISPARG ->(*)) | LISP | .EMPTY) $((LISPARG ->(", " *)) | LISP) ->(");" .NL);
-
-LISP_OPERATOR_METHOD<Operator> = 
-	*Operator ((LISPARG<true>) | LISP)
-	$(
-		// We need to reorder the arguments for the operator to work.
-		// We create a temporary buffer and copy the operator before the arguments
-		(@(LISPARG<true>) ~ &TempBuffer ->(*Operator @TempBuffer)) | LISP
-	// Since we capture the output into a temporary buffer before doing input validation, we need to dispose of
-	// the trailing buffer that persists.
-	) ->(.NL);
-
-LISP = "[" LISP_LANGUAGE_CONSTRUCTS "]"
-		 | "[" LISP "]"
-		 | COMMENT;
-
-// ---------------------------------- Types ------------------------------------
-
-// [+= counter 1]
-
-TYPE = ID;
+rule OBJECT_ACCESSOR = "::" (RAWSTRING | NUMBER | "&" ID) ->("[" * "]");
 
 // --------------------------- Parsing expressions -----------------------------
-EX1 = EX2 $("|" ->("if ((!pflag) && (!eflag)) {" .LM+ .NL)
+rule EX1 = EX2 $("|" ->("if ((!pflag) && (!eflag)) {" .LM+ .NL)
                 EX2
                 ->(.LM- "} ;" .NL) ) ;
 
-EX2 = (EX3 ->("if (pflag) {" .LM+ .NL)
+rule EX2 = (EX3 ->("if (pflag) {" .LM+ .NL)
 				| OUTPUT ->("if (true) {" .LM+ .NL)
 				| INCLUDE_STATEMENT
 				| DIRECT_OUTPUT)
@@ -165,17 +97,17 @@ EX2 = (EX3 ->("if (pflag) {" .LM+ .NL)
       ->("break }" .LM- .NL)
       ->(.LM- "} ;" .NL);
 
-INCLUDE_STATEMENT = ".INCLUDE" "(" STRING ")"
+rule INCLUDE_STATEMENT = ".INCLUDE" "(" STRING ")"
 	.DIRECT("out(fs.readFileSync(join(import.meta.dirname, " * "), 'utf-8'));");
 
-DIRECT_OUTPUT = ".DIRECT" "(" $(
+rule DIRECT_OUTPUT = ".DIRECT" "(" $(
 	STRING ->(*)
 	| NUMBER ->(*)
 	| ID ->(*)
 	| "*" ->("__SCOPE__.__MATCH__")
 ) ")";
 
-EX3 = ID
+rule EX3 = ID
 				->("ctxpush(" 34 * 34 ") ;" .NL)
 				->("rule" * "(") (("<" PARSE_RULE_ARGUMENT_LIST ">") | .EMPTY) ->(");" .NL)
 				->("ctxpop() ;" .NL)
@@ -214,23 +146,22 @@ EX3 = ID
 		| "~" ("&" ID ->(* " = __STACK__.pop();" .NL))
 		| CAPTURE_SINGLE_NODE
 		| CAPTURE_LAST_NODES
-		| LISP
 		| COMMENT;
 
 // ------------------------- Parsing Rule Arguments ----------------------------
 
-PARSE_RULE_ARGUMENT_LIST = PARSE_RULE_ARGUMENT ->(*) $(PARSE_RULE_ARGUMENT ->(", " *));
+rule PARSE_RULE_ARGUMENT_LIST = PARSE_RULE_ARGUMENT ->(*) $(PARSE_RULE_ARGUMENT ->(", " *));
 
-PARSE_RULE_ARGUMENT = (ID | RAWSTRING | NUMBER);
+rule PARSE_RULE_ARGUMENT = (ID | RAWSTRING | NUMBER);
 
 // Matches an argument passed to a match rule as a parameter.
-PARSE_RULE_ARGUMENT_DEFINITION = ID ->(*) ((":" TYPE ->("/*" ":" * "*/")) | .EMPTY) (("=" (ID | RAWSTRING | NUMBER) ->(" = " *)) | .EMPTY);
-PARSE_RULE_ARGUMENT_DEFINITION_LIST = PARSE_RULE_ARGUMENT_DEFINITION $(PARSE_RULE_ARGUMENT_DEFINITION);
+rule PARSE_RULE_ARGUMENT_DEFINITION = ID ->(*) ((":" TYPE ->("/*" ":" * "*/")) | .EMPTY) (("=" (ID | RAWSTRING | NUMBER) ->(" = " *)) | .EMPTY);
+rule PARSE_RULE_ARGUMENT_DEFINITION_LIST = PARSE_RULE_ARGUMENT_DEFINITION $(PARSE_RULE_ARGUMENT_DEFINITION);
 
 // --------------------------- Output expressions ------------------------------
-OUTPUT = "->" "(" $OUT1 ")" ;
+rule OUTPUT = "->" "(" $OUT1 ")" ;
 
-OUT1 = "**" "[" (NUMBER | ID) ->("out(__SCOPE__.__MATCHES__.at(" * "));" .NL) "]"
+rule OUT1 = "**" "[" (NUMBER | ID) ->("out(__SCOPE__.__MATCHES__.at(" * "));" .NL) "]"
 			| "*" ((ID ->("out(" * ");" .NL)) | (.EMPTY ->("out(__SCOPE__.__MATCH__) ;" .NL)))
 			| STRING  ->("out(" 34 * 34 ") ;" .NL)
 			| NUMBER  ->("out(String.fromCharCode(" * ")) ;" .NL)
@@ -252,13 +183,13 @@ OUT1 = "**" "[" (NUMBER | ID) ->("out(__SCOPE__.__MATCHES__.at(" * "));" .NL) "]
 					| .EMPTY ->("outbuf.write(outbuf.toString());" .NL));
 
 // ---------------------------- Token expressions ------------------------------
-TX1 = TX2 $("/" ->("if (!pflag) {" .LM+ .NL) TX2 ->(.LM- "} ;" .NL) ) ;
+rule TX1 = TX2 $("|" ->("if (!pflag) {" .LM+ .NL) TX2 ->(.LM- "} ;" .NL) ) ;
 
-TX2 = TX3 ->("if (pflag) {" .LM+ .NL) 
+rule TX2 = TX3 ->("if (pflag) {" .LM+ .NL) 
       $(TX3 ->("if (!pflag) return;" .NL) ) 
       ->(.LM- "} ;" .NL) ;
 
-TX3 = (".TOKEN"  ->("tflag = true ; " .NL)
+rule TX3 = (".TOKEN"  ->("tflag = true ; " .NL)
 			->("__SCOPE__.__MATCH__ = " 34 34 " ;" .NL)
 		| ".DELTOK"
 			->("tflag = false ;" .NL)
@@ -281,28 +212,25 @@ TX3 = (".TOKEN"  ->("tflag = true ; " .NL)
 			->("rule" * "() ;" .NL)
 			->("ctxpop() ;" .NL)
 			->("if (eflag) return ;" .NL)
+		| "[" $(CX1) "]"
 		| "(" TX1 ")";
 
 // -------------------------- Character expressions ----------------------------
-CX1 = ->("pflag = " .LM+ .NL)
+rule CX1 = ->("pflag = " .LM+ .NL)
       CX2 $("!" ->(" ||" .NL) CX2)
       ->(.LM- " ;" .NL) ;
-CX2 = CX3 (":" ->("((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= " * ") &&" .NL)
+rule CX2 = CX3 (":" ->("((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= " * ") &&" .NL)
 				CX3
 					->(" (inbuf.charCodeAt(__SCOPE__.__CURSOR__) <= " * ")  )" )
 				| .EMPTY ->("(inbuf.charCodeAt(__SCOPE__.__CURSOR__) == " * ") " ));
-CX3 = NUMBER | SQUOTE .LITCHR ;
+rule CX3 = NUMBER | SQUOTE .LITCHR ;
 
-.TOKENS
-
-PREFIX : $.ANY(32!9!13!10) ;
-ID     : PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK ;
-NUMBER : PREFIX .TOKEN $.ANY('-) DIGIT $DIGIT .DELTOK ;
-STRING : PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34) ;
-RAWSTRING : PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
-ALPHA  : .ANY('A:'Z!'a:'z!'_) ;
-DIGIT  : .ANY('0:'9) ;
-SQUOTE : PREFIX .ANY('') ;
-CMLINE : .TOKEN $.ANYBUT(10!13) .DELTOK ;
-
-.END
+token PREFIX = $.ANY(32!9!13!10);
+token ID     = PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK;
+token NUMBER = PREFIX .TOKEN $.ANY('-) DIGIT $DIGIT .DELTOK;
+token STRING = PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34);
+token RAWSTRING = PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+token ALPHA  = .ANY('A:'Z!'a:'z!'_);
+token DIGIT  = .ANY('0:'9);
+token SQUOTE = PREFIX .ANY('');
+token CMLINE = .TOKEN $.ANYBUT(10!13) .DELTOK;

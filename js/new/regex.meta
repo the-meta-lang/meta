@@ -1,0 +1,10 @@
+.GRAMMAR program
+
+.INCLUDE("../../types.ts")
+
+rule program = "[" CHAR_OR_RANGE "]";
+
+rule CHAR_OR_RANGE = .LITCHR ("-" ->("((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= " * ") &&" .NL)
+	.LITCHR
+		->(" (inbuf.charCodeAt(__SCOPE__.__CURSOR__) <= " * ")  )" )
+	| .EMPTY ->("(inbuf.charCodeAt(__SCOPE__.__CURSOR__) == " * ") " ));

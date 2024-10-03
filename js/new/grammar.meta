@@ -10,16 +10,15 @@
 .INCLUDE("../types.ts")
 
 // body of compiler definition 
-PROGRAM = $(COMMENT | CODE_RULE | INCLUDE_STATEMENT)
-					".SYNTAX" ID 
-          ->("// " * " compiler" .NL)
-          ->("import * as fs from " 34 "fs" 34 ";" .NL)
-          ->("import { join } from " 34 "path" 34 ";" .NL)
-          PREAMBLE
-          $(PR | INCLUDE_STATEMENT | CODE_RULE | COMMENT)
-					((".TOKENS"
-					$(TR | COMMENT)) | .EMPTY)
-          ".END";
+PROGRAM = $(
+	(ENTRY_RULE PREAMBLE)
+	| PARSE_RULE
+	| TOKEN_RULE
+	| INCLUDE_STATEMENT
+	| COMMENT
+);
+
+ENTRY_RULE = "entry" ID;
 
 // object definition preamble 
 PREAMBLE = ->("export function compile(input: string) {" .LM+ .NL)
@@ -40,13 +39,13 @@ PREAMBLE = ->("export function compile(input: string) {" .LM+ .NL)
 
 // parsing rule definition 
 // @example PARSE_RULE<argument, argument2>
-PR = ID ->("function rule" *) (("<" ->("(") PARSE_RULE_ARGUMENT_DEFINITION_LIST ">" ->(")")) | (.EMPTY ->("()"))) ->("{" .LM+ .NL)
+PARSE_RULE = "rule" ID ->("function rule" *) (("<" ->("(") PARSE_RULE_ARGUMENT_DEFINITION_LIST ">" ->(")")) | (.EMPTY ->("()"))) ->("{" .LM+ .NL)
      "=" EX1 ";"
      ->(.LM- "}" .NL .NL) ;
 
 // token rule definition 
-TR = ID ->("function rule"* "() {" .LM+ .NL)
-     ":" TX1 ";"
+TOKEN_RULE = "token" ID ->("function rule"* "() {" .LM+ .NL)
+     "=" TX1 ";"
      ->(.LM- "}" .NL .NL) ;
 
 // comment definition 
@@ -79,73 +78,6 @@ ARGUMENT = (RAWSTRING | NUMBER | ID) ->(*)
 	| "&" ID (OBJECT_ACCESSOR $(OBJECT_ACCESSOR) | .EMPTY ->(*));
 
 OBJECT_ACCESSOR = "::" (RAWSTRING | NUMBER | "&" ID) ->("[" * "]");
-
-// -------------------------- META Lisp Definitions ----------------------------
-
-CODE_RULE = LISP;
-
-LISPARG<output = false> = {
-	LISP_OBJECT_ACCESSOR
-	/ ((ID | NUMBER | RAWSTRING) ->(*))
-	/ LISP_OBJECT
-	/ LISP_ARRAY
-};
-
-LISP_KEY = {
-	LISP_OBJECT_ACCESSOR
-	/ ID ->(*)
-};
-
-LISP_OBJECT_ACCESSOR = ID "::" ID ->(**[-2] "." *);
-
-LISP_ARRAY = "'[" ->("[") $(LISPARG) "]";
-
-LISP_OBJECT = "'{" ->("{") $(ID ->(* ": ") ":" LISPARG ->(",")) "}" ->("};" .NL);
-
-LISP_LANGUAGE_CONSTRUCTS = 
-	("while" LISPARG ->("while (" * ") {" .LM+ .NL) LISPARG ->(.LM- "} ;" .NL))
-	| ("if" ->("if (") (LISP | LISPARG<true>) ->(") {" .LM+ .NL) LISP ->(.LM- "} ;" .NL))
-	| ("set" LISP_KEY ->(" = ") LISPARG<true> ->(";" .NL))
-	| ("defunc" ID ->("function " * "(") "[" (ID ->(*) | .EMPTY) $(ID ->(", " *)) "]" ->(") {" .LM+ .NL) $(LISP) ->("}" .LM- .NL))
-	| ("define" ((ID ->("let " * " = ")) | ("[" ID ->("let " * " = ") TYPE "]")) LISPARG<true> ->(";" .NL))
-	| ("->" $(->("out(") LISPARG<true> ->(")")) ->(";" .NL))
-	| ("throw" ->("throw new Error(") LISPARG<true> ->(");" .NL))
-	| LISP_OPERATOR_METHOD<"+=">
-	| LISP_OPERATOR_METHOD<"+">
-	| LISP_OPERATOR_METHOD<"-">
-	| LISP_OPERATOR_METHOD<"*">
-	| LISP_OPERATOR_METHOD<"/">
-	| LISP_OPERATOR_METHOD<">">
-	| LISP_OPERATOR_METHOD<"<">
-	| LISP_OPERATOR_METHOD<"==">
-	| LISP_OPERATOR_METHOD<"!=">
-	| LISP_OPERATOR_METHOD<"<=">
-	| LISP_OPERATOR_METHOD<">=">
-	| LISP_OPERATOR_METHOD<"&&">
-	| LISP_OPERATOR_METHOD<"||">
-	| LISP_FUNCTION_CALL;
-
-LISP_FUNCTION_CALL = ID ->(* "(") ((LISPARG ->(*)) | LISP | .EMPTY) $((LISPARG ->(", " *)) | LISP) ->(");" .NL);
-
-LISP_OPERATOR_METHOD<Operator> = 
-	*Operator ((LISPARG<true>) | LISP)
-	$(
-		// We need to reorder the arguments for the operator to work.
-		// We create a temporary buffer and copy the operator before the arguments
-		(@(LISPARG<true>) ~ &TempBuffer ->(*Operator @TempBuffer)) | LISP
-	// Since we capture the output into a temporary buffer before doing input validation, we need to dispose of
-	// the trailing buffer that persists.
-	) ->(.NL);
-
-LISP = "[" LISP_LANGUAGE_CONSTRUCTS "]"
-		 | "[" LISP "]"
-		 | COMMENT;
-
-// ---------------------------------- Types ------------------------------------
-
-// [+= counter 1]
-
-TYPE = ID;
 
 // --------------------------- Parsing expressions -----------------------------
 EX1 = EX2 $("|" ->("if ((!pflag) && (!eflag)) {" .LM+ .NL)
@@ -214,7 +146,6 @@ EX3 = ID
 		| "~" ("&" ID ->(* " = __STACK__.pop();" .NL))
 		| CAPTURE_SINGLE_NODE
 		| CAPTURE_LAST_NODES
-		| LISP
 		| COMMENT;
 
 // ------------------------- Parsing Rule Arguments ----------------------------

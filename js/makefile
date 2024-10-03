@@ -1,4 +1,4 @@
-.PHONY: aexp test-aexp meta gyro test-gyro
+.PHONY: aexp test-aexp meta gyro test-gyro new test-new
 aexp:
 	bun ./cli.ts compile -o ./aexp/out/aexp.ts -c 1 ./out/meta.ts ./aexp/grammar.meta;
 
@@ -11,6 +11,13 @@ gyro:
 
 test-gyro:
 	bun ./cli.ts compile -o /dev/null -c 1 ./gyro/out/gyro.ts ./gyro/input.txt;
+
+
+new:
+	bun ./cli.ts compile -o ./new/out/new.ts -c 1 ./out/meta.ts ./new/grammar.meta;
+
+test-new:
+	bun ./cli.ts compile ./new/out/new.ts ./new/input.meta;
 
 
 meta:
