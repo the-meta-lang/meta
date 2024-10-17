@@ -1,5 +1,3 @@
-
-// runtime variables
 let pflag = false;
 let tflag = false;
 let eflag = false;
@@ -16,8 +14,7 @@ let stos = -1;
 let parsetree = { type: "", children: [] };
 let __TREE__ = parsetree;
 let stack: any[] = [];
-
-export function initialize() {
+function initialize() {
 	// initialize for another compile
 	pflag = false;
 	tflag = false;
@@ -32,7 +29,6 @@ export function initialize() {
 	stos = -1;
 	stack = [];
 }
-
 function ctxpush(rulename: string) {
 	// push and initialize a new stackframe
 	var LM;
@@ -49,13 +45,11 @@ function ctxpush(rulename: string) {
 	// clear additional stackframe backtracking entries
 	bkclear();
 }
-
 function ctxpop() {
 	// pop and possibly deallocate old stackframe
 	stos--; // pop stackframe
 	stackframe = stos * stackframesize;
 }
-
 function out(s: string) {
 	// output string
 	var i;
@@ -69,12 +63,10 @@ function out(s: string) {
 	}
 	outbuf += s;
 }
-
 function eol() {
 	// output end of line
 	outbuf += "\n";
 }
-
 function test(s: string) {
 	// test for a string in the input
 	var i;
@@ -99,28 +91,24 @@ function test(s: string) {
 	// advance input if found
 	if (pflag) cursor += s.length;
 }
-
 function bkerr() {
 	// compilation error, provide error indication and context
 	eflag = true;
 	erule = stack[stackframe + 1];
 	einput = cursor;
 }
-
 function bkset() {
 	// set backtrack context on stack
 	stack[stackframe + 4] = cursor; // input position
 	stack[stackframe + 5] = outbuf.length; // output position
 	stack[stackframe + 6] = match; // current token
 }
-
 function bkclear() {
 	// clear backtrack context on stack
 	stack[stackframe + 4] = -1; // input position
 	stack[stackframe + 5] = -1; // output position
 	stack[stackframe + 6] = ""; // current token
 }
-
 function bkrestore() {
 	// restore context for backtracking
 	eflag = false;
@@ -128,3 +116,62 @@ function bkrestore() {
 	outbuf = outbuf.substring(0, stack[stackframe + 5]); // output position
 	match = stack[stackframe + 6]; // current token
 }
+
+type Match = {
+	ok: boolean;
+};
+
+interface TokenMatch extends Match {
+	value: string;
+}
+
+interface Context {
+	matches: Match[];
+	namedMatches: Record<string, Match[]>;
+	stdin: string;
+	stdout: string;
+	cursor: number;
+	tree: Tree;
+}
+
+interface Tree {
+	[key: string]: any | Tree;
+}
+
+type RuleFunction<T extends any[] = any[]> = (this: Context, ...args: T) => Match;
+
+type TokenFunction<T extends any[] = any[]> = (this: Context, ...args: T) => TokenMatch;
+
+
+export function compile(input: string) {
+  // initialize compiler variables
+  inbuf = input;
+  initialize() ;
+  // call the first rule
+  ctxpush("program") ;
+  let _ = $program.call({
+		cursor: 0,
+		matches: [],
+		namedMatches: {},
+		stdin: input,
+		stdout: "",
+		tree: {}
+	}) ;
+  ctxpop() ;
+  // special case handling of first rule failure
+  if ((!eflag) && (!_.ok)) {
+    eflag = true ;
+    erule = "program";};
+  return { outbuf, eflag, inp: cursor, erule, stack, inbuf, parsetree };
+}
+
+const $program: RuleFunction = function(this: Context){
+  let _: Match;
+  _ = test("awd");
+  if (pflag) {
+    while (!eflag) {
+      break }
+  } ;
+  return { ok: _.ok }
+}
+

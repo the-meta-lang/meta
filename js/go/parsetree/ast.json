@@ -1,0 +1,43 @@
+{
+	"type": "Program",
+	"body": [
+		{
+			"type": "RuleDeclaration",
+			"rule": "program",
+			"arguments": [],
+			"body": [
+				{
+					"type": "OrExpression",
+					"left": {
+						"type": "Identifier",
+						"name": "entry_rule"
+					},
+					"right": {
+						"type": "Identifier",
+						"name": "comment"
+					}
+				},
+				{
+					"type": "TreeDefinition",
+					"body": {
+						"type": "ObjectBlock",
+						"properties": [
+							{
+								"type": "Property",
+								"shorthand": false,
+								"key": {
+									"type": "Identifier",
+									"name": "comment"
+								},
+								"value": {
+									"type": "Identifier",
+									"name": "comment"
+								}
+							}
+						]
+					}
+				}
+			]
+		}
+	]
+}

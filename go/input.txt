@@ -1,0 +1,2 @@
+token awd = [a-z];
+rule program = awd;

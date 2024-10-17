@@ -1,0 +1,3 @@
+entry program;
+
+rule program = "This should match this string!";

@@ -45,7 +45,7 @@ export function formatError(
 
   // Calculate the column position relative to the truncated line
   const truncatedColumn = column - start;
-  const indicatorLine = '\t'.repeat(truncatedColumn) + '^'; // Position the caret
+  const indicatorLine = ' '.repeat(truncatedColumn) + '^'; // Position the caret
 
   // Print the error context with the line number and the indicator
   console.log(`Error occurred at line ${line + 1}, column ${column + 1}:\n`);

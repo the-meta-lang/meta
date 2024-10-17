@@ -7,77 +7,187 @@
 //  - eflag: Indicates if the last parse rule encountered an error.
 .SYNTAX PROGRAM
 
-.INCLUDE("../types.ts")
-
 // body of compiler definition 
 PROGRAM = $(
 	(ENTRY_RULE PREAMBLE)
 	| PARSE_RULE
 	| TOKEN_RULE
-	| INCLUDE_STATEMENT
+	| IGNORE_RULE
 	| COMMENT
 );
 
-ENTRY_RULE = "entry" ID;
+ENTRY_RULE = "entry" ID ";";
+
+IGNORE_RULE = "ignore" TX1 ";";
 
 // object definition preamble 
-PREAMBLE = ->("export function compile(input: string) {" .LM+ .NL)
-           ->("// initialize compiler variables" .NL)
-           ->("inbuf = input;" .NL)
-           ->("stdin = inbuf;" .NL)
-           ->("initialize() ;" .NL)
-           ->("// call the first rule" .NL)
-           ->("ctxpush(" 34 * 34 ") ;" .NL)
-           ->("rule" * "() ;" .NL)
-           ->("ctxpop() ;" .NL)
-           ->("// special case handling of first rule failure" .NL)
-           ->("if ((!eflag) && (!pflag)) {" .LM+ .NL)
-           ->("eflag = true ;" .NL)
-           ->("erule = " 34 * 34 ";};" .LM- .NL)
-           ->("return { outbuf, eflag, inp: __SCOPE__.__CURSOR__, erule, stack, inbuf, parsetree, __SCOPE__ };" .NL)
-           ->(.LM- "}" .NL .NL);
+PREAMBLE = 
+	->("let pflag = false;" .NL)
+	->("let tflag = false;" .NL)
+	->("let eflag = false;" .NL)
+	->("let inbuf = " 34 34 ";" .NL)
+	->("let outbuf = " 34 34 ";" .NL)
+	->("let match: string = " 34 34 ";" .NL)
+	->("let cursor: number = 0;" .NL)
+	->("let erule = " 34 34 ";" .NL)
+	->("let einput = 0;" .NL)
+	->("let labelcount = 0;" .NL)
+	->("let stackframesize = 6;" .NL)
+	->("let stackframe = 0;" .NL)
+	->("let stos = -1;" .NL)
+	->("let parsetree = { type: " 34 34 ", children: [] };" .NL)
+	->("let __TREE__ = parsetree;" .NL)
+	->("let stack: any[] = [];" .NL)
+
+	->("function initialize() {" .NL)
+	->("	// initialize for another compile" .NL)
+	->("	pflag = false;" .NL)
+	->("	tflag = false;" .NL)
+	->("	eflag = false;" .NL)
+	->("	outbuf = " 34 34 ";" .NL)
+	->("	erule = " 34 34 ";" .NL)
+	->("	einput = 0;" .NL)
+	->("	parsetree = { type: " 34 "Program" 34 ", children: [] };" .NL)
+	->("	__TREE__ = parsetree;" .NL)
+	->("	labelcount = 1;" .NL)
+	->("	stackframe = -1;" .NL)
+	->("	stos = -1;" .NL)
+	->("	stack = [];" .NL)
+	->("}" .NL)
+
+	->("function ctxpush(rulename: string) {" .NL)
+	->("	// push and initialize a new stackframe" .NL)
+	->("	var LM;" .NL)
+	->("	// new context inherits current context left margin" .NL)
+	->("	LM = 0;" .NL)
+	->("	if (stackframe >= 0) LM = stack[stackframe + 2];" .NL)
+	->("	stos++;" .NL)
+	->("	stackframe = stos * stackframesize;" .NL)
+	->("	// stackframe definition" .NL)
+	->("	stack[stackframe + 0] = 0; // generated label" .NL)
+	->("	stack[stackframe + 1] = rulename; // called rule name" .NL)
+	->("	stack[stackframe + 2] = LM; // left margin" .NL)
+	->("	stack[stackframe + 3] = cursor; // left margin" .NL)
+	->("	// clear additional stackframe backtracking entries" .NL)
+	->("	bkclear();" .NL)
+	->("}" .NL)
+
+	->("function ctxpop() {" .NL)
+	->("	// pop and possibly deallocate old stackframe" .NL)
+	->("	stos--; // pop stackframe" .NL)
+	->("	stackframe = stos * stackframesize;" .NL)
+	->("}" .NL)
+
+	->("function out(s: string) {" .NL)
+	->("	// output string" .NL)
+	->("	var i;" .NL)
+	->("	// if newline last output, add left margin before string" .NL)
+	->("	if (outbuf.charAt(outbuf.length - 1) == " 34 92 "n" 34 ") {" .NL)
+	->("		i = stack[stackframe + 2];" .NL)
+	->("		while (i > 0) {" .NL)
+	->("			outbuf += " 34 " " 34 ";" .NL)
+	->("			i--;" .NL)
+	->("		}" .NL)
+	->("	}" .NL)
+	->("	outbuf += s;" .NL)
+	->("}" .NL)
+
+	->("function eol() {" .NL)
+	->("	// output end of line" .NL)
+	->("	outbuf += " 34 92 "n" 34 ";" .NL)
+	->("}" .NL)
+
+	->("function test(s: string) {" .NL)
+	->("	// test for a string in the input" .NL)
+	->("	var i;" .NL)
+	->("	// delete whitespace" .NL)
+	->("	while (" .NL)
+	->("		inbuf.charAt(cursor) == " 34 " " 34 " ||" .NL)
+	->("		inbuf.charAt(cursor) == " 34 92 "n" 34 " ||" .NL)
+	->("		inbuf.charAt(cursor) == " 34 92 "r" 34 " ||" .NL)
+	->("		inbuf.charAt(cursor) == " 34 92 "t" 34 "" .NL)
+	->("	)" .NL)
+	->("		cursor++;" .NL)
+	->("	// test string case insensitive" .NL)
+	->("	pflag = true;" .NL)
+	->("	i = 0;" .NL)
+	->("	while (pflag && i < s.length && cursor + i < inbuf.length) {" .NL)
+	->("		pflag =" .NL)
+	->("			s.charAt(i).toUpperCase() ==" .NL)
+	->("			inbuf.charAt(cursor + i).toUpperCase();" .NL)
+	->("		i++;" .NL)
+	->("	}" .NL)
+	->("	pflag = pflag && i == s.length;" .NL)
+	->("	// advance input if found" .NL)
+	->("	if (pflag) cursor += s.length;" .NL)
+	->("}" .NL)
+
+	->("function bkerr() {" .NL)
+	->("	// compilation error, provide error indication and context" .NL)
+	->("	eflag = true;" .NL)
+	->("	erule = stack[stackframe + 1];" .NL)
+	->("	einput = cursor;" .NL)
+	->("}" .NL)
+
+	->("function bkset() {" .NL)
+	->("	// set backtrack context on stack" .NL)
+	->("	stack[stackframe + 4] = cursor; // input position" .NL)
+	->("	stack[stackframe + 5] = outbuf.length; // output position" .NL)
+	->("	stack[stackframe + 6] = match; // current token" .NL)
+	->("}" .NL)
+
+	->("function bkclear() {" .NL)
+	->("	// clear backtrack context on stack" .NL)
+	->("	stack[stackframe + 4] = -1; // input position" .NL)
+	->("	stack[stackframe + 5] = -1; // output position" .NL)
+	->("	stack[stackframe + 6] = " 34 34 "; // current token" .NL)
+	->("}" .NL)
+
+	->("function bkrestore() {" .NL)
+	->("	// restore context for backtracking" .NL)
+	->("	eflag = false;" .NL)
+	->("	cursor = stack[stackframe + 4]; // input position" .NL)
+	->("	outbuf = outbuf.substring(0, stack[stackframe + 5]); // output position" .NL)
+	->("	match = stack[stackframe + 6]; // current token" .NL)
+	->("}" .NL)
+
+	->("export function compile(input: string) {" .LM+ .NL)
+	->("// initialize compiler variables" .NL)
+	->("inbuf = input;" .NL)
+	->("initialize() ;" .NL)
+	->("// call the first rule" .NL)
+	->("ctxpush(" 34 * 34 ") ;" .NL)
+	->("let _ = $" * "() ;" .NL)
+	->("ctxpop() ;" .NL)
+	->("// special case handling of first rule failure" .NL)
+	->("if ((!eflag) && (!_.ok)) {" .LM+ .NL)
+	->("eflag = true ;" .NL)
+	->("erule = " 34 * 34 ";};" .LM- .NL)
+	->("return { outbuf, eflag, inp: cursor, erule, stack, inbuf, parsetree };" .NL)
+	->(.LM- "}" .NL .NL);
 
 // parsing rule definition 
 // @example PARSE_RULE<argument, argument2>
-PARSE_RULE = "rule" ID ->("function rule" *) (("<" ->("(") PARSE_RULE_ARGUMENT_DEFINITION_LIST ">" ->(")")) | (.EMPTY ->("()"))) ->("{" .LM+ .NL)
-     "=" EX1 ";"
-     ->(.LM- "}" .NL .NL) ;
+PARSE_RULE = "rule" ID ->("const $" * ": RuleFunction = function") (
+	("(" ->("(this: Context,") PARSE_RULE_ARGUMENT_DEFINITION_LIST ")" ->(")"))
+	| (.EMPTY ->("(this: Context)"))
+	)
+	->("{" .LM+ .NL)
+	->("let _: Match;" .NL)
+	"=" EX1 ";"
+	->("return { ok: _.ok }" .NL)
+	->(.LM- "}" .NL .NL) ;
 
 // token rule definition 
-TOKEN_RULE = "token" ID ->("function rule"* "() {" .LM+ .NL)
+TOKEN_RULE = "token" ID ->("function $"* "() {" .LM+ .NL)
+		->("let value: string = '';" .NL)
+		->("let ok: boolean = true;" .NL)
      "=" TX1 ";"
+		 ->("return { ok, value };" .NL)
      ->(.LM- "}" .NL .NL) ;
 
-// comment definition 
+// comment definition
 COMMENT = "//" CMLINE ->("//" * .NL) ;
-
-// -------------------------- Parse Tree Operators -----------------------------
-
-// Captures a node for the current parse tree
-// @example (ID :Identifier);
-// @example @(ID :Identifier) ~ &scope :Block<id = &scope["__NODES__"][0]>[0];
-CAPTURE_SINGLE_NODE = "::" ID
-	->("__NODE__ = { type: " 34 * 34 ", start: stack[stackframe + 3], end: __SCOPE__.__CURSOR__, raw: __SCOPE__.__MATCH__,")
-		(("<" FULL_ARGUMENT $("," FULL_ARGUMENT)) | .EMPTY)
-	->("};" .NL)
-	->("__STACK__.push(__NODE__);" .NL)
-	->("__NODES__.push(__NODE__);" .NL);
-
-CAPTURE_LAST_NODES = ":" ID
-	->("combineParseTreeChildren(" 34 * 34 "," "{")
-	(("<" FULL_ARGUMENT $("," FULL_ARGUMENT) ">") | .EMPTY)
-	->("},") "[" NUMBER "]" ->(* ");" .NL);
-
-FULL_ARGUMENT = ID ->(* ": ") "=" ARGUMENT ->(",");
-
-ARGUMENT = (RAWSTRING | NUMBER | ID) ->(*)
-	| ("**" "[" (NUMBER | ID) ->("__SCOPE__.__MATCHES__.at(" * ")") "]")
-	| "@" (ID
-		->(* ".toString()")
-		| .EMPTY ->("outbuf.toString()"))
-	| "&" ID (OBJECT_ACCESSOR $(OBJECT_ACCESSOR) | .EMPTY ->(*));
-
-OBJECT_ACCESSOR = "::" (RAWSTRING | NUMBER | "&" ID) ->("[" * "]");
 
 // --------------------------- Parsing expressions -----------------------------
 EX1 = EX2 $("|" ->("if ((!pflag) && (!eflag)) {" .LM+ .NL)
@@ -85,40 +195,25 @@ EX1 = EX2 $("|" ->("if ((!pflag) && (!eflag)) {" .LM+ .NL)
                 ->(.LM- "} ;" .NL) ) ;
 
 EX2 = (EX3 ->("if (pflag) {" .LM+ .NL)
-				| OUTPUT ->("if (true) {" .LM+ .NL)
-				| INCLUDE_STATEMENT
-				| DIRECT_OUTPUT)
+				| OUTPUT ->("if (true) {" .LM+ .NL))
 			->("while (!eflag) {" .LM+ .NL)
       $(EX3 ->("if (!pflag) bkerr();" .NL)
             ->("if (eflag) break ;" .NL)
-				| OUTPUT
-				| INCLUDE_STATEMENT
-				| DIRECT_OUTPUT)
+				| OUTPUT)
       ->("break }" .LM- .NL)
       ->(.LM- "} ;" .NL);
 
-INCLUDE_STATEMENT = ".INCLUDE" "(" STRING ")"
-	.DIRECT("out(fs.readFileSync(join(import.meta.dirname, " * "), 'utf-8'));");
-
-DIRECT_OUTPUT = ".DIRECT" "(" $(
-	STRING ->(*)
-	| NUMBER ->(*)
-	| ID ->(*)
-	| "*" ->("__SCOPE__.__MATCH__")
-) ")";
-
 EX3 = ID
 				->("ctxpush(" 34 * 34 ") ;" .NL)
-				->("rule" * "(") (("<" PARSE_RULE_ARGUMENT_LIST ">") | .EMPTY) ->(");" .NL)
+				->("_ = $" * "(") (("{" PARSE_RULE_ARGUMENT_LIST "}") | .EMPTY) ->(");" .NL)
 				->("ctxpop() ;" .NL)
-		| STRING    ->("test(" 34 * 34 ");" .NL)
+		| STRING    ->("_ = test(" 34 * 34 ");" .NL)
 		| "(" EX1 ")"                            
 		| ".EMPTY"  ->("pflag = true ;" .NL)
 		| ".LITCHR"
-				->("__SCOPE__.__MATCH__ = inbuf.charCodeAt(__SCOPE__.__CURSOR__) ;" .NL)
-				->("__SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);" .NL)
-				->("__SCOPE__.__CURSOR__++ ;" .NL)
-		| ".PASS"   ->("__SCOPE__.__CURSOR__ = 0 ;" .NL)
+				->("match = inbuf.charCodeAt(cursor) ;" .NL)
+				->("cursor++ ;" .NL)
+		| ".PASS"   ->("cursor = 0 ;" .NL)
 		| "$" ->("pflag = true ;" .NL)
           ->("while (pflag && !eflag) {" .LM+ .NL)
           EX3 
@@ -131,21 +226,6 @@ EX3 = ID
               ->(.LM- "} ;" .NL))
       "}" ->("if (eflag) bkrestore() ;" .NL)
           ->("bkclear() ;" .NL)
-		| "*" ID ->("test(" * ");" .NL)
-		| "?" ID ->("eflag = " * " ? false : true;" .NL)
-		// Capture all following matches into a different buffer
-		// If an ID is given immediately after, a named buffer is created
-		| "@" ->("outbuf = new WriteBuffer();" .NL) "(" EX1 ")"
-			// Store the buffer into the stack where it can be collected later.
-			->("__STACK__.push(outbuf);" .NL)
-			// Revert the output buffer back to the standard buffer
-			->("outbuf = stdout;" .NL)
-			
-		// Collect the last value on the stack
-		// @example @(ID) ~ &id
-		| "~" ("&" ID ->(* " = __STACK__.pop();" .NL))
-		| CAPTURE_SINGLE_NODE
-		| CAPTURE_LAST_NODES
 		| COMMENT;
 
 // ------------------------- Parsing Rule Arguments ----------------------------
@@ -161,15 +241,9 @@ PARSE_RULE_ARGUMENT_DEFINITION_LIST = PARSE_RULE_ARGUMENT_DEFINITION $(PARSE_RUL
 // --------------------------- Output expressions ------------------------------
 OUTPUT = "->" "(" $OUT1 ")" ;
 
-OUT1 = "**" "[" (NUMBER | ID) ->("out(__SCOPE__.__MATCHES__.at(" * "));" .NL) "]"
-			| "*" ((ID ->("out(" * ");" .NL)) | (.EMPTY ->("out(__SCOPE__.__MATCH__) ;" .NL)))
+OUT1 = "*" ((ID ->("out(" * ");" .NL)) | (.EMPTY ->("out(match) ;" .NL)))
 			| STRING  ->("out(" 34 * 34 ") ;" .NL)
 			| NUMBER  ->("out(String.fromCharCode(" * ")) ;" .NL)
-			| "#"
-					->("if (stack[stackframe + 0] == 0) {" .LM+ .NL) 
-					->("stack[stackframe + 0] = labelcount ;" .NL)
-					->("labelcount++ ; } ;" .LM- .NL) 
-					->("out(stack[stackframe + 0]) ;" .NL)
 			| ".NL"
 				->("eol() ;" .NL)
 			| ".TB"
@@ -177,10 +251,7 @@ OUT1 = "**" "[" (NUMBER | ID) ->("out(__SCOPE__.__MATCHES__.at(" * "));" .NL) "]
 			| ".LM+"
 				->("stack[stackframe + 2] += 2 ;" .NL) 
 			| ".LM-"
-				->("stack[stackframe + 2] -= 2 ;" .NL)
-			| "@" (ID
-					->("outbuf.write(" * ".toString());" .NL)
-					| .EMPTY ->("outbuf.write(outbuf.toString());" .NL));
+				->("stack[stackframe + 2] -= 2 ;" .NL);
 
 // ---------------------------- Token expressions ------------------------------
 TX1 = TX2 $("/" ->("if (!pflag) {" .LM+ .NL) TX2 ->(.LM- "} ;" .NL) ) ;
@@ -190,10 +261,9 @@ TX2 = TX3 ->("if (pflag) {" .LM+ .NL)
       ->(.LM- "} ;" .NL) ;
 
 TX3 = (".TOKEN"  ->("tflag = true ; " .NL)
-			->("__SCOPE__.__MATCH__ = " 34 34 " ;" .NL)
+			->("match = " 34 34 " ;" .NL)
 		| ".DELTOK"
 			->("tflag = false ;" .NL)
-			->("__SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);" .NL)
 		| "$" ->("pflag = true ;" .NL)
 			->("while (pflag) {" .LM+ .NL)
 				TX3 
@@ -201,15 +271,15 @@ TX3 = (".TOKEN"  ->("tflag = true ; " .NL)
 			->("pflag = true ;" .NL)
 		| ".ANYBUT(" CX1 ")" ->("pflag = !pflag ;" .NL) 
 			->("if (pflag) {" .LM+ .NL)
-			->("if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;" .NL)
-			->("__SCOPE__.__CURSOR__++ } ;" .LM- .NL)
+			->("if (tflag) match += inbuf.charAt(cursor) ;" .NL)
+			->("cursor++ } ;" .LM- .NL)
 		| ".ANY(" CX1 ")" 
 			->("if (pflag) {" .LM+ .NL)
-			->("if (tflag) __SCOPE__.__MATCH__ += inbuf.charAt(__SCOPE__.__CURSOR__) ;" .NL)
-			->("__SCOPE__.__CURSOR__++ } ;" .LM- .NL)
+			->("if (tflag) match += inbuf.charAt(cursor) ;" .NL)
+			->("cursor++ } ;" .LM- .NL)
 		| ID                 
 			->("ctxpush(" 34 * 34 ") ;" .NL)
-			->("rule" * "() ;" .NL)
+			->("$" * "() ;" .NL)
 			->("ctxpop() ;" .NL)
 			->("if (eflag) return ;" .NL)
 		| "(" TX1 ")";
@@ -218,10 +288,10 @@ TX3 = (".TOKEN"  ->("tflag = true ; " .NL)
 CX1 = ->("pflag = " .LM+ .NL)
       CX2 $("!" ->(" ||" .NL) CX2)
       ->(.LM- " ;" .NL) ;
-CX2 = CX3 (":" ->("((inbuf.charCodeAt(__SCOPE__.__CURSOR__) >= " * ") &&" .NL)
+CX2 = CX3 (":" ->("((inbuf.charCodeAt(cursor) >= " * ") &&" .NL)
 				CX3
-					->(" (inbuf.charCodeAt(__SCOPE__.__CURSOR__) <= " * ")  )" )
-				| .EMPTY ->("(inbuf.charCodeAt(__SCOPE__.__CURSOR__) == " * ") " ));
+					->(" (inbuf.charCodeAt(cursor) <= " * ")  )" )
+				| .EMPTY ->("(inbuf.charCodeAt(cursor) == " * ") " ));
 CX3 = NUMBER | SQUOTE .LITCHR ;
 
 .TOKENS

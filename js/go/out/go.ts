@@ -1,13 +1,3 @@
-//  @author Letsmoe
-//  @email moritz.utcke@gmx.de
-//  @create date 2024-09-25 16:14:01
-//  @modify date 2024-09-25 16:14:01
-//  @desc The syntax definition of the META Compiler writing language.
-//  - pflag: Indicates if the last parse rule succeeded.
-//  - eflag: Indicates if the last parse rule encountered an error.
-// PROGRAM compiler
-import * as fs from "fs";
-import { join } from "path";
 import { Writable } from "stream";
 
 interface Node extends Location {
@@ -255,7 +245,16 @@ function bkrestore() {
 	outbuf.buffer = outbuf.buffer.substring(0, stack[stackframe + 5]); // output position
 	__SCOPE__.__MATCH__ = stack[stackframe + 6]; // current token
 	__SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
-}
+}//  @author Letsmoe
+//  @email moritz.utcke@gmx.de
+//  @create date 2024-09-25 16:14:01
+//  @modify date 2024-09-25 16:14:01
+//  @desc The syntax definition of the META Compiler writing language.
+//  - pflag: Indicates if the last parse rule succeeded.
+//  - eflag: Indicates if the last parse rule encountered an error.
+// PROGRAM compiler
+import * as fs from "fs";
+import { join } from "path";
 export function compile(input: string) {
   // initialize compiler variables
   inbuf = input;
@@ -280,15 +279,6 @@ function rulePROGRAM(){
     ctxpush("ENTRY_RULE") ;
     ruleENTRY_RULE();
     ctxpop() ;
-    if (pflag) {
-      while (!eflag) {
-        ctxpush("PREAMBLE") ;
-        rulePREAMBLE();
-        ctxpop() ;
-        if (!pflag) bkerr();
-        if (eflag) break ;
-        break }
-    } ;
     if (pflag) {
       while (!eflag) {
         break }
@@ -349,6 +339,62 @@ function ruleENTRY_RULE(){
       test(";");
       if (!pflag) bkerr();
       if (eflag) break ;
+      out("func compile(input string) Match {") ;
+      eol() ;
+      out("var ok bool") ;
+      eol() ;
+      out("var match Match") ;
+      eol() ;
+      out("var program []Match") ;
+      eol() ;
+      out("ctx := Context{") ;
+      eol() ;
+      out("stdin:  input,") ;
+      eol() ;
+      out("stdout: os.Stdout,") ;
+      eol() ;
+      out("stderr: os.Stderr,") ;
+      eol() ;
+      out("cursor: 0,") ;
+      eol() ;
+      out("}") ;
+      eol() ;
+      out("ok, match = _") ;
+      out(__SCOPE__.__MATCH__) ;
+      out("(&ctx)") ;
+      eol() ;
+      out("program = append(program, match)") ;
+      eol() ;
+      out("if !ok {") ;
+      eol() ;
+      out("error(&ctx, ") ;
+      out(String.fromCharCode(34)) ;
+      out("Failed to parse program") ;
+      out(String.fromCharCode(34)) ;
+      out(")") ;
+      eol() ;
+      out("}") ;
+      eol() ;
+      out("return match") ;
+      eol() ;
+      out("}") ;
+      eol() ;
+      out("func main() {") ;
+      eol() ;
+      out("buffer := make([]byte, 1024)") ;
+      eol() ;
+      out("n, _ := os.Open(") ;
+      out(String.fromCharCode(34)) ;
+      out("input.txt") ;
+      out(String.fromCharCode(34)) ;
+      out(")") ;
+      eol() ;
+      out("n.Read(buffer)") ;
+      eol() ;
+      out("compile(string(buffer))") ;
+      eol() ;
+      out("}") ;
+      eol() ;
       break }
   } ;
 }
@@ -369,354 +415,6 @@ function ruleIGNORE_RULE(){
   } ;
 }
 
-// object definition preamble 
-function rulePREAMBLE(){
-  out("let pflag = false;") ;
-  eol() ;
-  if (true) {
-    while (!eflag) {
-      out("let tflag = false;") ;
-      eol() ;
-      out("let eflag = false;") ;
-      eol() ;
-      out("let inbuf = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("let outbuf = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("let match: string = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("let cursor: number = 0;") ;
-      eol() ;
-      out("let erule = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("let einput = 0;") ;
-      eol() ;
-      out("let labelcount = 0;") ;
-      eol() ;
-      out("let stackframesize = 6;") ;
-      eol() ;
-      out("let stackframe = 0;") ;
-      eol() ;
-      out("let stos = -1;") ;
-      eol() ;
-      out("let parsetree = { type: ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(", children: [] };") ;
-      eol() ;
-      out("let __TREE__ = parsetree;") ;
-      eol() ;
-      out("let stack: any[] = [];") ;
-      eol() ;
-      out("function initialize() {") ;
-      eol() ;
-      out("	// initialize for another compile") ;
-      eol() ;
-      out("	pflag = false;") ;
-      eol() ;
-      out("	tflag = false;") ;
-      eol() ;
-      out("	eflag = false;") ;
-      eol() ;
-      out("	outbuf = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("	erule = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("	einput = 0;") ;
-      eol() ;
-      out("	parsetree = { type: ") ;
-      out(String.fromCharCode(34)) ;
-      out("Program") ;
-      out(String.fromCharCode(34)) ;
-      out(", children: [] };") ;
-      eol() ;
-      out("	__TREE__ = parsetree;") ;
-      eol() ;
-      out("	labelcount = 1;") ;
-      eol() ;
-      out("	stackframe = -1;") ;
-      eol() ;
-      out("	stos = -1;") ;
-      eol() ;
-      out("	stack = [];") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function ctxpush(rulename: string) {") ;
-      eol() ;
-      out("	// push and initialize a new stackframe") ;
-      eol() ;
-      out("	var LM;") ;
-      eol() ;
-      out("	// new context inherits current context left margin") ;
-      eol() ;
-      out("	LM = 0;") ;
-      eol() ;
-      out("	if (stackframe >= 0) LM = stack[stackframe + 2];") ;
-      eol() ;
-      out("	stos++;") ;
-      eol() ;
-      out("	stackframe = stos * stackframesize;") ;
-      eol() ;
-      out("	// stackframe definition") ;
-      eol() ;
-      out("	stack[stackframe + 0] = 0; // generated label") ;
-      eol() ;
-      out("	stack[stackframe + 1] = rulename; // called rule name") ;
-      eol() ;
-      out("	stack[stackframe + 2] = LM; // left margin") ;
-      eol() ;
-      out("	stack[stackframe + 3] = cursor; // left margin") ;
-      eol() ;
-      out("	// clear additional stackframe backtracking entries") ;
-      eol() ;
-      out("	bkclear();") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function ctxpop() {") ;
-      eol() ;
-      out("	// pop and possibly deallocate old stackframe") ;
-      eol() ;
-      out("	stos--; // pop stackframe") ;
-      eol() ;
-      out("	stackframe = stos * stackframesize;") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function out(s: string) {") ;
-      eol() ;
-      out("	// output string") ;
-      eol() ;
-      out("	var i;") ;
-      eol() ;
-      out("	// if newline last output, add left margin before string") ;
-      eol() ;
-      out("	if (outbuf.charAt(outbuf.length - 1) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("n") ;
-      out(String.fromCharCode(34)) ;
-      out(") {") ;
-      eol() ;
-      out("		i = stack[stackframe + 2];") ;
-      eol() ;
-      out("		while (i > 0) {") ;
-      eol() ;
-      out("			outbuf += ") ;
-      out(String.fromCharCode(34)) ;
-      out(" ") ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("			i--;") ;
-      eol() ;
-      out("		}") ;
-      eol() ;
-      out("	}") ;
-      eol() ;
-      out("	outbuf += s;") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function eol() {") ;
-      eol() ;
-      out("	// output end of line") ;
-      eol() ;
-      out("	outbuf += ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("n") ;
-      out(String.fromCharCode(34)) ;
-      out(";") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function test(s: string) {") ;
-      eol() ;
-      out("	// test for a string in the input") ;
-      eol() ;
-      out("	var i;") ;
-      eol() ;
-      out("	// delete whitespace") ;
-      eol() ;
-      out("	while (") ;
-      eol() ;
-      out("		inbuf.charAt(cursor) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(" ") ;
-      out(String.fromCharCode(34)) ;
-      out(" ||") ;
-      eol() ;
-      out("		inbuf.charAt(cursor) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("n") ;
-      out(String.fromCharCode(34)) ;
-      out(" ||") ;
-      eol() ;
-      out("		inbuf.charAt(cursor) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("r") ;
-      out(String.fromCharCode(34)) ;
-      out(" ||") ;
-      eol() ;
-      out("		inbuf.charAt(cursor) == ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(92)) ;
-      out("t") ;
-      out(String.fromCharCode(34)) ;
-      out("") ;
-      eol() ;
-      out("	)") ;
-      eol() ;
-      out("		cursor++;") ;
-      eol() ;
-      out("	// test string case insensitive") ;
-      eol() ;
-      out("	pflag = true;") ;
-      eol() ;
-      out("	i = 0;") ;
-      eol() ;
-      out("	while (pflag && i < s.length && cursor + i < inbuf.length) {") ;
-      eol() ;
-      out("		pflag =") ;
-      eol() ;
-      out("			s.charAt(i).toUpperCase() ==") ;
-      eol() ;
-      out("			inbuf.charAt(cursor + i).toUpperCase();") ;
-      eol() ;
-      out("		i++;") ;
-      eol() ;
-      out("	}") ;
-      eol() ;
-      out("	pflag = pflag && i == s.length;") ;
-      eol() ;
-      out("	// advance input if found") ;
-      eol() ;
-      out("	if (pflag) cursor += s.length;") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function bkerr() {") ;
-      eol() ;
-      out("	// compilation error, provide error indication and context") ;
-      eol() ;
-      out("	eflag = true;") ;
-      eol() ;
-      out("	erule = stack[stackframe + 1];") ;
-      eol() ;
-      out("	einput = cursor;") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function bkset() {") ;
-      eol() ;
-      out("	// set backtrack context on stack") ;
-      eol() ;
-      out("	stack[stackframe + 4] = cursor; // input position") ;
-      eol() ;
-      out("	stack[stackframe + 5] = outbuf.length; // output position") ;
-      eol() ;
-      out("	stack[stackframe + 6] = match; // current token") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function bkclear() {") ;
-      eol() ;
-      out("	// clear backtrack context on stack") ;
-      eol() ;
-      out("	stack[stackframe + 4] = -1; // input position") ;
-      eol() ;
-      out("	stack[stackframe + 5] = -1; // output position") ;
-      eol() ;
-      out("	stack[stackframe + 6] = ") ;
-      out(String.fromCharCode(34)) ;
-      out(String.fromCharCode(34)) ;
-      out("; // current token") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("function bkrestore() {") ;
-      eol() ;
-      out("	// restore context for backtracking") ;
-      eol() ;
-      out("	eflag = false;") ;
-      eol() ;
-      out("	cursor = stack[stackframe + 4]; // input position") ;
-      eol() ;
-      out("	outbuf = outbuf.substring(0, stack[stackframe + 5]); // output position") ;
-      eol() ;
-      out("	match = stack[stackframe + 6]; // current token") ;
-      eol() ;
-      out("}") ;
-      eol() ;
-      out("export function compile(input: string) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("// initialize compiler variables") ;
-      eol() ;
-      out("inbuf = input;") ;
-      eol() ;
-      out("initialize() ;") ;
-      eol() ;
-      out("// call the first rule") ;
-      eol() ;
-      out("ctxpush(") ;
-      out(String.fromCharCode(34)) ;
-      out(__SCOPE__.__MATCH__) ;
-      out(String.fromCharCode(34)) ;
-      out(") ;") ;
-      eol() ;
-      out("let _ = $") ;
-      out(__SCOPE__.__MATCH__) ;
-      out("() ;") ;
-      eol() ;
-      out("ctxpop() ;") ;
-      eol() ;
-      out("// special case handling of first rule failure") ;
-      eol() ;
-      out("if ((!eflag) && (!_.ok)) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
-      out("eflag = true ;") ;
-      eol() ;
-      out("erule = ") ;
-      out(String.fromCharCode(34)) ;
-      out(__SCOPE__.__MATCH__) ;
-      out(String.fromCharCode(34)) ;
-      out(";};") ;
-      stack[stackframe + 2] -= 2 ;
-      eol() ;
-      out("return { outbuf, eflag, inp: cursor, erule, stack, inbuf, parsetree };") ;
-      eol() ;
-      stack[stackframe + 2] -= 2 ;
-      out("}") ;
-      eol() ;
-      eol() ;
-      break }
-  } ;
-}
-
 // parsing rule definition 
 // @example PARSE_RULE<argument, argument2>
 function rulePARSE_RULE(){
@@ -728,13 +426,12 @@ function rulePARSE_RULE(){
       ctxpop() ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      out("const $") ;
+      out("func _") ;
       out(__SCOPE__.__MATCH__) ;
-      out(": RuleFunction = function") ;
       test("(");
       if (pflag) {
         while (!eflag) {
-          out("(this: Context,") ;
+          out("(ctx *Context,") ;
           ctxpush("PARSE_RULE_ARGUMENT_DEFINITION_LIST") ;
           rulePARSE_RULE_ARGUMENT_DEFINITION_LIST();
           ctxpop() ;
@@ -743,7 +440,7 @@ function rulePARSE_RULE(){
           test(")");
           if (!pflag) bkerr();
           if (eflag) break ;
-          out(")") ;
+          out(") (bool, Match)") ;
           break }
       } ;
       if (pflag) {
@@ -754,7 +451,7 @@ function rulePARSE_RULE(){
         pflag = true ;
         if (pflag) {
           while (!eflag) {
-            out("(this: Context)") ;
+            out("(ctx *Context) (bool, Match)") ;
             break }
         } ;
         if (pflag) {
@@ -767,7 +464,11 @@ function rulePARSE_RULE(){
       out("{") ;
       stack[stackframe + 2] += 2 ;
       eol() ;
-      out("let _: Match;") ;
+      out("var match Match") ;
+      eol() ;
+      out("var ok bool") ;
+      eol() ;
+      out("var matches []Match") ;
       eol() ;
       test("=");
       if (!pflag) bkerr();
@@ -780,7 +481,7 @@ function rulePARSE_RULE(){
       test(";");
       if (!pflag) bkerr();
       if (eflag) break ;
-      out("return { ok: _.ok }") ;
+      out("return ok, match") ;
       eol() ;
       stack[stackframe + 2] -= 2 ;
       out("}") ;
@@ -800,14 +501,14 @@ function ruleTOKEN_RULE(){
       ctxpop() ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      out("function $") ;
+      out("func _") ;
       out(__SCOPE__.__MATCH__) ;
-      out("() {") ;
+      out("(ctx *Context) (bool, Match) {") ;
       stack[stackframe + 2] += 2 ;
       eol() ;
-      out("let value: string = '';") ;
+      out("var match Match") ;
       eol() ;
-      out("let ok: boolean = true;") ;
+      out("var ok bool") ;
       eol() ;
       test("=");
       if (!pflag) bkerr();
@@ -820,7 +521,7 @@ function ruleTOKEN_RULE(){
       test(";");
       if (!pflag) bkerr();
       if (eflag) break ;
-      out("return { ok, value };") ;
+      out("return ok, match") ;
       eol() ;
       stack[stackframe + 2] -= 2 ;
       out("}") ;
@@ -859,7 +560,7 @@ function ruleEX1(){
         test("|");
         if (pflag) {
           while (!eflag) {
-            out("if ((!pflag) && (!eflag)) {") ;
+            out("if !ok {") ;
             stack[stackframe + 2] += 2 ;
             eol() ;
             ctxpush("EX2") ;
@@ -886,7 +587,7 @@ function ruleEX2(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      out("if (pflag) {") ;
+      out("if ok {") ;
       stack[stackframe + 2] += 2 ;
       eol() ;
       break }
@@ -897,7 +598,7 @@ function ruleEX2(){
     ctxpop() ;
     if (pflag) {
       while (!eflag) {
-        out("if (true) {") ;
+        out("if true {") ;
         stack[stackframe + 2] += 2 ;
         eol() ;
         break }
@@ -905,7 +606,7 @@ function ruleEX2(){
   } ;
   if (pflag) {
     while (!eflag) {
-      out("while (!eflag) {") ;
+      out("for !ctx.eflag {") ;
       stack[stackframe + 2] += 2 ;
       eol() ;
       pflag = true ;
@@ -915,9 +616,9 @@ function ruleEX2(){
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
-            out("if (!pflag) bkerr();") ;
+            out("if !ok {bkerr()}") ;
             eol() ;
-            out("if (eflag) break ;") ;
+            out("if ctx.eflag {break}") ;
             eol() ;
             break }
         } ;
@@ -938,7 +639,7 @@ function ruleEX2(){
       stack[stackframe + 2] -= 2 ;
       eol() ;
       stack[stackframe + 2] -= 2 ;
-      out("} ;") ;
+      out("}") ;
       eol() ;
       break }
   } ;
@@ -950,15 +651,9 @@ function ruleEX3(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      out("ctxpush(") ;
-      out(String.fromCharCode(34)) ;
+      out("ok, match = _") ;
       out(__SCOPE__.__MATCH__) ;
-      out(String.fromCharCode(34)) ;
-      out(") ;") ;
-      eol() ;
-      out("_ = $") ;
-      out(__SCOPE__.__MATCH__) ;
-      out("(") ;
+      out("(ctx,") ;
       test("{");
       if (pflag) {
         while (!eflag) {
@@ -987,7 +682,7 @@ function ruleEX3(){
       if (eflag) break ;
       out(");") ;
       eol() ;
-      out("ctxpop() ;") ;
+      out("matches = append(matches, match)") ;
       eol() ;
       break }
   } ;
@@ -997,11 +692,13 @@ function ruleEX3(){
     ctxpop() ;
     if (pflag) {
       while (!eflag) {
-        out("_ = test(") ;
+        out("ok, match = test(ctx, ") ;
         out(String.fromCharCode(34)) ;
         out(__SCOPE__.__MATCH__) ;
         out(String.fromCharCode(34)) ;
         out(");") ;
+        eol() ;
+        out("matches = append(matches, match)") ;
         eol() ;
         break }
     } ;
@@ -1025,7 +722,7 @@ function ruleEX3(){
     test(".EMPTY");
     if (pflag) {
       while (!eflag) {
-        out("pflag = true ;") ;
+        out("ok = true") ;
         eol() ;
         break }
     } ;
@@ -1034,7 +731,7 @@ function ruleEX3(){
     test(".LITCHR");
     if (pflag) {
       while (!eflag) {
-        out("match = inbuf.charCodeAt(cursor) ;") ;
+        out("match = ctx.stdin.charCodeAt(cursor) ;") ;
         eol() ;
         out("cursor++ ;") ;
         eol() ;
@@ -1045,7 +742,7 @@ function ruleEX3(){
     test(".PASS");
     if (pflag) {
       while (!eflag) {
-        out("cursor = 0 ;") ;
+        out("ctx.cursor = 0") ;
         eol() ;
         break }
     } ;
@@ -1054,9 +751,9 @@ function ruleEX3(){
     test("$");
     if (pflag) {
       while (!eflag) {
-        out("pflag = true ;") ;
+        out("ok = true") ;
         eol() ;
-        out("while (pflag && !eflag) {") ;
+        out("for ok && !ctx.eflag {") ;
         stack[stackframe + 2] += 2 ;
         eol() ;
         ctxpush("EX3") ;
@@ -1065,9 +762,9 @@ function ruleEX3(){
         if (!pflag) bkerr();
         if (eflag) break ;
         stack[stackframe + 2] -= 2 ;
-        out("} ;") ;
+        out("}") ;
         eol() ;
-        out("pflag = !eflag ;") ;
+        out("ok = !ctx.eflag ;") ;
         eol() ;
         break }
     } ;
@@ -1091,7 +788,7 @@ function ruleEX3(){
               out("if (!pflag) {") ;
               stack[stackframe + 2] += 2 ;
               eol() ;
-              out("if (eflag) bkrestore() ;") ;
+              out("if (ctx.eflag) bkrestore() ;") ;
               eol() ;
               ctxpush("EX1") ;
               ruleEX1();
@@ -1110,7 +807,7 @@ function ruleEX3(){
         test("}");
         if (!pflag) bkerr();
         if (eflag) break ;
-        out("if (eflag) bkrestore() ;") ;
+        out("if (ctx.eflag) bkrestore() ;") ;
         eol() ;
         out("bkclear() ;") ;
         eol() ;
@@ -1301,7 +998,7 @@ function ruleOUTPUT(){
   test("->");
   if (pflag) {
     while (!eflag) {
-      test("(");
+      test("{");
       if (!pflag) bkerr();
       if (eflag) break ;
       pflag = true ;
@@ -1313,7 +1010,7 @@ function ruleOUTPUT(){
       pflag = !eflag ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      test(")");
+      test("}");
       if (!pflag) bkerr();
       if (eflag) break ;
       break }
@@ -1321,34 +1018,26 @@ function ruleOUTPUT(){
 }
 
 function ruleOUT1(){
-  test("*");
+  test("$");
   if (pflag) {
     while (!eflag) {
-      ctxpush("ID") ;
-      ruleID();
+      ctxpush("NUMBER") ;
+      ruleNUMBER();
       ctxpop() ;
       if (pflag) {
         while (!eflag) {
-          out("out(") ;
+          out("fmt.Print(matches[") ;
           out(__SCOPE__.__MATCH__) ;
-          out(");") ;
+          out("].Value)") ;
           eol() ;
-          break }
-      } ;
-      if (pflag) {
-        while (!eflag) {
           break }
       } ;
       if ((!pflag) && (!eflag)) {
         pflag = true ;
         if (pflag) {
           while (!eflag) {
-            out("out(match) ;") ;
+            out("fmt.Print(matches[len(matches) - 1].Value)") ;
             eol() ;
-            break }
-        } ;
-        if (pflag) {
-          while (!eflag) {
             break }
         } ;
       } ;
@@ -1357,12 +1046,25 @@ function ruleOUT1(){
       break }
   } ;
   if ((!pflag) && (!eflag)) {
+    ctxpush("ID") ;
+    ruleID();
+    ctxpop() ;
+    if (pflag) {
+      while (!eflag) {
+        out("fmt.Print(") ;
+        out(__SCOPE__.__MATCH__) ;
+        out(");") ;
+        eol() ;
+        break }
+    } ;
+  } ;
+  if ((!pflag) && (!eflag)) {
     ctxpush("STRING") ;
     ruleSTRING();
     ctxpop() ;
     if (pflag) {
       while (!eflag) {
-        out("out(") ;
+        out("fmt.Print(") ;
         out(String.fromCharCode(34)) ;
         out(__SCOPE__.__MATCH__) ;
         out(String.fromCharCode(34)) ;
@@ -1377,9 +1079,9 @@ function ruleOUT1(){
     ctxpop() ;
     if (pflag) {
       while (!eflag) {
-        out("out(String.fromCharCode(") ;
+        out("fmt.Print(string(rune(") ;
         out(__SCOPE__.__MATCH__) ;
-        out(")) ;") ;
+        out("))) ;") ;
         eol() ;
         break }
     } ;
@@ -1388,7 +1090,7 @@ function ruleOUT1(){
     test(".NL");
     if (pflag) {
       while (!eflag) {
-        out("eol() ;") ;
+        out("fmt.Print('\n') ;") ;
         eol() ;
         break }
     } ;
@@ -1397,30 +1099,7 @@ function ruleOUT1(){
     test(".TB");
     if (pflag) {
       while (!eflag) {
-        out("out(") ;
-        out(String.fromCharCode(34)) ;
-        out(String.fromCharCode(92)) ;
-        out("t") ;
-        out(String.fromCharCode(34)) ;
-        out(") ;") ;
-        eol() ;
-        break }
-    } ;
-  } ;
-  if ((!pflag) && (!eflag)) {
-    test(".LM+");
-    if (pflag) {
-      while (!eflag) {
-        out("stack[stackframe + 2] += 2 ;") ;
-        eol() ;
-        break }
-    } ;
-  } ;
-  if ((!pflag) && (!eflag)) {
-    test(".LM-");
-    if (pflag) {
-      while (!eflag) {
-        out("stack[stackframe + 2] -= 2 ;") ;
+        out("fmt.Print('\t') ;") ;
         eol() ;
         break }
     } ;
@@ -1436,7 +1115,7 @@ function ruleTX1(){
     while (!eflag) {
       pflag = true ;
       while (pflag && !eflag) {
-        test("/");
+        test("|");
         if (pflag) {
           while (!eflag) {
             out("if (!pflag) {") ;
@@ -1466,9 +1145,6 @@ function ruleTX2(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      out("if (pflag) {") ;
-      stack[stackframe + 2] += 2 ;
-      eol() ;
       pflag = true ;
       while (pflag && !eflag) {
         ctxpush("TX3") ;
@@ -1476,17 +1152,12 @@ function ruleTX2(){
         ctxpop() ;
         if (pflag) {
           while (!eflag) {
-            out("if (!pflag) return;") ;
-            eol() ;
             break }
         } ;
       } ;
       pflag = !eflag ;
       if (!pflag) bkerr();
       if (eflag) break ;
-      stack[stackframe + 2] -= 2 ;
-      out("} ;") ;
-      eol() ;
       break }
   } ;
 }
@@ -1556,16 +1227,16 @@ function ruleTX3(){
         out("if (pflag) {") ;
         stack[stackframe + 2] += 2 ;
         eol() ;
-        out("if (tflag) match += inbuf.charAt(cursor) ;") ;
+        out("match.Value += string(ctx.stdin[ctx.cursor])") ;
         eol() ;
-        out("cursor++ } ;") ;
+        out("ctx.cursor++ } ;") ;
         stack[stackframe + 2] -= 2 ;
         eol() ;
         break }
     } ;
   } ;
   if ((!pflag) && (!eflag)) {
-    test(".ANY(");
+    test("[");
     if (pflag) {
       while (!eflag) {
         ctxpush("CX1") ;
@@ -1573,17 +1244,9 @@ function ruleTX3(){
         ctxpop() ;
         if (!pflag) bkerr();
         if (eflag) break ;
-        test(")");
+        test("]");
         if (!pflag) bkerr();
         if (eflag) break ;
-        out("if (pflag) {") ;
-        stack[stackframe + 2] += 2 ;
-        eol() ;
-        out("if (tflag) match += inbuf.charAt(cursor) ;") ;
-        eol() ;
-        out("cursor++ } ;") ;
-        stack[stackframe + 2] -= 2 ;
-        eol() ;
         break }
     } ;
   } ;
@@ -1605,7 +1268,7 @@ function ruleTX3(){
         eol() ;
         out("ctxpop() ;") ;
         eol() ;
-        out("if (eflag) return ;") ;
+        out("if (ctx.eflag) return ;") ;
         eol() ;
         break }
     } ;
@@ -1629,9 +1292,7 @@ function ruleTX3(){
 
 // -------------------------- Character expressions ----------------------------
 function ruleCX1(){
-  out("pflag = ") ;
-  stack[stackframe + 2] += 2 ;
-  eol() ;
+  out("for ") ;
   if (true) {
     while (!eflag) {
       ctxpush("CX2") ;
@@ -1639,26 +1300,39 @@ function ruleCX1(){
       ctxpop() ;
       if (!pflag) bkerr();
       if (eflag) break ;
+      out(" || ") ;
       pflag = true ;
       while (pflag && !eflag) {
-        test("!");
+        ctxpush("CX2") ;
+        ruleCX2();
+        ctxpop() ;
         if (pflag) {
           while (!eflag) {
-            out(" ||") ;
-            eol() ;
-            ctxpush("CX2") ;
-            ruleCX2();
-            ctxpop() ;
-            if (!pflag) bkerr();
-            if (eflag) break ;
+            out(" || ") ;
             break }
+        } ;
+        if ((!pflag) && (!eflag)) {
+          out("false") ;
+          if (true) {
+            while (!eflag) {
+              break }
+          } ;
         } ;
       } ;
       pflag = !eflag ;
       if (!pflag) bkerr();
       if (eflag) break ;
+      out(" {") ;
+      stack[stackframe + 2] += 2 ;
+      eol() ;
+      out("ok = true") ;
+      eol() ;
+      out("match.Value += string(ctx.stdin[ctx.cursor])") ;
+      eol() ;
+      out("ctx.cursor++") ;
+      eol() ;
       stack[stackframe + 2] -= 2 ;
-      out(" ;") ;
+      out("}") ;
       eol() ;
       break }
   } ;
@@ -1670,30 +1344,29 @@ function ruleCX2(){
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
-      test(":");
+      test("-");
       if (pflag) {
         while (!eflag) {
-          out("((inbuf.charCodeAt(cursor) >= ") ;
+          out("(([]rune(ctx.stdin)[ctx.cursor] >= ") ;
           out(__SCOPE__.__MATCH__) ;
           out(") &&") ;
-          eol() ;
           ctxpush("CX3") ;
           ruleCX3();
           ctxpop() ;
           if (!pflag) bkerr();
           if (eflag) break ;
-          out(" (inbuf.charCodeAt(cursor) <= ") ;
+          out(" ([]rune(ctx.stdin)[ctx.cursor] <= ") ;
           out(__SCOPE__.__MATCH__) ;
-          out(")  )") ;
+          out("))") ;
           break }
       } ;
       if ((!pflag) && (!eflag)) {
         pflag = true ;
         if (pflag) {
           while (!eflag) {
-            out("(inbuf.charCodeAt(cursor) == ") ;
+            out("([]rune(ctx.stdin)[ctx.cursor] == ") ;
             out(__SCOPE__.__MATCH__) ;
-            out(") ") ;
+            out(")") ;
             break }
         } ;
       } ;
@@ -1704,29 +1377,26 @@ function ruleCX2(){
 }
 
 function ruleCX3(){
-  ctxpush("NUMBER") ;
-  ruleNUMBER();
+  ctxpush("SQUOTE") ;
+  ruleSQUOTE();
   ctxpop() ;
   if (pflag) {
     while (!eflag) {
+      __SCOPE__.__MATCH__ = inbuf.charCodeAt(__SCOPE__.__CURSOR__) ;
+      __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
+      __SCOPE__.__CURSOR__++ ;
+      if (!pflag) bkerr();
+      if (eflag) break ;
       break }
-  } ;
-  if ((!pflag) && (!eflag)) {
-    ctxpush("SQUOTE") ;
-    ruleSQUOTE();
-    ctxpop() ;
-    if (pflag) {
-      while (!eflag) {
-        __SCOPE__.__MATCH__ = inbuf.charCodeAt(__SCOPE__.__CURSOR__) ;
-        __SCOPE__.__MATCHES__.push(__SCOPE__.__MATCH__);
-        __SCOPE__.__CURSOR__++ ;
-        if (!pflag) bkerr();
-        if (eflag) break ;
-        break }
-    } ;
   } ;
 }
 
+// [A-Za-z_$]+
+// i := 0
+// for char >= "A" && char <= "Z" || char >= "a" && char <= "z" || char == "_" || char == "$" {
+// 	match.Value += char;
+// }
+// pflag = len(match.Value) > 0
 function rulePREFIX() {
   pflag = true ;
   while (pflag) {

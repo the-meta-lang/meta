@@ -1,0 +1,199 @@
+//  @author Letsmoe
+//  @email moritz.utcke@gmx.de
+//  @create date 2024-09-25 16:14:01
+//  @modify date 2024-09-25 16:14:01
+//  @desc The syntax definition of the META Compiler writing language.
+//  - pflag: Indicates if the last parse rule succeeded.
+//  - eflag: Indicates if the last parse rule encountered an error.
+.SYNTAX PROGRAM
+
+// body of compiler definition 
+PROGRAM = $(
+	ENTRY_RULE
+	| PARSE_RULE
+	| TOKEN_RULE
+	| IGNORE_RULE
+	| COMMENT
+);
+
+ENTRY_RULE = "entry" ID ";"
+	->("func compile(input string) Match {" .NL)
+	->("var ok bool" .NL)
+	->("var match Match" .NL)
+	->("var program []Match" .NL)
+	->("ctx := Context{" .NL)
+	->("stdin:  input," .NL)
+	->("stdout: os.Stdout," .NL)
+	->("stderr: os.Stderr," .NL)
+	->("cursor: 0," .NL)
+	->("}" .NL)
+	->("ok, match = _" * "(&ctx)" .NL)
+	->("program = append(program, match)" .NL)
+	->("if !ok {" .NL)
+	->("error(&ctx, " 34 "Failed to parse program" 34 ")" .NL)
+	->("}" .NL)
+	->("return match" .NL)
+	->("}" .NL)
+	->("func main() {" .NL)
+	->("buffer := make([]byte, 1024)" .NL)
+	->("n, _ := os.Open(" 34 "input.txt" 34 ")" .NL)
+	->("n.Read(buffer)" .NL)
+	->("compile(string(buffer))" .NL)
+	->("}" .NL);
+
+IGNORE_RULE = "ignore" TX1 ";";
+
+// parsing rule definition 
+// @example PARSE_RULE<argument, argument2>
+PARSE_RULE = "rule" ID ->("func _" *) (
+	("(" ->("(ctx *Context,") PARSE_RULE_ARGUMENT_DEFINITION_LIST ")" ->(") (bool, Match)"))
+	| (.EMPTY ->("(ctx *Context) (bool, Match)"))
+	)
+	->("{" .LM+ .NL)
+	->("var match Match" .NL)
+	->("var ok bool" .NL)
+	->("var matches []Match" .NL)
+	"=" EX1 ";"
+	->("return ok, match" .NL)
+	->(.LM- "}" .NL .NL) ;
+
+// token rule definition 
+TOKEN_RULE = "token" ID ->("func _" * "(ctx *Context) (bool, Match) {" .LM+ .NL)
+		->("var match Match" .NL)
+		->("var ok bool" .NL)
+		"=" TX1 ";"
+		->("return ok, match" .NL)
+		->(.LM- "}" .NL .NL) ;
+
+// comment definition
+COMMENT = "//" CMLINE ->("//" * .NL) ;
+
+// --------------------------- Parsing expressions -----------------------------
+EX1 = EX2 $("|" ->("if !ok {" .LM+ .NL)
+                EX2
+                ->(.LM- "} ;" .NL) ) ;
+
+EX2 = (EX3 ->("if ok {" .LM+ .NL)
+				| OUTPUT ->("if true {" .LM+ .NL))
+			->("for !ctx.eflag {" .LM+ .NL)
+      $(EX3 ->("if !ok {bkerr()}" .NL)
+            ->("if ctx.eflag {break}" .NL)
+				| OUTPUT)
+      ->("break }" .LM- .NL)
+      ->(.LM- "}" .NL);
+
+EX3 = ID
+				->("ok, match = _" * "(ctx,") (("{" PARSE_RULE_ARGUMENT_LIST "}") | .EMPTY) ->(");" .NL)
+				->("matches = append(matches, match)" .NL)
+		| STRING
+			->("ok, match = test(ctx, " 34 * 34 ");" .NL)
+			->("matches = append(matches, match)" .NL)
+		| "(" EX1 ")"                            
+		| ".EMPTY"  ->("ok = true" .NL)
+		| ".LITCHR"
+				->("match = ctx.stdin.charCodeAt(cursor) ;" .NL)
+				->("cursor++ ;" .NL)
+		| ".PASS"   ->("ctx.cursor = 0" .NL)
+		| "$" ->("ok = true" .NL)
+          ->("for ok && !ctx.eflag {" .LM+ .NL)
+          EX3 
+          ->(.LM- "}" .NL)
+          ->("ok = !ctx.eflag ;" .NL)
+		| "{" ->("bkset() ;" .NL) EX1
+        $("/" ->("if (!pflag) {" .LM+ .NL)
+							->("if (ctx.eflag) bkrestore() ;" .NL)
+                EX1
+              ->(.LM- "} ;" .NL))
+      "}" ->("if (ctx.eflag) bkrestore() ;" .NL)
+          ->("bkclear() ;" .NL)
+		| COMMENT;
+
+// ------------------------- Parsing Rule Arguments ----------------------------
+
+PARSE_RULE_ARGUMENT_LIST = PARSE_RULE_ARGUMENT ->(*) $(PARSE_RULE_ARGUMENT ->(", " *));
+
+PARSE_RULE_ARGUMENT = (ID | RAWSTRING | NUMBER);
+
+// Matches an argument passed to a match rule as a parameter.
+PARSE_RULE_ARGUMENT_DEFINITION = ID ->(*) ((":" TYPE ->("/*" ":" * "*/")) | .EMPTY) (("=" (ID | RAWSTRING | NUMBER) ->(" = " *)) | .EMPTY);
+PARSE_RULE_ARGUMENT_DEFINITION_LIST = PARSE_RULE_ARGUMENT_DEFINITION $(PARSE_RULE_ARGUMENT_DEFINITION);
+
+// --------------------------- Output expressions ------------------------------
+OUTPUT = "->" "{" $OUT1 "}" ;
+
+OUT1 = "$" (NUMBER
+				->("fmt.Print(matches[" * "].Value)" .NL) | .EMPTY
+				->("fmt.Print(matches[len(matches) - 1].Value)" .NL))
+			| ID
+				->("fmt.Print(" * ");" .NL)
+			| STRING
+				->("fmt.Print(" 34 * 34 ") ;" .NL)
+			| NUMBER
+				->("fmt.Print(string(rune(" * "))) ;" .NL)
+			| ".NL"
+				->("fmt.Print('\n') ;" .NL)
+			| ".TB"
+				->("fmt.Print('\t') ;" .NL);
+
+// ---------------------------- Token expressions ------------------------------
+TX1 = TX2 $("|" ->("if (!pflag) {" .LM+ .NL) TX2 ->(.LM- "} ;" .NL) ) ;
+
+TX2 = TX3
+      $(TX3);
+
+TX3 = (".TOKEN"  ->("tflag = true ; " .NL)
+			->("match = " 34 34 " ;" .NL)
+		| ".DELTOK"
+			->("tflag = false ;" .NL)
+		| "$" ->("pflag = true ;" .NL)
+			->("while (pflag) {" .LM+ .NL)
+				TX3
+			->(.LM- "};" .NL))
+			->("pflag = true ;" .NL)
+		| ".ANYBUT(" CX1 ")" 
+			->("pflag = !pflag ;" .NL) 
+			->("if (pflag) {" .LM+ .NL)
+			->("match.Value += string(ctx.stdin[ctx.cursor])" .NL)
+			->("ctx.cursor++ } ;" .LM- .NL)
+		| "[" CX1 "]"
+		| ID                 
+			->("ctxpush(" 34 * 34 ") ;" .NL)
+			->("_" * "() ;" .NL)
+			->("ctxpop() ;" .NL)
+			->("if (ctx.eflag) return ;" .NL)
+		| "(" TX1 ")";
+
+// -------------------------- Character expressions ----------------------------
+CX1 = ->("for ")
+      CX2 ->(" || ") $(CX2 ->(" || ") | ->("false"))
+			->(" {" .LM+ .NL)
+			->("ok = true" .NL)
+			->("match.Value += string(ctx.stdin[ctx.cursor])" .NL)
+			->("ctx.cursor++" .NL)
+			->(.LM- "}" .NL);
+CX2 = CX3 ("-" ->("(([]rune(ctx.stdin)[ctx.cursor] >= " * ") &&")
+					CX3
+					->(" ([]rune(ctx.stdin)[ctx.cursor] <= " * "))")
+				| .EMPTY ->("([]rune(ctx.stdin)[ctx.cursor] == " * ")"));
+CX3 = SQUOTE .LITCHR;
+
+// [A-Za-z_$]+
+// i := 0
+// for char >= "A" && char <= "Z" || char >= "a" && char <= "z" || char == "_" || char == "$" {
+// 	match.Value += char;
+// }
+// pflag = len(match.Value) > 0
+
+.TOKENS
+
+PREFIX : $.ANY(32!9!13!10) ;
+ID     : PREFIX .TOKEN ALPHA $(ALPHA/DIGIT) .DELTOK ;
+NUMBER : PREFIX .TOKEN $.ANY('-) DIGIT $DIGIT .DELTOK ;
+STRING : PREFIX .ANY(34) .TOKEN $.ANYBUT(13!10!34) .DELTOK .ANY(34) ;
+RAWSTRING : PREFIX .TOKEN .ANY(34) $.ANYBUT(13!10!34) .ANY(34) .DELTOK;
+ALPHA  : .ANY('A:'Z!'a:'z!'_) ;
+DIGIT  : .ANY('0:'9) ;
+SQUOTE : PREFIX .ANY('') ;
+CMLINE : .TOKEN $.ANYBUT(10!13) .DELTOK ;
+
+.END

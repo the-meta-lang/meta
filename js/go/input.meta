@@ -1,0 +1,48 @@
+entry program;
+
+program = (
+	entry_rule
+	| parse_rule
+	| token_rule
+	| ignore_rule
+	| comment
+)*;
+
+
+// entry_rule = "entry" _ id _? ";"
+// 	->{`func compile(input string) Match {
+// 		var ok bool
+// 		var match Match
+// 		var program []Match
+// 		ctx := Context{
+// 			stdin:  input,
+// 			stdout: os.Stdout,
+// 			stderr: os.Stderr,
+// 			cursor: 0,
+// 		}
+// 		ok, match = _" * "(&ctx)
+// 		program = append(program, match)
+// 		if !ok {
+// 			error(&ctx, "Failed to parse program")
+// 		}
+// 		return match
+// 	}
+	
+// 	func main() {
+// 		buffer := make([]byte, 1024)
+// 		n, _ := os.Open("input.txt")
+// 		n.Read(buffer)
+// 		compile(string(buffer))
+// 	}`};
+
+// ignore_rule = "ignore" _ tx1 _? ";";
+
+token _ = [ \t]+;
+token id = alpha (alpha | digit)*;
+token number = [\-]+ digit+;
+token string = ["][^\n\r"]["];
+token multiline_string = [`][^`][`];
+token alpha = [A-Za-z_$];
+token digit = [0-9];
+token squote = ['];
+token cmline = [^\n\r];

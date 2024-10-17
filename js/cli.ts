@@ -28,9 +28,9 @@ program.command("compile")
 		return new Promise((resolve, reject) => {
 			import(file).then(async (module) => {
 				console.log(`Running compiled program (${i + 1})...`);
-				const { outbuf: result, eflag: error, inbuf: input, erule, inp: loc, parsetree, __SCOPE__, stack} = module.compile(meta)
+				const { outbuf: result, eflag, inbuf: input, erule, inp: loc, parsetree, __SCOPE__, stack} = module.compile(meta)
 	
-				if (error) {
+				if (eflag) {
 						error("Compilation failed: " + file);
 						// Highlight the line where it failed
 	
@@ -70,9 +70,9 @@ program.command("test")
 	const { compile } = await import(join(cwd, compiler));
 	const grammarFile = readFileSync(join(cwd, grammar), "utf-8");
 
-	const { outbuf: result, eflag: error, inbuf: inputBuffer, erule, inp: loc, parsetree, __SCOPE__, stack} = compile(grammarFile);
+	const { outbuf: result, eflag, inbuf: inputBuffer, erule, inp: loc, parsetree, __SCOPE__, stack} = compile(grammarFile);
 
-	if (error) {
+	if (eflag) {
 		console.error("Compilation failed: " + compiler);
 		// Highlight the line where it failed
 
@@ -117,7 +117,7 @@ function notice(str: string) {
 }
 
 function error(str: string) {
-	error(`\x1b[1mmetax\x1b[0m \x1b[31merror\x1b[0m ${str}`);
+	console.error(`\x1b[1mmetax\x1b[0m \x1b[31merror\x1b[0m ${str}`);
 }
 
 function success(str: string) {
