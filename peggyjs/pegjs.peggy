@@ -22,7 +22,7 @@
 // ---- Syntactic Grammar -----
 
 Grammar
-  = imports:ImportDeclarations topLevelInitializer:(__ @TopLevelInitializer)? initializer:(__ @Initializer)? __ rules:(@Rule __)+ {
+  = imports:ImportDeclarations topLevelInitializer:(__ @TopLevelInitializer)? initializer:(__ @Initializer)? __ rules:(@Rule __)* {
       return {
         type: "grammar",
         imports,
@@ -37,7 +37,7 @@ Grammar
 
 // Alternate entry point to split JS into imports and not-imports.
 ImportsAndSource
-  = imports:ImportsAsText body:GrammarBody {
+  = imports:ImportsAsText body:GrammarBody? {
     return [imports, body];
   }
 

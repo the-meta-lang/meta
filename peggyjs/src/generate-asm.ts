@@ -79,6 +79,14 @@ type Repeated = {
 	delimiter: null,
 }
 
+type Action = {
+	type: "action",
+	expression: Expression,
+	location: Location,
+	codeLocation: Location,
+	code: string
+}
+
 type Variable = {
 	type: "variable",
 	value: string,
@@ -93,8 +101,9 @@ const visitors = {
 		expression: Expression,
 		location: Location
 	}) {
-		label(`${node.name}`)
+		out(`function meta$${node.name}() {`)
 		visit(node.expression.type, node.expression)
+		out(`}`)
 	},
 	one_or_more(node: OneOrMore) {
 
@@ -103,9 +112,9 @@ const visitors = {
 		visitChildren(node.elements)
 	},
 	choice(node: Choice) {
+		console.log(node.alternatives);
+		
 		visitChildren(node.alternatives)
-		out("cmp eax, 0")
-		out("jne")
 	},
 	class(node: Class) {
 
@@ -126,6 +135,9 @@ const visitors = {
 		
 	},
 	variable(node: Variable) {
+
+	},
+	action(node: Action) {
 
 	}
 }

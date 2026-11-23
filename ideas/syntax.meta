@@ -1,0 +1,101 @@
+import * from "stdlib.meta";
+import * as ast from "stdlib/ast.meta";
+import * as sem from "stdlib/semantics.meta";
+import * as ir from "stdlib/ir.meta";
+
+passes {
+    ast_build;
+    ir_gen requires ast_build;
+}
+
+// Defines the entry point of the parsing process.
+entry expression;
+
+rule expression
+	= head:term tail:(_ ("+" | "-") _ term)* {
+		// head is a node specified as
+		// struct ast.ASTNode {
+		//	location: {
+		//		start: int64;
+		//		end: int64;
+		//	}
+		//	value: any;
+		//	raw: string;
+		//	kind: string;
+		//	children: ast.ASTNode[];
+		// }
+		@ast_build {
+			// As BinaryOpNode(operator: string, left: ast.ASTNode, right: ast.ASTNode, location: Location, raw: string)
+			// tail looks as follows: [whitespace, "+" | "-", whitespace, term][]
+			// location is taken from self which points to the entire current match from head to tail.
+			let node = head; // or 'left' for term
+	    for (r in tail) { // or 'right' for term
+	        node = ast.BinaryOpNode(r[1], node, r[3], self.location);
+	    }
+	    return node;
+		}
+
+		@ir_gen {
+			// Generate IR code for the expression
+			let current_ir = head;
+			for (t in tail) {
+				let right_ir = r[3];
+				if (r[1] == "+") {
+				 	current_ir = ir.BinaryOp(ir.BinaryOpType.Add, current_ir, right_ir, self.location);
+				} elif (r[1] == "-") {
+					current_ir = ir.BinaryOp(ir.BinaryOpType.Subtract, current_ir, right_ir, self.location);
+				} else {
+					// Should not happen
+					throw std.UnknownError("Unknown operator {r[1]} in expression", self.location);
+				}
+			}
+			return current_ir;
+		}
+	}
+
+rule term
+	= left:factor right:(_ ("*" | "/") _ factor)* {
+		@ast_build {
+			let node = left;
+	    for (r in right) {
+	        node = ast.BinaryOpNode(r[1], node, r[3], self.location);
+	    }
+	    return node;
+		}
+
+		@ir_gen {
+			let current_ir = left;
+			for (r in right) {
+				let right_ir = r[3];
+				if (r[1] == "*") {
+				 	current_ir = ir.BinaryOp(ir.BinaryOpType.Multiply, current_ir, right_ir, self.location);
+				} elif (r[1] == "/") {
+					current_ir = ir.BinaryOp(ir.BinaryOpType.Divide, current_ir, right_ir, self.location);
+				} else {
+					// Should not happen
+					throw std.UnknownError("Unknown operator {r[1]} in term", self.location);
+				}
+			}
+			return current_ir;
+		}
+	}
+
+rule factor
+	// Anything prefixed with @ is treated as a sub-rule which doesn't need immediate processing.
+	// Passes can still be overwritten for it but usually it just inherits the passes of it's respective rule.
+	= "(" _ @expression _ ")"
+	| @integer
+
+rule integer "integer"
+	= _ value:[0-9]+ {
+		@ast_build {
+			return ast.IntegerNode(int(value), self.location);
+		}
+
+		@ir_gen {
+			return ir.Integer(self.value, self.location);
+		}
+	}
+
+rule _ "whitespace"
+	= [ \t\n\r]*

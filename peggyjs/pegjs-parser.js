@@ -896,29 +896,20 @@ function peg$parse(input, options) {
       peg$currPos = s6;
       s6 = peg$FAILED;
     }
-    if (s6 !== peg$FAILED) {
-      while (s6 !== peg$FAILED) {
-        s5.push(s6);
-        s6 = peg$currPos;
-        s7 = peg$parseRule();
-        if (s7 !== peg$FAILED) {
-          s8 = peg$parse__();
-          s6 = s7;
-        } else {
-          peg$currPos = s6;
-          s6 = peg$FAILED;
-        }
+    while (s6 !== peg$FAILED) {
+      s5.push(s6);
+      s6 = peg$currPos;
+      s7 = peg$parseRule();
+      if (s7 !== peg$FAILED) {
+        s8 = peg$parse__();
+        s6 = s7;
+      } else {
+        peg$currPos = s6;
+        s6 = peg$FAILED;
       }
-    } else {
-      s5 = peg$FAILED;
     }
-    if (s5 !== peg$FAILED) {
-      peg$savedPos = s0;
-      s0 = peg$f0(s1, s2, s3, s5);
-    } else {
-      peg$currPos = s0;
-      s0 = peg$FAILED;
-    }
+    peg$savedPos = s0;
+    s0 = peg$f0(s1, s2, s3, s5);
 
     if (s0 !== peg$FAILED) {
       peg$tracer.trace({
